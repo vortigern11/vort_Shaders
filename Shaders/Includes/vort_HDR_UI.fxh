@@ -54,36 +54,28 @@
     #define V_SHOW_ONLY_HDR_COLORS 0
 #endif
 
+#ifndef V_USE_TONEMAP
+    #define V_USE_TONEMAP 1
+#endif
+
 #if IS_SRGB
-    #define CAT_TONEMAP "Tonemap"
+    #define CAT_TONEMAP "Tonemapping"
 
-    UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "The function on which tonemapping is based", "Lottes\0ACES\0", 1)
-    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Lower values increase the color range, but can introduce clipping.", 1.001, 1.5, 1.05)
-#endif
+    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the inverse tonemap", 1.0, 1.5, 1.05)
 
-#define CAT_COL_STUDIO "Color Studio"
-
-#if V_USE_AUTO_EXPOSURE
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_AutoExpAdaptTime, "Exposure Adaption Time", "Higher values equal longer adaption time", 0.0, 1.0, 0.9)
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_AutoExpMinAvg, "Exposure Min Average", "The minimum value used for the averaging of the scene", 0.0, 0.5, 0.07)
-#endif
-
-UI_FLOAT(CAT_COL_STUDIO, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 1.5)
-
-#if V_ENABLE_COLOR_GRADING
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_WBTemp, "White Balance Temp", "Changes the temp of the whites.", -0.5, 0.5, 0.0)
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_WBTint, "White Balance Tint", "Changes the tint of the whites.", -0.5, 0.5, 0.0)
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_Saturation, "Saturation", "Changes the saturation of the image", -1.0, 1.0, 0.0)
-    UI_FLOAT(CAT_COL_STUDIO, UI_CC_Contrast, "Contrast", "Changes the contrast of the image", -1.0, 1.0, 0.0)
-    UI_COLOR(CAT_COL_STUDIO, UI_CC_Lift, "Lift(Shadows)", "Change the color of the shadows.", 0.0, 1.0, 0.5)
-    UI_COLOR(CAT_COL_STUDIO, UI_CC_Gamma, "Gamma(Midtones)", "Change the color of the midtones.", 0.0, 1.0, 0.5)
-    UI_COLOR(CAT_COL_STUDIO, UI_CC_Gain, "Gain(Highlights)", "Changes the color of the highlights.", 0.0, 1.0, 0.5)
+    #if V_USE_AUTO_EXPOSURE
+        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpAdaptTime, "Exposure Adaption Time", "Higher values equal longer adaption time", 0.0, 1.0, 0.9)
+        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMin, "Exposure Min Value", "The min value used for the averaging of the scene", 0.0, 0.5, 0.025)
+        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMax, "Exposure Max Value", "The max value used for the averaging of the scene", 0.0, 1.0, 0.100)
+    #else
+        UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
+    #endif
 #endif
 
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.15)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.05)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_DitherStrength, "Dither Strength", "How much noise to add.", 0.0, 1.0, 0.05)
 #endif
@@ -96,6 +88,34 @@ UI_FLOAT(CAT_COL_STUDIO, UI_CC_ManualExp, "Manual Exposure", "Changes the exposu
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 1.0, 0.8)
     UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Unsharpening Strength", "Controls the unsharpness strength.", 0.0, 1.0, 1.0)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "When to switch from sharpening to unsharpening", 0.0, 1.0, 0.1)
+#endif
+
+#if V_ENABLE_COLOR_GRADING
+    #define CAT_CC "Color Grading"
+
+    UI_FLOAT(CAT_CC, UI_CC_WBTemp, "White Balance Temp", "Changes the temp of the whites.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_WBTint, "White Balance Tint", "Changes the tint of the whites.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_Contrast, "Contrast", "Changes the contrast of the image", -1.0, 1.0, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_Saturation, "Saturation", "Changes the saturation of all colors", -1.0, 1.0, 0.0)
+    UI_COLOR(CAT_CC, UI_CC_ColorFilter, "Color Filter", "Multiplies every color by this color", 1.0);
+    UI_COLOR(CAT_CC, UI_CC_RGBMixerRed, "RGB Mixer Red", "Modifies the reds", float3(0.75, 0.5, 0.5))
+    UI_COLOR(CAT_CC, UI_CC_RGBMixerGreen, "RGB Mixer Green", "Modifies the greens", float3(0.5, 0.75, 0.5))
+    UI_COLOR(CAT_CC, UI_CC_RGBMixerBlue, "RGB Mixer Blue", "Modifies the blues", float3(0.5, 0.5, 0.75))
+
+    UI_FLOAT(CAT_CC, UI_CC_LiftStrength, "Lift Strength", "Modifies the strength of the lift sliders", 0.0, 2.0, 1.0)
+    UI_FLOAT(CAT_CC, UI_CC_GammaStrength, "Gamma Strength", "Modifies the strength of the gamma sliders", 0.0, 2.0, 1.0)
+    UI_FLOAT(CAT_CC, UI_CC_GainStrength, "Gain Strength", "Modifies the strength of the gain sliders", 0.0, 2.0, 1.0)
+    UI_FLOAT(CAT_CC, UI_CC_OffsetStrength, "Offset Strength", "Modifies the strength of the offset sliders", 0.0, 2.0, 1.0)
+
+    UI_COLOR(CAT_CC, UI_CC_LiftColor, "Lift Color", "Changes the color of the shadows mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_GammaColor, "Gamma Color", "Changes the color of the midtones mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_GainColor, "Gain Color", "Changes the color of the highlights mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_OffsetColor, "Offset Color", "Changes the color of the whole curve.", 0.5)
+
+    UI_FLOAT(CAT_CC, UI_CC_LiftLumi, "Lift Luminance", "Changes the luminance of the shadows mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_GammaLumi, "Gamma Luminance", "Change the luminance of the midtones mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_GainLumi, "Gain Luminance", "Changes the luminance of the highlights mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_OffsetLumi, "Offset Luminance", "Changes the luminance of whole curve.", -0.5, 0.5, 0.0)
 #endif
 
 UI_HELP(
@@ -123,4 +143,7 @@ _vort_HDR_Help_,
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
+"\n"
+"V_USE_TONEMAP - 0 or 1\n"
+"If 1, ACES tonemapping is used\n"
 )

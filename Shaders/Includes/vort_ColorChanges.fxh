@@ -24,8 +24,11 @@
     DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-// Tonemapping graph at https://www.desmos.com/calculator/zzyoklvamb
-// Averaging for auto exposure is from author papadanku
+/* TODO:
+- add more color stuff like hue shifting
+- add more tonemappers
+- implement Hald CLUTs
+*/
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
@@ -36,6 +39,7 @@
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_ExpTex.fxh"
+#include "Includes/vort_ACES.fxh"
 
 namespace ColorChanges {
 
@@ -51,9 +55,41 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-static const float3x3 BT709_TO_AP1 = float3x3(0.6130973, 0.3395229, 0.0473793, 0.0701942, 0.9163556, 0.0134526, 0.0206156, 0.1095698, 0.8698151);
-static const float3x3 AP1_TO_RRT_SAT = float3x3(0.9708890, 0.0269633, 0.00214758, 0.0108892, 0.9869630, 0.00214758, 0.0108892, 0.0269633, 0.96214800);
-static const float3x3 ODT_SAT_TO_BT709 = float3x3(1.60475, -0.53108, -0.07367, -0.10208,  1.10813, -0.00605, -0.00327, -0.07276,  1.07602);
+#define USE_ACES IS_SRGB && V_USE_TONEMAP == 1
+
+#if USE_ACES
+    #define LINEAR_MIN FLOAT_MIN
+    #define LINEAR_MAX FLOAT_MAX
+#elif IS_SRGB
+    #define LINEAR_MIN 0.0
+    #define LINEAR_MAX 1.0
+#elif IS_SCRGB
+    #define LINEAR_MIN -0.5
+    #define LINEAR_MAX (1e4 / V_HDR_WHITE_LVL)
+#elif IS_HDR_PQ
+    #define LINEAR_MIN 0.0
+    #define LINEAR_MAX (1e4 / V_HDR_WHITE_LVL)
+#elif IS_HDR_HLG
+    #define LINEAR_MIN 0.0
+    #define LINEAR_MAX (1e3 / V_HDR_WHITE_LVL)
+#else
+    #define LINEAR_MIN 0.0
+    #define LINEAR_MAX 1.0
+#endif
+
+#if USE_ACES
+    #define TO_LOG_CS(_x) ACEScgToACEScct(_x)
+    #define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
+    #define GET_LUMI(_x) RGBToACESLumi(_x)
+    #define LINEAR_MID_GRAY 0.18
+    #define LOG_MID_GRAY ACES_LOG_MID_GRAY
+#else
+    #define TO_LOG_CS(_x) LOG2(_x)
+    #define TO_LINEAR_CS(_x) exp2(_x)
+    #define GET_LUMI(_x) RGBToYCbCrLumi(_x)
+    #define LINEAR_MID_GRAY 0.18
+    #define LOG_MID_GRAY 0.18
+#endif
 
 /*******************************************************************************
     Functions
@@ -61,21 +97,46 @@ static const float3x3 ODT_SAT_TO_BT709 = float3x3(1.60475, -0.53108, -0.07367, -
 
 float3 LimitColor(float3 c)
 {
-#if IS_SRGB
-    // don't clamp ACES
-    c = UI_CC_Tonemapper == 1 ? c : max(0.0, c);
-#elif IS_SCRGB
-    c = clamp(c, -0.5, 1e4 / V_HDR_WHITE_LVL);
-#elif IS_HDR_PQ
-    c = clamp(c, 0.0, 1e4 / V_HDR_WHITE_LVL);
-#elif IS_HDR_HLG
-    c = clamp(c, 0.0, 1e3 / V_HDR_WHITE_LVL);
-#endif
-
-    return c;
+    return clamp(c, LINEAR_MIN, LINEAR_MAX);
 }
 
-#if IS_SRGB
+float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
+    static const float3x3 LIN_2_LMS_MAT = float3x3(
+        3.90405e-1, 5.49941e-1, 8.92632e-3,
+        7.08416e-2, 9.63172e-1, 1.35775e-3,
+        2.31082e-2, 1.28021e-1, 9.36245e-1
+    );
+
+    float3 lms = mul(LIN_2_LMS_MAT, col);
+
+    temp /= 0.6;
+    tint /= 0.6;
+
+    float x = 0.31271 - temp * (temp < 0 ? 0.1 : 0.05);
+    float y = 2.87 * x - 3 * x * x - 0.27509507 + tint * 0.05;
+
+    float X = x / y;
+    float Z = (1 - x - y) / y;
+
+    static const float3 w1 = float3(0.949237, 1.03542, 1.08728);
+
+    float3 w2 = float3(
+        0.7328 * X + 0.4296 - 0.1624 * Z,
+       -0.7036 * X + 1.6975 + 0.0061 * Z,
+        0.0030 * X + 0.0136 + 0.9834 * Z
+    );
+
+    lms *= w1 / w2;
+
+    static const float3x3 LMS_2_LIN_MAT = float3x3(
+        2.85847e+0, -1.62879e+0, -2.48910e-2,
+       -2.10182e-1,  1.15820e+0,  3.24281e-4,
+       -4.18120e-2, -1.18169e-1,  1.06867e+0
+    );
+
+    return mul(LMS_2_LIN_MAT, lms);
+}
+
 float3 InverseLottes(float3 c)
 {
     float k = max(1.001, UI_CC_LottesMod);
@@ -84,56 +145,10 @@ float3 InverseLottes(float3 c)
     return c * RCP(k - v);
 }
 
-float3 ApplyLottes(float3 c)
-{
-    float k = max(1.001, UI_CC_LottesMod);
-    float3 v = Max3(c.r, c.g, c.b);
-
-    return k * c * RCP(1.0 + v);
-}
-
-float3 InverseACESHill(float3 c)
-{
-    // LDR to HDR
-    c = InverseLottes(c);
-
-    // RGB(BT709) to ACEScg(AP1)
-    c = mul(BT709_TO_AP1, c);
-
-    return c;
-}
-
-float3 ApplyACESHill(float3 c)
-{
-    // apply RRT_SAT
-    c = mul(AP1_TO_RRT_SAT, c);
-
-    // apply RRT and ODT
-    c = (c * (c + 0.0245786) - 0.000090537) * RCP(c * (0.983729 * c + 0.4329510) + 0.238081);
-
-    // apply ODT_SAT -> XYZ -> D60_TO_D65 -> BT709
-    c = mul(ODT_SAT_TO_BT709, c);
-
-    return c;
-}
-
-float3 ACEScgToACEScct(float3 c)
-{
-    return c < 0.0078125 ? (10.5402377 * c + 0.0729055) : ((LOG2(c) + 9.72) / 17.52);
-}
-
-float3 ACEScctToACEScg(float3 c)
-{
-    return c > 0.1552511 ? exp2(c * 17.52 - 9.72) : ((c - 0.0729055) / 10.5402377);
-}
-
-#endif
-
-
 #if V_ENABLE_SHARPEN
 float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 {
-    float3 blurred = Filter13Taps(uv, samp, 0);
+    float3 blurred = Filter9Taps(uv, samp, 0);
     float3 sharp = RGBToYCbCrLumi(c - blurred);
     float depth = GetLinearizedDepth(uv);
     float limit = abs(dot(sharp, 0.3333));
@@ -152,37 +167,139 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 }
 #endif
 
-/*******************************************************************************
-    Shaders
-*******************************************************************************/
+#if V_ENABLE_COLOR_GRADING
+float3 ApplyColorGrading(float3 c)
+{
+    // white balance
+    c = ChangeWhiteBalance(c.rgb, UI_CC_WBTemp, UI_CC_WBTint);
+    c = LimitColor(c);
 
-void PS_Begin(PS_ARGS4) {
-    float3 c = Sample(sLDRTexVort, i.uv).rgb;
+    // color filter
+    c *= UI_CC_ColorFilter;
+    c = LimitColor(c);
 
+    // contrast in log space
+    float contrast = UI_CC_Contrast + 1.0;
+    c = TO_LOG_CS(c);
+    c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
+    c = TO_LINEAR_CS(c);
+    c = LimitColor(c);
+
+    // saturation
+    float lumi = GET_LUMI(c);
+    c = lerp(lumi.xxx, c, UI_CC_Saturation + 1.0);
+    c = LimitColor(c);
+
+    // RGB(channel) mixer
+    c = float3(
+            dot(c.rgb, UI_CC_RGBMixerRed.rgb * 4.0 - 2.0),
+            dot(c.rgb, UI_CC_RGBMixerGreen.rgb * 4.0 - 2.0),
+            dot(c.rgb, UI_CC_RGBMixerBlue.rgb * 4.0 - 2.0)
+            );
+    c = LimitColor(c);
+
+    // LGGO in log space
+    // My calculations were done in desmos: https://www.desmos.com/calculator/g9nhdxwhqd
+    c = TO_LOG_CS(c);
+
+    // affect the color and luminance seperately
+    float3 lift = UI_CC_LiftColor - GET_LUMI(UI_CC_LiftColor) + UI_CC_LiftLumi + 0.5;
+    float3 gamma = UI_CC_GammaColor - GET_LUMI(UI_CC_GammaColor) + UI_CC_GammaLumi + 0.5;
+    float3 gain = UI_CC_GainColor - GET_LUMI(UI_CC_GainColor) + UI_CC_GainLumi + 0.5;
+    float3 offset = UI_CC_OffsetColor - GET_LUMI(UI_CC_OffsetColor) + UI_CC_OffsetLumi + 0.5;
+
+    // do the scaling
+    lift = 1.0 - exp2((1.0 - 2.0 * lift) * (UI_CC_LiftStrength * 0.5));
+    gamma = exp2((1.0 - 2.0 * gamma) * UI_CC_GammaStrength);
+    gain = exp2((2.0 * gain - 1.0) * UI_CC_GainStrength);
+    offset = (offset - 0.5) * (UI_CC_OffsetStrength * 0.5);
+
+    // apply gamma (it is already inverted)
+    c = (c >= 0 && c <= 1.0) ? POW(c, gamma) : c;
+    // apply lift
+    c = (c <= 1) ? (c * (1.0 - lift) + lift) : c;
+    // apply gain
+    c = (c >= 0) ? (c * gain) : c;
+    // apply offset
+    c = c + offset;
+
+    c = TO_LINEAR_CS(c);
+    c = LimitColor(c);
+
+    return c;
+}
+#endif
+
+float3 ApplyStartProcessing(float3 c)
+{
     c = ApplyLinearCurve(c);
 
 #if IS_SRGB
     c = saturate(c);
 
-    switch (UI_CC_Tonemapper)
-    {
-        case 0: c = InverseLottes(c); break;
-        case 1: c = InverseACESHill(c); break;
-    }
+    #if USE_ACES
+        // instead of inversing ACES,
+        // use simple Lottes inverse tonemap
+        // and convert to AP1(ACEScg)
+        c = InverseLottes(c);
+        c = RGBToACEScg(c);
+    #endif
 #endif
 
-    o = float4(c, 1);
+    return c;
 }
+
+float3 ApplyEndProcessing(float3 c)
+{
+#if V_SHOW_ONLY_HDR_COLORS
+    c = !all(saturate(c - c * c)) ? 1.0 : 0.0;
+#elif IS_SRGB
+    #if V_USE_AUTO_EXPOSURE
+        float avg_for_exp = Sample(sExpTexVort, float2(0.5, 0.5), 8).x;
+
+        c = c >= 0 ? (c * exp2(LOG2(LINEAR_MID_GRAY * RCP(avg_for_exp)))) : c;
+        c = LimitColor(c);
+    #else
+        c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
+        c = LimitColor(c);
+    #endif
+
+    #if USE_ACES
+        c = ApplyACESFitted(c);
+    #endif
+
+    c = saturate(c);
+#endif
+
+    c = ApplyGammaCurve(c);
+
+    return c;
+}
+
+/*******************************************************************************
+    Shaders
+*******************************************************************************/
 
 #if V_USE_AUTO_EXPOSURE
 void PS_AutoExposure(PS_ARGS4)
 {
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
-    float3 avg = Max3(c.r, c.g, c.b).xxx;
+    c = clamp(c, UI_CC_AutoExpMin, UI_CC_AutoExpMax);
 
-    o = float4(max(UI_CC_AutoExpMinAvg, avg), UI_CC_AutoExpAdaptTime);
+    // Min3 works better when there are both very bright
+    // and very dark screen areas at the same time
+    float avg = Min3(c.r, c.g, c.b);
+
+    o = float4(avg.xxx, UI_CC_AutoExpAdaptTime);
 }
 #endif
+
+void PS_Start(PS_ARGS4) {
+    float3 c = Sample(sLDRTexVort, i.uv).rgb;
+
+    c = ApplyStartProcessing(c);
+    o = float4(c, 1);
+}
 
 void PS_End(PS_ARGS4)
 {
@@ -194,67 +311,11 @@ void PS_End(PS_ARGS4)
     c = LimitColor(c);
 #endif
 
-#if IS_SRGB && UI_CC_Tonemapper == 1
-    // convert to ACEScct before color grading
-    c = ACEScgToACEScct(c);
-#endif
-
-    // exposure
-#if V_USE_AUTO_EXPOSURE
-    float avg_for_exp = Sample(sExpTexVort, i.uv, 8).x;
-
-    // https://knarkowicz.wordpress.com/2016/01/09/automatic-exposure
-    c *= exp2(LOG2(0.18 * RCP(avg_for_exp)) + UI_CC_ManualExp);
-#else
-    c *= exp2(UI_CC_ManualExp);
-#endif
-    c = LimitColor(c);
-
 #if V_ENABLE_COLOR_GRADING
-    // white balance
-    c = ChangeWhiteBalance(c.rgb, UI_CC_WBTemp, UI_CC_WBTint);
-    c = LimitColor(c);
-
-    // saturation
-    c = lerp(RGBToYCbCrLumi(c), c, UI_CC_Saturation + 1.0);
-    c = LimitColor(c);
-
-    // contrast
-    c = sign(c) * exp2(lerp(0.18, LOG2(c), UI_CC_Contrast + 1.0));
-    c = LimitColor(c);
-
-    // lift(shadows), gamma(midtones), gain(highlights)
-    float avg_lift = dot(UI_CC_Lift, 0.3333);
-    float avg_gamma = dot(UI_CC_Gamma, 0.3333);
-    float avg_gain = dot(UI_CC_Gain, 0.3333);
-
-    // luminance offsets can be added, but who would need them?
-    float3 lift = UI_CC_Lift - avg_lift;
-    float3 gamma = UI_CC_Gamma - avg_gamma + 0.5;
-    float3 gain = UI_CC_Gain - avg_gain + 1.0;
-    float3 inv_gamma = LOG(gamma) * RCP(LOG((0.5 - lift) * RCP(gain - lift)));
-
-    c = sign(c) * POW(c * gain + lift, inv_gamma);
-    c = LimitColor(c);
+    c = ApplyColorGrading(c);
 #endif
 
-#if IS_SRGB && UI_CC_Tonemapper == 1
-    // convert to ACEScg after color grading
-    c = ACEScctToACEScg(c);
-#endif
-
-#if IS_SRGB && V_SHOW_ONLY_HDR_COLORS
-    c = !all(saturate(c - c * c)) ? 0.5 : 0;
-#elif IS_SRGB
-    switch (UI_CC_Tonemapper)
-    {
-        case 0: c = ApplyLottes(c); break;
-        case 1: c = ApplyACESHill(c); break;
-    }
-    c = saturate(c);
-#endif
-
-    c = ApplyLogarithmicCurve(c);
+    c = ApplyEndProcessing(c);
     o = float4(c, 1);
 }
 
@@ -262,13 +323,15 @@ void PS_End(PS_ARGS4)
     Passes
 *******************************************************************************/
 #define PASS_START \
-    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Begin; RenderTarget = CC_OUT_TEX; }
+    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Start; RenderTarget = CC_OUT_TEX; }
 
+// Averaging for auto exposure is from author papadanku
 #if V_USE_AUTO_EXPOSURE
     #define PASS_END \
         pass { \
             VertexShader = PostProcessVS; \
             PixelShader = ColorChanges::PS_AutoExposure; \
+            ClearRenderTargets = false; \
             BlendEnable = true; \
             BlendOp = ADD; \
             SrcBlend = INVSRCALPHA; \

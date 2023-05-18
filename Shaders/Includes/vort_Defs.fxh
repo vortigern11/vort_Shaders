@@ -36,6 +36,7 @@
 #define HALF_PI (1.5707963)
 #define DOUBLE_PI (6.2831853)
 #define FLOAT_MAX (65504.0)
+#define FLOAT_MIN (-65504.0)
 #define IS_SRGB (BUFFER_COLOR_SPACE == 1 || BUFFER_COLOR_SPACE == 0)
 #define IS_SCRGB (BUFFER_COLOR_SPACE == 2)
 #define IS_HDR_PQ (BUFFER_COLOR_SPACE == 3)
@@ -121,7 +122,7 @@ uniform uint FRAME_TIME < source = "frametime"; >;
 
 // works since REST addon v1.2.1
 #ifndef V_USE_HW_LIN
-    #define V_USE_HW_LIN 1
+    #define V_USE_HW_LIN 0
 #endif
 
 #if !IS_SRGB
@@ -191,12 +192,12 @@ uniform uint FRAME_TIME < source = "frametime"; >;
         ui_type = "combo"; \
     > = _default;
 
-#define UI_COLOR(_category, _name, _label, _descr, _min, _max, _default) \
+#define UI_COLOR(_category, _name, _label, _descr, _default) \
     uniform float3 _name < \
         ui_category = _category; \
         ui_label = _label; \
-        ui_min = _min; \
-        ui_max = _max; \
+        ui_min = 0.0; \
+        ui_max = 1.0; \
         ui_tooltip = _descr; \
         ui_step = 0.001; \
         ui_type = "color"; \
@@ -278,7 +279,7 @@ float3 PQToLin(float3 c, float white_lvl)
     static const float c3 = 2392.0 / 128.0;
 
     c = POW(c, 32.0 / 2523.0);
-    c = max(0.0, c - c1) * RCP(c2 - c3 * c);
+    c = max(c - c1, 0.0) * RCP(c2 - c3 * c);
 
     return POW(c, 8192.0 / 1305.0) * (1e4 / white_lvl);
 }
@@ -332,7 +333,7 @@ float3 ApplyLinearCurve(float3 c)
     return c;
 }
 
-float3 ApplyLogarithmicCurve(float3 c)
+float3 ApplyGammaCurve(float3 c)
 {
 #if IS_SRGB && (!IS_8BIT || !V_USE_HW_LIN)
     c = LinToSRGB(c);
@@ -522,45 +523,6 @@ float Min3(float a, float b, float c) { return min(a, min(b, c)); }
 float2 Min3(float2 a, float2 b, float2 c) { return min(a, min(b, c)); }
 float3 Min3(float3 a, float3 b, float3 c) { return min(a, min(b, c)); }
 float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
-
-float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
-    float t1 = temp / 0.6;
-    float t2 = tint / 0.6;
-
-    float x = 0.31271 - t1 * (t1 < 0 ? 0.1 : 0.05);
-    float standardIlluminantY = 2.87 * x - 3 * x * x - 0.27509507;
-    float y = standardIlluminantY + t2 * 0.05;
-
-    float3 w1 = float3(0.949237, 1.03542, 1.08728);
-
-    float Y = 1;
-    float X = Y * x / y;
-    float Z = Y * (1 - x - y) / y;
-    float L = 0.7328 * X + 0.4296 * Y - 0.1624 * Z;
-    float M = -0.7036 * X + 1.6975 * Y + 0.0061 * Z;
-    float S = 0.0030 * X + 0.0136 * Y + 0.9834 * Z;
-    float3 w2 = float3(L, M, S);
-
-    float3 balance = float3(w1.x / w2.x, w1.y / w2.y, w1.z / w2.z);
-
-    float3x3 LIN_2_LMS_MAT = float3x3(
-        float3(3.90405e-1, 5.49941e-1, 8.92632e-3),
-        float3(7.08416e-2, 9.63172e-1, 1.35775e-3),
-        float3(2.31082e-2, 1.28021e-1, 9.36245e-1)
-    );
-
-    float3x3 LMS_2_LIN_MAT = float3x3(
-        float3(2.85847e+0, -1.62879e+0, -2.48910e-2),
-        float3(-2.10182e-1,  1.15820e+0,  3.24281e-4),
-        float3(-4.18120e-2, -1.18169e-1,  1.06867e+0)
-    );
-
-    float3 lms = mul(LIN_2_LMS_MAT, col);
-
-    lms *= balance;
-
-    return mul(LMS_2_LIN_MAT, lms);
-}
 
 float GetNoise(float2 co)
 {

@@ -85,7 +85,7 @@ void PS_Blur(PS_ARGS4)
         color += GetColor(i.uv + motion * (float(j) + rand));
     }
 
-    o = float4(ApplyLogarithmicCurve(color * inv_samples), 1);
+    o = float4(ApplyGammaCurve(color * inv_samples), 1);
 }
 
 void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount); }
