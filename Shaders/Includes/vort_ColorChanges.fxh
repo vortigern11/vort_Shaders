@@ -194,26 +194,31 @@ float3 ApplyColorGrading(float3 c)
     float contrast = UI_CC_Contrast + 1.0;
     c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
 
-    // LGGO in log space
-    // My calculations were done in desmos: https://www.desmos.com/calculator/g9nhdxwhqd
+    // Shadows,Midtones,Highlights,Offset in log space
+    // My calculations were done in desmos: https://www.desmos.com/calculator/vvur0dzia9
 
     // affect the color and luminance seperately
-    float3 lift = UI_CC_LiftColor - GET_LUMI(UI_CC_LiftColor) + UI_CC_LiftLumi + 0.5;
-    float3 gamma = UI_CC_GammaColor - GET_LUMI(UI_CC_GammaColor) + UI_CC_GammaLumi + 0.5;
-    float3 gain = UI_CC_GainColor - GET_LUMI(UI_CC_GainColor) + UI_CC_GainLumi + 0.5;
+    float3 shadows = UI_CC_ShadowsColor - GET_LUMI(UI_CC_ShadowsColor) + UI_CC_ShadowsLumi + 0.5;
+    float3 midtones = UI_CC_MidtonesColor - GET_LUMI(UI_CC_MidtonesColor) + UI_CC_MidtonesLumi + 0.5;
+    float3 highlights = UI_CC_HighlightsColor - GET_LUMI(UI_CC_HighlightsColor) + UI_CC_HighlightsLumi + 0.5;
     float3 offset = UI_CC_OffsetColor - GET_LUMI(UI_CC_OffsetColor) + UI_CC_OffsetLumi + 0.5;
 
-    // do the scaling
-    lift = 1.0 - exp2((1.0 - 2.0 * lift) * (UI_CC_LiftStrength * 0.5));
-    gamma = exp2((1.0 - 2.0 * gamma) * UI_CC_GammaStrength);
-    gain = exp2((2.0 * gain - 1.0) * UI_CC_GainStrength);
-    offset = (offset - 0.5) * (UI_CC_OffsetStrength * 0.5);
+    static const float shadows_str = 0.5;
+    static const float midtones_str = 1.0;
+    static const float highlights_str = 1.0;
+    static const float offset_str = 0.5;
 
-    // apply gamma(pre-inverted), lift, gain, offset
-    c = (c >= 0 && c <= 1.0) ? POW(c, gamma) : c;
-    c = (c <= 1) ? (c * (1.0 - lift) + lift) : c;
-    c = (c >= 0) ? (c * gain) : c;
+    // do the scaling
+    shadows = 1.0 - exp2((1.0 - 2.0 * shadows) * shadows_str);
+    midtones = exp2((1.0 - 2.0 * midtones) * midtones_str);
+    highlights = exp2((2.0 * highlights - 1.0) * highlights_str);
+    offset = (offset - 0.5) * offset_str;
+
+    // apply shadows, highlights, offset, midtones
+    c = (c <= 1) ? (c * (1.0 - shadows) + shadows) : c;
+    c = (c >= 0) ? (c * highlights) : c;
     c = c + offset;
+    c = (c >= 0 && c <= 1.0) ? POW(c, midtones) : c;
 
     // end grading in log space
     c = TO_LINEAR_CS(c);
@@ -249,11 +254,10 @@ float3 ApplyEndProcessing(float3 c)
     #if V_USE_AUTO_EXPOSURE
         float avg_for_exp = Sample(sExpTexVort, float2(0.5, 0.5), 8).x;
 
-        c *= LINEAR_MID_GRAY * RCP(avg_for_exp);
+        c = c >= 0 ? (c * LINEAR_MID_GRAY * RCP(avg_for_exp)) : c;
+    #else
+        c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
     #endif
-
-    // manual exposure
-    c *= exp2(UI_CC_ManualExp);
 
     // clamp before tonemapping
     c = clamp(c, LINEAR_MIN, LINEAR_MAX);
