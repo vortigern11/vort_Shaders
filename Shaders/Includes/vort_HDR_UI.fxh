@@ -61,21 +61,21 @@
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
 
-    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the inverse tonemap", 1.0, 1.5, 1.05)
+    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the inverse tonemap", 1.0, 1.5, 1.025)
 
     #if V_USE_AUTO_EXPOSURE
         UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpAdaptTime, "Exposure Adaption Time", "Higher values equal longer adaption time", 0.0, 1.0, 0.9)
         UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMin, "Exposure Min Value", "The min value used for the averaging of the scene", 0.0, 0.5, 0.025)
         UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMax, "Exposure Max Value", "The max value used for the averaging of the scene", 0.0, 1.0, 0.100)
-    #else
-        UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
     #endif
+
+    UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
 #endif
 
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.05)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.1)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_DitherStrength, "Dither Strength", "How much noise to add.", 0.0, 1.0, 0.05)
 #endif
@@ -97,6 +97,7 @@
     UI_FLOAT(CAT_CC, UI_CC_WBTint, "White Balance Tint", "Changes the tint of the whites.", -0.5, 0.5, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_Contrast, "Contrast", "Changes the contrast of the image", -1.0, 1.0, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_Saturation, "Saturation", "Changes the saturation of all colors", -1.0, 1.0, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_HueShift, "Hue Shift", "Changes the hue of all colors", -0.5, 0.5, 0.0)
     UI_COLOR(CAT_CC, UI_CC_ColorFilter, "Color Filter", "Multiplies every color by this color", 1.0);
     UI_COLOR(CAT_CC, UI_CC_RGBMixerRed, "RGB Mixer Red", "Modifies the reds", float3(0.75, 0.5, 0.5))
     UI_COLOR(CAT_CC, UI_CC_RGBMixerGreen, "RGB Mixer Green", "Modifies the greens", float3(0.5, 0.75, 0.5))

@@ -167,8 +167,7 @@ float SegmentedSplineC5Fwd(float x)
         logy = C5_MAX_POINT_L10.y;
     }
 
-    // faster power of 10
-    return exp2(3.3219281 * logy);
+    return exp10(logy);
 }
 
 float SegmentedSplineC5Rev(float y)
@@ -234,8 +233,7 @@ float SegmentedSplineC5Rev(float y)
         logx = C5_MAX_POINT_L10.x;
     }
 
-    // faster power of 10
-    return exp2(3.3219281 * logx);
+    return exp10(logx);
 }
 
 float SegmentedSplineC9Fwd(float x)
@@ -282,8 +280,7 @@ float SegmentedSplineC9Fwd(float x)
         logy = (logx * 0.04) + C9_MAX_POINT_L10.y - (0.04 * C9_MAX_POINT_L10.x);
     }
 
-    // faster power of 10
-    return exp2(3.3219281 * logy);
+    return exp10(logy);
 }
 
 float SegmentedSplineC9Rev(float y)
@@ -352,8 +349,7 @@ float SegmentedSplineC9Rev(float y)
         logx = C9_MAX_POINT_L10.x;
     }
 
-    // faster power of 10
-    return exp2(3.3219281 * logx);
+    return exp10(logx);
 }
 
 float3 InverseACESFull(float3 c)

@@ -55,9 +55,10 @@ float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
 #define RSQRT(_x) (RCP(sqrt(_x)))
 #define NORMALIZE(_x) ((_x) * RSQRT(_x))
-#define LOG(_x) (log(max(EPSILON, abs(_x))))
-#define LOG2(_x) (log2(max(EPSILON, abs(_x))))
-#define LOG10(_x) (log10(max(EPSILON, abs(_x))))
+#define LOG(_x) (log(max(EPSILON, (_x))))
+#define LOG2(_x) (log2(max(EPSILON, (_x))))
+#define LOG10(_x) (log10(max(EPSILON, (_x))))
+#define exp10(_x) (exp2(3.3219281 * (_x)))
 
 #if !defined(__RESHADE__) || __RESHADE__ < 30000
     #error "ReShade 3.0+ is required to use this header file"
@@ -392,51 +393,22 @@ float3 YCbCrToRGB(float3 ycc)
     );
 }
 
-float3 RGBToHCV(float3 rgb)
+float3 RGBToHSV(float3 c)
 {
-    // Based on work by Sam Hocevar and Emil Persson
-    float4 p = rgb.g < rgb.b ?
-        float4(rgb.bg, float2(-1.0, 2.0 / 3.0)) :
-        float4(rgb.gb, float2(0, -1.0 / 3.0));
-    float4 q = rgb.r < p.x ? float4(p.xyw, rgb.r) : float4(rgb.r, p.yzx);
-    float c = q.x - min(q.w, q.y);
-    float h = abs((q.w - q.y) / (6.0 * c + EPSILON) + q.z);
+    static const float4 K = float4(0.0, (-1.0 / 3.0), (2.0 / 3.0), -1.0);
+    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
 
-    return float3(h, c, q.x);
+    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + EPSILON)), d / (q.x + EPSILON), q.x);
 }
 
-float3 HueToRGB(float h)
+float3 HSVToRGB(float3 c)
 {
-    return saturate(float3(
-        abs(h * 6.0 - 3.0) - 1.0,
-        2.0 - abs(h * 6.0 - 2.0),
-        2.0 - abs(h * 6.0 - 4.0)
-    ));
-}
+    static const float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
 
-float3 RGBToHSV(float3 rgb)
-{
-    float3 hcv = RGBToHCV(rgb);
-
-    return float3(hcv.x, hcv.y / (hcv.z + EPSILON), hcv.z);
-}
-
-float3 HSVToRGB(float3 hsv)
-{
-    return ((HueToRGB(hsv.x) - 1.0) * hsv.y + 1.0) * hsv.z;
-}
-
-float3 RGBToHSL(float3 rgb)
-{
-    float3 hcv = RGBToHCV(rgb);
-    float l = hcv.z - hcv.y * 0.5;
-
-    return float3(hcv.x, hcv.y / (1.0 - abs(l * 2.0 - 1.0) + EPSILON), l);
-}
-
-float3 HSLToRGB(float3 hsl)
-{
-    return (HueToRGB(hsl.x) - 0.5) * ((1.0 - abs(2.0 * hsl.z - 1.0)) * hsl.y) + hsl.z;
+    return c.z * lerp(K.xxx, saturate(p - K.xxx), c.y);
 }
 
 float3 RGBToXYZ(float3 col)

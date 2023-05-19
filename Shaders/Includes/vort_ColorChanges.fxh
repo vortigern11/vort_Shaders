@@ -95,11 +95,6 @@ namespace ColorChanges {
     Functions
 *******************************************************************************/
 
-float3 LimitColor(float3 c)
-{
-    return clamp(c, LINEAR_MIN, LINEAR_MAX);
-}
-
 float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
     static const float3x3 LIN_2_LMS_MAT = float3x3(
         3.90405e-1, 5.49941e-1, 8.92632e-3,
@@ -172,35 +167,35 @@ float3 ApplyColorGrading(float3 c)
 {
     // white balance
     c = ChangeWhiteBalance(c.rgb, UI_CC_WBTemp, UI_CC_WBTint);
-    c = LimitColor(c);
 
     // color filter
     c *= UI_CC_ColorFilter;
-    c = LimitColor(c);
-
-    // contrast in log space
-    float contrast = UI_CC_Contrast + 1.0;
-    c = TO_LOG_CS(c);
-    c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
-    c = TO_LINEAR_CS(c);
-    c = LimitColor(c);
 
     // saturation
     float lumi = GET_LUMI(c);
     c = lerp(lumi.xxx, c, UI_CC_Saturation + 1.0);
-    c = LimitColor(c);
 
     // RGB(channel) mixer
     c = float3(
-            dot(c.rgb, UI_CC_RGBMixerRed.rgb * 4.0 - 2.0),
-            dot(c.rgb, UI_CC_RGBMixerGreen.rgb * 4.0 - 2.0),
-            dot(c.rgb, UI_CC_RGBMixerBlue.rgb * 4.0 - 2.0)
-            );
-    c = LimitColor(c);
+        dot(c.rgb, UI_CC_RGBMixerRed.rgb * 4.0 - 2.0),
+        dot(c.rgb, UI_CC_RGBMixerGreen.rgb * 4.0 - 2.0),
+        dot(c.rgb, UI_CC_RGBMixerBlue.rgb * 4.0 - 2.0)
+    );
+
+    // Hue Shift
+    float3 hsv = RGBToHSV(c);
+    hsv.x = frac(hsv.x + UI_CC_HueShift);
+    c = HSVToRGB(hsv);
+
+    // start grading in log space
+    c = TO_LOG_CS(c);
+
+    // contrast in log space
+    float contrast = UI_CC_Contrast + 1.0;
+    c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
 
     // LGGO in log space
     // My calculations were done in desmos: https://www.desmos.com/calculator/g9nhdxwhqd
-    c = TO_LOG_CS(c);
 
     // affect the color and luminance seperately
     float3 lift = UI_CC_LiftColor - GET_LUMI(UI_CC_LiftColor) + UI_CC_LiftLumi + 0.5;
@@ -214,17 +209,14 @@ float3 ApplyColorGrading(float3 c)
     gain = exp2((2.0 * gain - 1.0) * UI_CC_GainStrength);
     offset = (offset - 0.5) * (UI_CC_OffsetStrength * 0.5);
 
-    // apply gamma (it is already inverted)
+    // apply gamma(pre-inverted), lift, gain, offset
     c = (c >= 0 && c <= 1.0) ? POW(c, gamma) : c;
-    // apply lift
     c = (c <= 1) ? (c * (1.0 - lift) + lift) : c;
-    // apply gain
     c = (c >= 0) ? (c * gain) : c;
-    // apply offset
     c = c + offset;
 
+    // end grading in log space
     c = TO_LINEAR_CS(c);
-    c = LimitColor(c);
 
     return c;
 }
@@ -257,12 +249,14 @@ float3 ApplyEndProcessing(float3 c)
     #if V_USE_AUTO_EXPOSURE
         float avg_for_exp = Sample(sExpTexVort, float2(0.5, 0.5), 8).x;
 
-        c = c >= 0 ? (c * exp2(LOG2(LINEAR_MID_GRAY * RCP(avg_for_exp)))) : c;
-        c = LimitColor(c);
-    #else
-        c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
-        c = LimitColor(c);
+        c *= LINEAR_MID_GRAY * RCP(avg_for_exp);
     #endif
+
+    // manual exposure
+    c *= exp2(UI_CC_ManualExp);
+
+    // clamp before tonemapping
+    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
     #if USE_ACES
         c = ApplyACESFitted(c);
@@ -304,11 +298,9 @@ void PS_Start(PS_ARGS4) {
 void PS_End(PS_ARGS4)
 {
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
-    c = LimitColor(c);
 
 #if V_ENABLE_SHARPEN
     c = ApplySharpen(c, CC_IN_SAMP, i.uv);
-    c = LimitColor(c);
 #endif
 
 #if V_ENABLE_COLOR_GRADING
