@@ -25,9 +25,24 @@
 *******************************************************************************/
 
 /* TODO:
-- add more color stuff like hue shifting
-- add more tonemappers
-- implement Hald CLUTs
+- add more tonemappers:
+    Agx -> https://github.com/MrLixm/AgXc/tree/main/reshade
+    Tony McMapface -> https://github.com/h3r2tic/tony-mc-mapface/tree/main
+
+- Move the inverse tonemap, tonemap and color grading to a LUTs
+
+- Useful links for applying LUTs:
+    https://www.lightillusion.com/what_are_luts.html
+    https://lut.tgratzer.com/
+    https://github.com/prod80/prod80-ReShade-Repository/blob/master/Shaders/PD80_02_LUT_Creator.fx
+    https://github.com/prod80/prod80-ReShade-Repository/blob/master/Shaders/PD80_LUT_v2.fxh
+    https://github.com/FransBouma/OtisFX/blob/master/Shaders/MultiLUT.fx
+
+- It is easier to install OCIO latest on Fedora using it's package manager
+- OpenColorIO (OCIO) links
+    https://opencolorio.readthedocs.io/en/latest/guides/using_ocio/using_ocio.html
+    https://opencolorio.readthedocs.io/en/latest/tutorials/baking_luts.html
+    https://help.maxon.net/c4d/en-us/Content/_REDSHIFT_/html/Compositing+with+ACES.html
 */
 
 #pragma once
