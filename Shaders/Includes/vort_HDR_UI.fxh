@@ -26,6 +26,10 @@
 
 #pragma once
 
+#ifndef V_USE_TONEMAP
+    #define V_USE_TONEMAP 2
+#endif
+
 #ifndef V_ENABLE_BLOOM
     #define V_ENABLE_BLOOM 1
 #endif
@@ -47,15 +51,11 @@
 #endif
 
 #ifndef V_USE_AUTO_EXPOSURE
-    #define V_USE_AUTO_EXPOSURE 1
+    #define V_USE_AUTO_EXPOSURE 0
 #endif
 
 #ifndef V_SHOW_ONLY_HDR_COLORS
     #define V_SHOW_ONLY_HDR_COLORS 0
-#endif
-
-#ifndef V_USE_TONEMAP
-    #define V_USE_TONEMAP 1
 #endif
 
 #if IS_SRGB
@@ -75,7 +75,7 @@
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.05)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.1)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_DitherStrength, "Dither Strength", "How much noise to add.", 0.0, 1.0, 0.05)
 #endif
@@ -116,30 +116,34 @@
 
 UI_HELP(
 _vort_HDR_Help_,
+"V_USE_TONEMAP - 0, 1 or 2\n"
+"0 for no tonemapping\n"
+"1 for ACES tonemapping\n"
+"2 for Lottes tonemapping\n"
+"\n"
 "V_ENABLE_BLOOM - 0 or 1\n"
-"Toggles the bloom effect.\n"
+"Toggle the bloom effect.\n"
 "\n"
 "V_ENABLE_SHARPEN - 0 or 1\n"
-"Toggless the sharpening and far blur.\n"
+"Toggle the sharpening and far blur.\n"
 "\n"
 "V_ENABLE_COLOR_GRADING - 0 or 1\n"
-"Toggless all the color granding effects\n"
+"Toggle all the color granding effects\n"
 "\n"
-"V_BLOOM_MANUAL_PASSES - from 2 to 9. Defaults to 8 for 1080p and 9 for 4K.\n"
+"V_BLOOM_MANUAL_PASSES - 0 or [2 - 9].
 "How many downsample/upsamples of the image to do in order to perform the bloom.\n"
+"At 0 defaults to 8 passes for 1080p and 9 for 4K resolution.\n"
 "\n"
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
 "\n"
 "V_USE_AUTO_EXPOSURE - 0 or 1\n"
-"Toggles the Auto-Exposure(Eye Adaption) effect\n"
+"Toggle the Auto-Exposure(Eye Adaption) effect\n"
 "\n"
 "V_SHOW_ONLY_HDR_COLORS - 0 or 1\n"
 "If 1, shows only the HDR colors before the tonemapping in gray\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
-"Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
-"\n"
-"V_USE_TONEMAP - 0 or 1\n"
-"If 1, ACES tonemapping is used\n"
+"Toggle hardware linearization (better performance).\n"
+"Disable if you use REST addon version older than 1.2.1\n"
 )

@@ -71,9 +71,13 @@ namespace ColorChanges {
 #endif
 
 #define USE_ACES IS_SRGB && V_USE_TONEMAP == 1
+#define USE_LOTTES IS_SRGB && V_USE_TONEMAP == 2
 
 #if USE_ACES
     #define LINEAR_MIN FLOAT_MIN
+    #define LINEAR_MAX FLOAT_MAX
+#elif USE_LOTTES
+    #define LINEAR_MIN 0.0
     #define LINEAR_MAX FLOAT_MAX
 #elif IS_SRGB
     #define LINEAR_MIN 0.0
@@ -145,6 +149,14 @@ float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
     );
 
     return mul(LMS_2_LIN_MAT, lms);
+}
+
+float3 ApplyLottes(float3 c)
+{
+    float k = max(1.001, UI_CC_LottesMod);
+    float3 v = Max3(c.r, c.g, c.b);
+
+    return k * c * RCP(1.0 + v);
 }
 
 float3 InverseLottes(float3 c)
@@ -255,6 +267,8 @@ float3 ApplyStartProcessing(float3 c)
         // and convert to AP1(ACEScg)
         c = InverseLottes(c);
         c = RGBToACEScg(c);
+    #elif USE_LOTTES
+        c = InverseLottes(c);
     #endif
 #endif
 
@@ -279,6 +293,8 @@ float3 ApplyEndProcessing(float3 c)
 
     #if USE_ACES
         c = ApplyACESFitted(c);
+    #elif USE_LOTTES
+        c = ApplyLottes(c);
     #endif
 
     c = saturate(c);
