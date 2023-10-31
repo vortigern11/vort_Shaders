@@ -130,7 +130,7 @@ _vort_HDR_Help_,
 "V_ENABLE_COLOR_GRADING - 0 or 1\n"
 "Toggle all the color granding effects\n"
 "\n"
-"V_BLOOM_MANUAL_PASSES - 0 or [2 - 9].
+"V_BLOOM_MANUAL_PASSES - 0 or [2 - 9].\n"
 "How many downsample/upsamples of the image to do in order to perform the bloom.\n"
 "At 0 defaults to 8 passes for 1080p and 9 for 4K resolution.\n"
 "\n"
