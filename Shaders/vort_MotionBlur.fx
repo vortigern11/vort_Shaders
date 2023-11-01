@@ -45,7 +45,7 @@ namespace MotBlur {
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 0.5)
 
 UI_HELP(
-_vort_HDR_Help_,
+_vort_MotBlur_Help_,
 "V_MOT_BLUR_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
 "\n"

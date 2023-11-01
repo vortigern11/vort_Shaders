@@ -169,7 +169,7 @@ void PS_UpAndComb0(PS_ARGS4)
     float3 noise = Sample(sGaussNoiseTexVort, i.uv * tuv).rgb;
 
     // apply dithering
-    o.rgb += frac(noise + GOLDEN_RATIO * (FRAME_COUNT % 16)) * PI * (0.01 * UI_Bloom_DitherStrength);
+    o.rgb += frac(noise + INV_PHI * (FRAME_COUNT % 16)) * PI * (0.01 * UI_Bloom_DitherStrength);
 
     // final result
     o.rgb = lerp(Sample(BLOOM_IN_SAMP, i.uv).rgb, o.rgb, UI_Bloom_Intensity);

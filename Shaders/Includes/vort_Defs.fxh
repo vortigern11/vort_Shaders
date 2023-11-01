@@ -30,7 +30,8 @@
     Globals
 *******************************************************************************/
 
-#define GOLDEN_RATIO (0.6180339887498)
+#define PHI (1.6180339887498)
+#define INV_PHI (0.6180339887498)
 #define EPSILON (1e-7)
 #define PI (3.1415927)
 #define HALF_PI (1.5707963)
@@ -42,9 +43,10 @@
 #define IS_HDR_PQ (BUFFER_COLOR_SPACE == 3)
 #define IS_HDR_HLG (BUFFER_COLOR_SPACE == 4)
 #define IS_8BIT (BUFFER_COLOR_BIT_DEPTH == 8)
-#define IS_D3D9 (__RENDERER__ < 0xA000)
+#define IS_DX9 (__RENDERER__ < 0xA000)
 
 struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
+struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
 
 // safer versions of built-in functions
 float RCP(float x)   { x = rcp(x == 0 ? EPSILON : x); return x; }
@@ -222,7 +224,7 @@ uniform uint FRAME_TIME < source = "frametime"; >;
 #define TEX_R16 Format = R16F;
 #define TEX_R32 Format = R32F;
 
-#define SAM_POINT MagFilter = POINT; MinFilter = POINT; MipFilter = POINT;
+#define SAM_POINT  MagFilter = POINT; MinFilter = POINT; MipFilter = POINT;
 #define SAM_MIRROR AddressU = MIRROR; AddressV = MIRROR;
 #define SAM_WRAP   AddressU = WRAP;   AddressV = WRAP;
 #define SAM_REPEAT AddressU = REPEAT; AddressV = REPEAT;

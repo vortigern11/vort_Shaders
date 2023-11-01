@@ -57,27 +57,31 @@ sampler2D sPrevFeatureTexVort { Texture = PrevFeatureTexVort; };
     Functions
 *******************************************************************************/
 
+float2 Rotate2D(float2 v, float4 r)
+{
+    return float2(dot(v, r.xy), dot(v, r.zw));
+}
+
 float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 {
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
+    int feature_mip = max(0, mip - MIN_MIP);
+    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
     float2 local_block[16]; // just use max size possible
-    uint feature_mip = max(0, mip - MIN_MIP);
-    uint blocksize = mip > 1 ? 4 : 2;
-    uint blockarea = blocksize * blocksize;
+    int blocksize = mip > 1 ? 4 : 2;
+    int blockarea = blocksize * blocksize;
 
     float2 total_motion = coarse_layer.xy;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float2 moments_cov = 0;
-    float2 best_motion = 0;
 
     //since we only use to sample the blocks now, offset by half a block so we can do it easier inline
     i.uv -= texelsize * (blocksize / 2);
 
     [unroll]for(uint k = 0; k < blockarea; k++)
     {
-        float2 tuv = i.uv + float2(k / blocksize, k % blocksize) * texelsize;
+        float2 tuv = i.uv + float2(k % blocksize, k / blocksize) * texelsize;
         float2 t_local = Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).xy;
         float2 t_search = Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).xy;
 
@@ -90,18 +94,19 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
-    float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * GOLDEN_RATIO) * DOUBLE_PI;
+    float max_sim = 1 - 1e-3;
 
-    //modifies randdir.x and randdir.y in-place
-    float2 randdir; sincos(rand, randdir.x, randdir.y);
+    float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * DOUBLE_PI;
+    float2 randdir; sincos(randseed, randdir.x, randdir.y);
 
-    float exit = 1 - 1e-3;
-
-    [loop]for(uint searches = (mip > 1 ? 4 : 2); searches > 0 && best_sim < exit; searches--)
+    [loop]for(uint searches = (mip > 1 ? 4 : 2); searches > 0 && best_sim < max_sim; searches--)
     {
-        [loop]for(uint samples = 4; samples > 0 && best_sim < exit; samples--)
+        float2 local_motion = 0;
+
+        [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
-            randdir = mul(randdir, float2x2(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
+            // manual Rotate2D with rotator = float2(0, 1, -1, 0)
+            randdir = float2(randdir.y, -randdir.x);
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
@@ -111,7 +116,7 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
             [loop]for(uint k = 0; k < blockarea; k++)
             {
-                float2 tuv = search_center + float2(k / blocksize, k % blocksize) * texelsize;
+                float2 tuv = search_center + float2(k % blocksize, k / blocksize) * texelsize;
                 float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
 
                 moments_search += t * t;
@@ -121,31 +126,30 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
             cossim = moments_cov * RSQRT(moments_local * moments_search);
             float sim = saturate(min(cossim.x, cossim.y));
 
-            if(sim > best_sim)
-            {
-                best_sim = sim;
-                best_motion = search_offset;
-            }
+            if(sim < best_sim) continue;
+
+            best_sim = sim;
+            local_motion = search_offset;
         }
 
-        total_motion += best_motion;
+        total_motion += local_motion;
         randdir *= 0.5;
-        best_motion = 0;
     }
 
-    moments_local /= blockarea;
+    float variance = dot(sqrt(abs(moments_local - (moments_local / blockarea))), 1);
 
-    return float4(total_motion, dot(sqrt(abs(moments_local - (moments_local / blockarea))), 1), saturate(1 - acos(best_sim) / HALF_PI));
+    return float4(total_motion, variance, saturate(1.0 - acos(best_sim) / HALF_PI));
 }
 
 float4 AtrousUpscale(VSOUT i, sampler mot_samp, int mip)
 {
     float2 texelsize = RCP(tex2Dsize(mot_samp));
-    float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * GOLDEN_RATIO) * HALF_PI;
-    float2x2 rotm = float2x2(cos(rand), -sin(rand), sin(rand), cos(rand)) * 3.0;
+    float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * HALF_PI;
+    float2 rsc; sincos(rand, rsc.x, rsc.y);
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
+    float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
     static const float4 gauss = float4(1, 0.85, 0.65, 0.45);
-    uint feature_mip = max(0, mip - MIN_MIP + 1);
-    float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
+
     float4 gbuffer_sum = 0;
     float wsum = 1e-3;
     int rad = floor((mip + 2) * 0.5);
@@ -153,17 +157,17 @@ float4 AtrousUpscale(VSOUT i, sampler mot_samp, int mip)
     [loop]for(int x = -rad; x <= rad; x++)
     [loop]for(int y = -rad; y <= rad; y++)
     {
-        float2 sample_uv = i.uv + mul(float2(x, y), rotm) * texelsize;
+        float2 sample_uv = i.uv + Rotate2D(float2(x, y), rotator) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
-        float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
+        float sample_z = Sample(sCurrFeatureTexVort, saturate(sample_uv), mip).y;
 
         float wz = saturate(abs(sample_z - center_z) * 4 * max(1, 32 * UI_MV_WZMult));
         float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy) * 4 * max(1, 100 * UI_MV_WMMult));
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);
         float ws = saturate((1.0 - sample_gbuf.w) * 5.0);
+
         float weight = exp2(-(wz + wm + wf + ws) * 4) * gauss[abs(x)] * gauss[abs(y)];
 
-        // no need to use saturate in Sample, because we do it here
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
         gbuffer_sum += sample_gbuf * weight;
         wsum += weight;

@@ -1,7 +1,7 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 
-#if IS_D3D9
+#if IS_DX9
     texture2D UpTexVortA { TEX_SIZE(1) TEX_RGBA16 };
     sampler2D sUpTexVortA { Texture = UpTexVortA; };
 
