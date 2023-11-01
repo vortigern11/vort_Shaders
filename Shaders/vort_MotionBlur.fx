@@ -72,7 +72,7 @@ void PS_Blur(PS_ARGS4)
     // discard if less than 1 pixel diff
     if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
 
-    static const uint half_samples = 6;
+    static const uint half_samples = 16;
     float inv_samples = RCP(half_samples * 2.0);
     float rand = GetNoise(i.uv);
     float3 color = 0;

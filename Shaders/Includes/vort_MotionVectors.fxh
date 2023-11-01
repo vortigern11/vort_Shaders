@@ -40,7 +40,7 @@ UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
     "Enable Debug View and start rotating the camera\n"
     "The more you increase this value, the less moving objects blend with surroundings.",
-    0.0, 10.0, 2.0
+    0.0, 10.0, 5.0
 )
 
 /*******************************************************************************
@@ -105,8 +105,7 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
         [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
-            // manual Rotate2D with rotator = float2(0, 1, -1, 0)
-            randdir = float2(randdir.y, -randdir.x);
+            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
