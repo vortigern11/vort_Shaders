@@ -105,7 +105,8 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
         [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
-            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
+            //Manual Rotate2D(randdir, float4(0.0, 1.0, -1.0, 0.0));
+            randdir = float2(randdir.y, -randdir.x);
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
@@ -135,6 +136,8 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
         randdir *= 0.5;
     }
 
+    moments_local /= blockarea;
+
     float variance = dot(sqrt(abs(moments_local - (moments_local / blockarea))), 1);
 
     return float4(total_motion, variance, saturate(1.0 - acos(best_sim) / HALF_PI));
@@ -160,10 +163,17 @@ float4 AtrousUpscale(VSOUT i, sampler mot_samp, int mip)
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sCurrFeatureTexVort, saturate(sample_uv), mip).y;
 
-        float wz = saturate(abs(sample_z - center_z) * 4 * max(1, 32 * UI_MV_WZMult));
-        float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy) * 4 * max(1, 100 * UI_MV_WMMult));
-        float wf = saturate(1.0 - sample_gbuf.z * 128.0);
-        float ws = saturate((1.0 - sample_gbuf.w) * 5.0);
+        // drop samples of different depth
+        float wz = saturate(abs(sample_z - center_z)) * max(1.0, 100.0 * UI_MV_WZMult);
+
+        // drop long motion vector samples
+        float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy)) * max(1.0, 100.0 * UI_MV_WMMult);
+
+        // drop blocks which had near 0 variance
+        float wf = saturate(1.0 - sample_gbuf.z * 128.0) * 4.0;
+
+        // drop bad block matching
+        float ws = saturate(1.0 - sample_gbuf.w); ws *= ws;
 
         float weight = exp2(-(wz + wm + wf + ws) * 4) * gauss[abs(x)] * gauss[abs(y)];
 
