@@ -105,8 +105,7 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
         [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
-            //Manual Rotate2D(randdir, float4(0.0, 1.0, -1.0, 0.0));
-            randdir = float2(randdir.y, -randdir.x);
+            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
