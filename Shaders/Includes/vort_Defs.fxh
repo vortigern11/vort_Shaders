@@ -500,5 +500,5 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 
 float GetNoise(float2 co)
 {
-    return frac(sin(dot(co, float2(12.9898, 78.233))) * 437580.5453);
+    return frac(sin(dot(co, float2(12.9898, 78.233))) * 43758.5453);
 }
