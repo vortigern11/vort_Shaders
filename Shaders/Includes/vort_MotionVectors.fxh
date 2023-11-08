@@ -34,7 +34,7 @@ UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WZMult, "Depth Weight",
     "Enable Debug View and start rotating the camera\n"
     "Increase this value if your character/weapon is being covered by color",
-    0.0, 10.0, 2.0
+    0.0, 10.0, 1.0
 )
 UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
@@ -105,7 +105,7 @@ float4 CalcLayer(VSOUT i, float4 coarse_layer, int mip)
 
         [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
-            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
+            randdir = float2(randdir.y, -randdir.x);
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
