@@ -43,6 +43,7 @@ namespace MotBlur {
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 0.8)
+UI_INT(CAT_MOT_BLUR, UI_MB_Thresh, "Min Threshold", "The min. movement required to include a pixel in the blur", 0, 20, 10)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -56,8 +57,13 @@ _vort_MotBlur_Help_,
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv)
+float3 GetColor(float2 uv, float3 center_color)
 {
+    float2 motion = Sample(sMotVectTexVort, uv).xy * UI_MB_Amount;
+
+    // don't blend with pixels which are not in motion
+    if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh)) return center_color;
+
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
@@ -75,14 +81,18 @@ void PS_Blur(PS_ARGS4)
     static const uint half_samples = 16;
     float inv_samples = RCP(half_samples * 2.0);
     float rand = GetNoise(i.uv);
-    float3 color = 0;
+    float3 center_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
+    float3 color = center_color;
 
     motion *= inv_samples;
 
-    [unroll]for(uint j = 0; j < half_samples; j++)
+    // samples are reduced, because the center is added above
+    [unroll]for(uint j = 1; j <= (half_samples - 1); j++)
     {
-        color += GetColor(i.uv - motion * (float(j) - rand + 1.0));
-        color += GetColor(i.uv + motion * (float(j) + rand));
+        float2 offset = motion * (float(j) + (rand - 0.5));
+
+        color += GetColor(i.uv - offset, center_color);
+        color += GetColor(i.uv + offset, center_color);
     }
 
     o = float4(ApplyGammaCurve(color * inv_samples), 1);
