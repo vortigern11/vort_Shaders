@@ -35,13 +35,13 @@ UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WZMult, "Depth Weight",
     "Enable Debug View and start rotating the camera\n"
     "Increase this value if your character/weapon is being covered by color",
-    0.0, 10.0, 1.0
+    0.0, 5.0, 1.0
 )
-UI_FLOAT(
+UI_INT(
     CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
     "Enable Debug View and start rotating the camera\n"
     "The more you increase this value, the less moving objects blend with surroundings.",
-    0.0, 10.0, 5.0
+    0, 50, 10
 )
 
 /*******************************************************************************
@@ -161,10 +161,10 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sCurrFeatureTexVort, saturate(sample_uv), mip).y;
 
-        // samples of different depth
+        // different depth
         float wz = saturate(abs(sample_z - center_z)) * (100.0 * UI_MV_WZMult);
 
-        // long motion vector samples
+        // long motion vectors
         float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy)) * (100.0 * UI_MV_WMMult);
 
         // blocks which had near 0 variance

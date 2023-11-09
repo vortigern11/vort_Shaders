@@ -62,7 +62,8 @@ float3 GetColor(float2 uv, float3 center_color)
     float2 motion = Sample(sMotVectTexVort, uv).xy * UI_MB_Amount;
 
     // don't blend with pixels which are not in motion
-    if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh)) return center_color;
+    if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh))
+        return center_color;
 
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
@@ -87,7 +88,7 @@ void PS_Blur(PS_ARGS4)
     motion *= inv_samples;
 
     // samples are reduced, because the center is added above
-    [unroll]for(uint j = 1; j <= (half_samples - 1); j++)
+    [unroll]for(uint j = 1; j < half_samples; j++)
     {
         float2 offset = motion * (float(j) + (rand - 0.5));
 
