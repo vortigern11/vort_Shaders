@@ -43,7 +43,7 @@ namespace MotBlur {
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 0.8)
-UI_INT(CAT_MOT_BLUR, UI_MB_Thresh, "Min Threshold", "The min. movement required to include a pixel in the blur", 0, 20, 10)
+UI_INT(CAT_MOT_BLUR, UI_MB_Thresh, "Min Threshold", "The min. movement required to include a pixel in the blur", 0, 20, 5)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -79,11 +79,11 @@ void PS_Blur(PS_ARGS4)
     // discard if less than 1 pixel diff
     if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
 
-    static const uint half_samples = 16;
+    static const uint half_samples = 8;
     float inv_samples = RCP(half_samples * 2.0);
     float rand = GetNoise(i.uv);
     float3 center_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
-    float3 color = center_color;
+    float3 color = center_color + center_color;
 
     motion *= inv_samples;
 

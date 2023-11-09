@@ -25,7 +25,7 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
-#define PRECISION 1e-3
+#define PRECISION 1e-6
 #define MAX_MIP 6
 #define MIN_MIP 1
 
@@ -35,13 +35,13 @@ UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WZMult, "Depth Weight",
     "Enable Debug View and start rotating the camera\n"
     "Increase this value if your character/weapon is being covered by color",
-    0.0, 5.0, 1.0
+    0.0, 1.0, 0.25
 )
 UI_INT(
     CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
     "Enable Debug View and start rotating the camera\n"
     "The more you increase this value, the less moving objects blend with surroundings.",
-    0, 50, 10
+    0, 20, 5
 )
 
 /*******************************************************************************
@@ -162,18 +162,18 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, saturate(sample_uv), mip).y;
 
         // different depth
-        float wz = saturate(abs(sample_z - center_z)) * (100.0 * UI_MV_WZMult);
+        float wz = abs(sample_z - center_z) * max(1.0, 100.0 * UI_MV_WZMult);
 
         // long motion vectors
-        float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy)) * (100.0 * UI_MV_WMMult);
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * max(1.0, 100.0 * UI_MV_WMMult);
 
         // blocks which had near 0 variance
-        float wf = saturate(1.0 - sample_gbuf.z * 128.0) * 4.0;
+        float wf = saturate(1.0 - sample_gbuf.z * 128.0);
 
         // bad block matching
-        float ws = saturate(1.0 - sample_gbuf.w) * 4.0;
+        float ws = saturate(1.0 - sample_gbuf.w);
 
-        float weight = exp2(-(wz + wm + wf + ws) * 4.0) * gauss[abs(x)] * gauss[abs(y)];
+        float weight = exp2(-(wz + wm + wf + ws) * 16.0) * gauss[abs(x)] * gauss[abs(y)];
 
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
         gbuffer_sum += sample_gbuf.xy * weight;
