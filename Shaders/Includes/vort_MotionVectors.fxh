@@ -180,7 +180,9 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         wsum += weight;
     }
 
-    return gbuffer_sum / wsum;
+    gbuffer_sum /= wsum;
+
+    return gbuffer_sum;
 }
 
 float3 Debug(float2 uv, float modifier)
@@ -200,7 +202,10 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = Filter8Taps(i.uv, sLDRTexVort, MIN_MIP);
 
-    o.x = dot(color, 1.0);
+    // Turn the color to the format `rrr.gggbbb`, where the output is a unique number
+    color = round(min(0.999, color) * 1e3) * 1e-3;
+    o.x = dot(color, float3(1e3, 1.0, 1e-3));
+
     o.y = GetLinearizedDepth(i.uv);
 }
 
