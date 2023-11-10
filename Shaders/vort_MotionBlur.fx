@@ -40,6 +40,20 @@ namespace MotBlur {
     #define V_MOT_BLUR_DEBUG 0
 #endif
 
+#ifndef V_MOT_BLUR_VECTORS
+    #define V_MOT_BLUR_VECTORS 1
+#endif
+
+#ifndef V_MOT_BLUR_HALF_SAMPLES
+    #define V_MOT_BLUR_HALF_SAMPLES 16
+#endif
+
+#if V_MOT_BLUR_VECTORS
+    #define S_MOT_VECT sMotVectTexVort
+#else
+    #define S_MOT_VECT sMotionVectorsTex
+#endif
+
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 0.8)
@@ -50,6 +64,14 @@ _vort_MotBlur_Help_,
 "V_MOT_BLUR_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
 "\n"
+"V_MOT_BLUR_VECTORS - 0 or 1\n"
+"Whether to include my motion vectors (1) or use some other implementation above this shader (0).\n"
+"Strongly recommended to leave at 1!\n"
+"\n"
+"V_MOT_BLUR_HALF_SAMPLES - >= 4\n"
+"Specifies the half amount of samples used for the motion blur.\n"
+"Lower it to increase performance (but use at least 4).\n"
+"\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
 )
@@ -59,7 +81,7 @@ _vort_MotBlur_Help_,
 
 float3 GetColor(float2 uv, float3 center_color)
 {
-    float2 motion = Sample(sMotVectTexVort, uv).xy * UI_MB_Amount;
+    float2 motion = Sample(S_MOT_VECT, uv).xy * UI_MB_Amount;
 
     // don't blend with pixels which are not in motion
     if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh))
@@ -74,12 +96,12 @@ float3 GetColor(float2 uv, float3 center_color)
 
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(sMotVectTexVort, i.uv).xy * UI_MB_Amount;
+    float2 motion = Sample(S_MOT_VECT, i.uv).xy * UI_MB_Amount;
 
     // discard if less than 1 pixel diff
     if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
 
-    static const uint half_samples = 8;
+    static const uint half_samples = V_MOT_BLUR_HALF_SAMPLES;
     float inv_samples = RCP(half_samples * 2.0);
     float rand = GetNoise(i.uv);
     float3 center_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
@@ -119,7 +141,9 @@ void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount); }
 
 technique vort_MotionBlur
 {
-    PASS_MOT_VECT
+    #if V_MOT_BLUR_VECTORS
+        PASS_MOT_VECT
+    #endif
 
     #if V_MOT_BLUR_DEBUG
         PASS_MOT_BLUR_DEBUG
