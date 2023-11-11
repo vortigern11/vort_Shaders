@@ -92,7 +92,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
-    float max_sim = 1 - 1e-6;
+    static const float max_sim = 1 - 1e-6;
 
     if(best_sim > max_sim)
         return float4(total_motion, 0, 0);
@@ -100,12 +100,13 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * DOUBLE_PI;
     float2 randdir; sincos(randseed, randdir.x, randdir.y);
 
-    [loop]for(uint searches = (mip > 1 ? 4 : 2); searches > 0 && best_sim < max_sim; searches--)
+    [loop]for(uint searches = (mip > 1 ? 6 : 2); searches > 0 && best_sim < max_sim; searches--)
     {
         float2 local_motion = 0;
 
         [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
         {
+            // manual Rotate2D(randdir, float4(0, 1, -1, 0))
             randdir = float2(randdir.y, -randdir.x);
 
             float2 search_offset = randdir * texelsize;
@@ -148,7 +149,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 texelsize = RCP(tex2Dsize(mot_samp));
     float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * HALF_PI;
     float2 rsc; sincos(rand, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
     static const float4 gauss = float4(1, 0.85, 0.65, 0.45);
 
@@ -208,13 +209,13 @@ void PS_WriteFeature(PS_ARGS2)
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Motion6(PS_ARGS4) { int mip = 6; o = CalcLayer(i, mip, Sample(sMotVectTexVort, i.uv)); } // no upscaling for MAX_MIP
-void PS_Motion5(PS_ARGS4) { int mip = 5; o = CalcLayer(i, mip, AtrousUpscale(i, mip, sDownTexVort6)); }
-void PS_Motion4(PS_ARGS4) { int mip = 4; o = CalcLayer(i, mip, AtrousUpscale(i, mip, sDownTexVort5)); }
-void PS_Motion3(PS_ARGS4) { int mip = 3; o = CalcLayer(i, mip, AtrousUpscale(i, mip, sDownTexVort4)); }
-void PS_Motion2(PS_ARGS4) { int mip = 2; o = CalcLayer(i, mip, AtrousUpscale(i, mip, sDownTexVort3)); }
-void PS_Motion1(PS_ARGS4) { int mip = 1; o = CalcLayer(i, mip, AtrousUpscale(i, mip, sDownTexVort2)); }
-void PS_Motion0(PS_ARGS2) { int mip = 0; o = AtrousUpscale(i, 0, sDownTexVort1); } // only upscale for < MIN_MIP
+void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(sMotVectTexVort, i.uv)); } // no upscaling for MAX_MIP
+void PS_Motion5(PS_ARGS4) { o = CalcLayer(i, 5, AtrousUpscale(i, 5, sDownTexVort6)); }
+void PS_Motion4(PS_ARGS4) { o = CalcLayer(i, 4, AtrousUpscale(i, 4, sDownTexVort5)); }
+void PS_Motion3(PS_ARGS4) { o = CalcLayer(i, 3, AtrousUpscale(i, 3, sDownTexVort4)); }
+void PS_Motion2(PS_ARGS4) { o = CalcLayer(i, 2, AtrousUpscale(i, 2, sDownTexVort3)); }
+void PS_Motion1(PS_ARGS4) { o = CalcLayer(i, 1, AtrousUpscale(i, 1, sDownTexVort2)); }
+void PS_Motion0(PS_ARGS2) { o = AtrousUpscale(i, 0, sDownTexVort1); } // only upscale for < MIN_MIP
 
 /*******************************************************************************
     Passes

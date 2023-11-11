@@ -56,7 +56,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 0.8)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 1.0)
 UI_INT(CAT_MOT_BLUR, UI_MB_Thresh, "Min Threshold", "The min. movement required to include a pixel in the blur", 0, 20, 5)
 
 UI_HELP(
