@@ -51,6 +51,9 @@ namespace MotBlur {
 #if V_MOT_BLUR_VECTORS
     #define S_MOT_VECT sMotVectTexVort
 #else
+    texture2D MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
+    sampler2D sMotionVectorsTex { Texture = MotionVectorsTex; };
+
     #define S_MOT_VECT sMotionVectorsTex
 #endif
 
