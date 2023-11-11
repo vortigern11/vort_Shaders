@@ -25,7 +25,6 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
-#define PRECISION 1e-6
 #define MAX_MIP 6
 #define MIN_MIP 1
 
@@ -93,7 +92,10 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
-    float max_sim = 1 - PRECISION;
+    float max_sim = 1 - 1e-6;
+
+    if(best_sim > max_sim)
+        return float4(total_motion, 0, 0);
 
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * DOUBLE_PI;
     float2 randdir; sincos(randseed, randdir.x, randdir.y);
@@ -151,7 +153,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     static const float4 gauss = float4(1, 0.85, 0.65, 0.45);
 
     float2 gbuffer_sum = 0;
-    float wsum = PRECISION;
+    float wsum = 1e-6;
     int rad = floor((mip + 2) * 0.5);
 
     [loop]for(int x = -rad; x <= rad; x++)
