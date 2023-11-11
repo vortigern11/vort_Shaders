@@ -188,9 +188,9 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     return gbuffer_sum;
 }
 
-float3 Debug(float2 uv, float modifier)
+float3 Debug(float2 uv, float modifier, sampler mot_samp)
 {
-    float2 motion = Sample(sMotVectTexVort, uv).xy * modifier;
+    float2 motion = Sample(mot_samp, uv).xy * modifier;
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
 

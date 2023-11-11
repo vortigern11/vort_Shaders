@@ -49,12 +49,12 @@ namespace MotBlur {
 #endif
 
 #if V_MOT_BLUR_VECTORS
-    #define S_MOT_VECT sMotVectTexVort
+    #define SAMP_MOT_VECT sMotVectTexVort
 #else
     texture2D MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
     sampler2D sMotionVectorsTex { Texture = MotionVectorsTex; };
 
-    #define S_MOT_VECT sMotionVectorsTex
+    #define SAMP_MOT_VECT sMotionVectorsTex
 #endif
 
 #define CAT_MOT_BLUR "Motion Blur"
@@ -84,7 +84,7 @@ _vort_MotBlur_Help_,
 
 float3 GetColor(float2 uv, float3 center_color)
 {
-    float2 motion = Sample(S_MOT_VECT, uv).xy * UI_MB_Amount;
+    float2 motion = Sample(SAMP_MOT_VECT, uv).xy * UI_MB_Amount;
 
     // don't blend with pixels which are not in motion
     if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh))
@@ -99,7 +99,7 @@ float3 GetColor(float2 uv, float3 center_color)
 
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(S_MOT_VECT, i.uv).xy * UI_MB_Amount;
+    float2 motion = Sample(SAMP_MOT_VECT, i.uv).xy * UI_MB_Amount;
 
     // discard if less than 1 pixel diff
     if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
@@ -124,7 +124,7 @@ void PS_Blur(PS_ARGS4)
     o = float4(ApplyGammaCurve(color * inv_samples), 1);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount); }
+void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount, SAMP_MOT_VECT); }
 
 /*******************************************************************************
     Passes
