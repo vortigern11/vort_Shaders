@@ -33,20 +33,6 @@ float GetLinearizedDepth(float2 texcoord)
     static const float N = 1.0;
     depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-    // Ordered dithering from DisplayDepth.fx
-
-    // Number of colors per channel, should be 2^8 for most monitors
-    static const float dither_colors = 256.0;
-
-    // Calculate grid position
-    float grid_position = frac(dot(texcoord, (BUFFER_SCREEN_SIZE * float2(0.0625, rcp(3.6))) + 0.25));
-
-    // Calculate how big the shift should be
-    float dither_shift = 0.5 * rcp(dither_colors - 1.0);
-
-    // Modify shift acording to grid position and add to depth.
-    depth += lerp(dither_shift, -dither_shift, grid_position);
-
     return depth;
 }
 

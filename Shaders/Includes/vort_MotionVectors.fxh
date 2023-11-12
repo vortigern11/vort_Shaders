@@ -67,19 +67,19 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     int feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
     float2 local_block[16]; // just use max size possible
-    int blocksize = mip > 1 ? 4 : 2;
-    int blockarea = blocksize * blocksize;
+    int block_size = mip > 1 ? 4 : 2;
+    int block_area = block_size * block_size;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float2 moments_cov = 0;
 
     //since we only use to sample the blocks now, offset by half a block so we can do it easier inline
-    i.uv -= texelsize * (blocksize / 2);
+    i.uv -= texelsize * (block_size / 2);
 
-    [unroll]for(uint k = 0; k < blockarea; k++)
+    [unroll]for(uint k = 0; k < block_area; k++)
     {
-        float2 tuv = i.uv + float2(k % blocksize, k / blocksize) * texelsize;
+        float2 tuv = i.uv + float2(k % block_size, k / block_size) * texelsize;
         float2 t_local = Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).xy;
         float2 t_search = Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).xy;
 
@@ -94,17 +94,20 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float best_sim = saturate(min(cossim.x, cossim.y));
     static const float max_sim = 1 - 1e-6;
 
-    float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * DOUBLE_PI;
+    int searches = mip > 1 ? 4 : 2;
+
+    float randseed = frac(GetNoise(i.uv) + searches * INV_PHI) * DOUBLE_PI;
     float2 randdir; sincos(randseed, randdir.x, randdir.y);
 
-    [loop]for(uint searches = (mip > 1 ? 6 : 2); searches > 0 && best_sim < max_sim; searches--)
+    while(searches-- > 0 && best_sim < max_sim)
     {
         float2 local_motion = 0;
+        uint samples = 4;
 
-        [loop]for(uint samples = 4; samples > 0 && best_sim < max_sim; samples--)
+        while(samples-- > 0 && best_sim < max_sim)
         {
-            // manual Rotate2D(randdir, float4(0, 1, -1, 0))
-            randdir = float2(randdir.y, -randdir.x);
+            //rotate by larger golden angle
+            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
 
             float2 search_offset = randdir * texelsize;
             float2 search_center = i.uv + total_motion + search_offset;
@@ -112,9 +115,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             moments_search = 0;
             moments_cov = 0;
 
-            [loop]for(uint k = 0; k < blockarea; k++)
+            [loop]for(uint k = 0; k < block_area; k++)
             {
-                float2 tuv = search_center + float2(k % blocksize, k / blocksize) * texelsize;
+                float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
                 float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
 
                 moments_search += t * t;
@@ -134,21 +137,20 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         randdir *= 0.5;
     }
 
-    moments_local /= blockarea;
+    moments_local /= block_area;
 
-    float variance = dot(sqrt(abs(moments_local - (moments_local / blockarea))), 1);
+    float variance = dot(sqrt(abs(moments_local - (moments_local / block_area))), 1);
 
     return float4(total_motion, variance, saturate(1.0 - acos(best_sim) / HALF_PI));
 }
 
 float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
-    float2 texelsize = RCP(tex2Dsize(mot_samp));
+    float2 texelsize = rcp(tex2Dsize(mot_samp));
     float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * HALF_PI;
     float2 rsc; sincos(rand, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
-    static const float4 gauss = float4(1, 0.85, 0.65, 0.45);
 
     float2 gbuffer_sum = 0;
     float wsum = 1e-6;
@@ -162,10 +164,10 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, saturate(sample_uv), mip).y;
 
         // different depth
-        float wz = abs(sample_z - center_z) * max(1.0, 100.0 * UI_MV_WZMult);
+        float wz = saturate(abs(sample_z - center_z)) * max(1.0, 200.0 * UI_MV_WZMult);
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * max(1.0, 100.0 * UI_MV_WMMult);
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * max(1.0, 200.0 * UI_MV_WMMult);
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);
@@ -173,16 +175,14 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         // bad block matching
         float ws = saturate(1.0 - sample_gbuf.w);
 
-        float weight = exp2(-(wz + wm + wf + ws) * 16.0) * gauss[abs(x)] * gauss[abs(y)];
+        float weight = exp2(-(wz + wm + wf + ws) * 8.0);
 
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
         gbuffer_sum += sample_gbuf.xy * weight;
         wsum += weight;
     }
 
-    gbuffer_sum /= wsum;
-
-    return gbuffer_sum;
+    return gbuffer_sum / wsum;
 }
 
 /*******************************************************************************
@@ -197,7 +197,7 @@ void PS_WriteFeature(PS_ARGS2)
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(MOT_VECT_SAMP, i.uv)); } // no upscaling for MAX_MIP
+void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(MOT_VECT_SAMP, i.uv) * 0.95); } // no upscaling for MAX_MIP
 void PS_Motion5(PS_ARGS4) { o = CalcLayer(i, 5, AtrousUpscale(i, 5, sDownTexVort6)); }
 void PS_Motion4(PS_ARGS4) { o = CalcLayer(i, 4, AtrousUpscale(i, 4, sDownTexVort5)); }
 void PS_Motion3(PS_ARGS4) { o = CalcLayer(i, 3, AtrousUpscale(i, 3, sDownTexVort4)); }
