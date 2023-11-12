@@ -26,9 +26,27 @@
 *******************************************************************************/
 
 #include "Includes/vort_Defs.fxh"
-#include "Includes/vort_MotionVectors.fxh"
 #include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_LDRTex.fxh"
+
+#ifndef V_MOT_BLUR_VECTORS_MODE
+    #define V_MOT_BLUR_VECTORS_MODE 0
+#endif
+
+#if V_MOT_BLUR_VECTORS_MODE <= 1
+    #if V_MOT_BLUR_VECTORS_MODE == 0
+        #include "Includes/vort_MotionVectors.fxh"
+    #endif
+
+    #define MB_MOT_VECT_SAMP MOT_VECT_SAMP
+#elif V_MOT_BLUR_VECTORS_MODE == 2
+    namespace Deferred {
+        texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
+        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
+    }
+
+    #define MB_MOT_VECT_SAMP Deferred::sMotionVectorsTex
+#endif
 
 namespace MotBlur {
 
@@ -40,21 +58,8 @@ namespace MotBlur {
     #define V_MOT_BLUR_DEBUG 0
 #endif
 
-#ifndef V_MOT_BLUR_VECTORS
-    #define V_MOT_BLUR_VECTORS 1
-#endif
-
 #ifndef V_MOT_BLUR_HALF_SAMPLES
     #define V_MOT_BLUR_HALF_SAMPLES 16
-#endif
-
-#if V_MOT_BLUR_VECTORS
-    #define SAMP_MOT_VECT sMotVectTexVort
-#else
-    texture2D MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotionVectorsTex { Texture = MotionVectorsTex; };
-
-    #define SAMP_MOT_VECT sMotionVectorsTex
 #endif
 
 #define CAT_MOT_BLUR "Motion Blur"
@@ -67,9 +72,10 @@ _vort_MotBlur_Help_,
 "V_MOT_BLUR_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
 "\n"
-"V_MOT_BLUR_VECTORS - 0 or 1\n"
-"Whether to include my motion vectors (1) or use some other implementation above this shader (0).\n"
-"Strongly recommended to leave at 1!\n"
+"V_MOT_BLUR_VECTORS_MODE - [0 - 3]\n"
+"0 - auto include my motion vectors (highly recommended)\n"
+"1 - manually use motion vectors (mine, qUINT_motionvectors, etc.)\n"
+"2 - manually use iMMERSE motion vectors\n"
 "\n"
 "V_MOT_BLUR_HALF_SAMPLES - >= 4\n"
 "Specifies the half amount of samples used for the motion blur.\n"
@@ -84,7 +90,7 @@ _vort_MotBlur_Help_,
 
 float3 GetColor(float2 uv, float3 center_color)
 {
-    float2 motion = Sample(SAMP_MOT_VECT, uv).xy * UI_MB_Amount;
+    float2 motion = Sample(MB_MOT_VECT_SAMP, uv).xy * UI_MB_Amount;
 
     // don't blend with pixels which are not in motion
     if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh))
@@ -99,7 +105,7 @@ float3 GetColor(float2 uv, float3 center_color)
 
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(SAMP_MOT_VECT, i.uv).xy * UI_MB_Amount;
+    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
 
     // discard if less than 1 pixel diff
     if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
@@ -124,7 +130,7 @@ void PS_Blur(PS_ARGS4)
     o = float4(ApplyGammaCurve(color * inv_samples), 1);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount, SAMP_MOT_VECT); }
+void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, UI_MB_Amount, MB_MOT_VECT_SAMP); }
 
 /*******************************************************************************
     Passes
@@ -144,7 +150,7 @@ void PS_Debug(PS_ARGS3) { o = MotVect::Debug(i.uv, UI_MB_Amount, SAMP_MOT_VECT);
 
 technique vort_MotionBlur
 {
-    #if V_MOT_BLUR_VECTORS
+    #if V_MOT_BLUR_VECTORS_MODE == 0
         PASS_MOT_VECT
     #endif
 

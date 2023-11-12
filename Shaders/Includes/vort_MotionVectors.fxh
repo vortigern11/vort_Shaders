@@ -94,9 +94,6 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float best_sim = saturate(min(cossim.x, cossim.y));
     static const float max_sim = 1 - 1e-6;
 
-    if(best_sim > max_sim)
-        return float4(total_motion, 0, 0);
-
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * DOUBLE_PI;
     float2 randdir; sincos(randseed, randdir.x, randdir.y);
 
@@ -149,7 +146,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 texelsize = RCP(tex2Dsize(mot_samp));
     float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * HALF_PI;
     float2 rsc; sincos(rand, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
     float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
     static const float4 gauss = float4(1, 0.85, 0.65, 0.45);
 
@@ -188,15 +185,6 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     return gbuffer_sum;
 }
 
-float3 Debug(float2 uv, float modifier, sampler mot_samp)
-{
-    float2 motion = Sample(mot_samp, uv).xy * modifier;
-    float angle = atan2(motion.y, motion.x);
-    float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
-
-    return lerp(0.5, rgb, saturate(length(motion) * 100));
-}
-
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -209,7 +197,7 @@ void PS_WriteFeature(PS_ARGS2)
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(sMotVectTexVort, i.uv)); } // no upscaling for MAX_MIP
+void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(MOT_VECT_SAMP, i.uv)); } // no upscaling for MAX_MIP
 void PS_Motion5(PS_ARGS4) { o = CalcLayer(i, 5, AtrousUpscale(i, 5, sDownTexVort6)); }
 void PS_Motion4(PS_ARGS4) { o = CalcLayer(i, 4, AtrousUpscale(i, 4, sDownTexVort5)); }
 void PS_Motion3(PS_ARGS4) { o = CalcLayer(i, 3, AtrousUpscale(i, 3, sDownTexVort4)); }
@@ -229,7 +217,7 @@ void PS_Motion0(PS_ARGS2) { o = AtrousUpscale(i, 0, sDownTexVort1); } // only up
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3; RenderTarget = DownTexVort3; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2; RenderTarget = DownTexVort2; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1; RenderTarget = DownTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0; RenderTarget = MotVectTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0; RenderTarget = MOT_VECT_TEX; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::PrevFeatureTexVort; }
 
 } // namespace end
