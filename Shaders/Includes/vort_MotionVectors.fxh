@@ -186,7 +186,7 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = Filter8Taps(i.uv, sLDRTexVort, MIN_MIP);
 
-    o.x = dot(saturate(color), float3(256.0, 1.0, rcp(256.0)));
+    o.x = RGBToYCbCrLumi(color);
     o.y = GetLinearizedDepth(i.uv);
 }
 
