@@ -65,7 +65,7 @@ namespace MotBlur {
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 1.0)
-UI_INT(CAT_MOT_BLUR, UI_MB_Thresh, "Min Threshold", "The min. movement required to include a pixel in the blur", 0, 20, 5)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_MotThresh, "Motion Threshold", "The min movement required to include a pixel in the blur", 0.0, 0.020, 0.008)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -93,7 +93,7 @@ float3 GetColor(float2 uv, float3 center_color)
     float2 motion = Sample(MB_MOT_VECT_SAMP, uv).xy * UI_MB_Amount;
 
     // don't blend with pixels which are not in motion
-    if(length(motion * BUFFER_SCREEN_SIZE) < float(UI_MB_Thresh))
+    if(length(motion) < UI_MB_MotThresh)
         return center_color;
 
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
