@@ -94,16 +94,18 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float best_sim = saturate(min(cossim.x, cossim.y));
     static const float max_sim = 1 - 1e-6;
 
-    float randseed = frac(GetNoise(i.uv) + INV_PHI) * DOUBLE_PI;
-    float2 randdir; sincos(randseed, randdir.x, randdir.y);
+    float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
+    float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
 
     float2 local_motion = 0;
     uint samples = 8;
 
     while(samples-- > 0 && best_sim < max_sim)
     {
-        //rotate by larger golden angle
-        randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
+        if(samples == 4) randdir *= 0.5;
+
+        //rotate by 90 degrees
+        randdir = float2(randdir.y, -randdir.x);
 
         float2 search_offset = randdir * texelsize;
         float2 search_center = i.uv + total_motion + search_offset;
@@ -140,8 +142,8 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
     float2 texelsize = rcp(tex2Dsize(mot_samp));
-    float rand = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI) * HALF_PI;
-    float2 rsc; sincos(rand, rsc.x, rsc.y);
+    float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
+    float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
     float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
 
