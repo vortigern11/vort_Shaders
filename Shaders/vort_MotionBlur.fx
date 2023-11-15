@@ -79,15 +79,8 @@ _vort_MotBlur_Help_,
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
+float3 GetColor(float2 uv)
 {
-    float sample_depth = GetLinearizedDepth(uv);
-
-    // don't use pixels which are closer to the camera than the center pixel
-    // hence, no abs() on purpose
-    if((cen_depth - sample_depth) > 0.005)
-        return cen_color;
-
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
@@ -95,6 +88,8 @@ float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
     Shaders
 *******************************************************************************/
 
+// due to circular movement looking bad otherwise,
+// only areas behind the pixel are included in the blur
 void PS_Blur(PS_ARGS4)
 {
     float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
@@ -102,27 +97,19 @@ void PS_Blur(PS_ARGS4)
 
     if(motion_pixel_length < 1.0) discard;
 
-    uint half_samples = min(16, ceil(3 + motion_pixel_length * 0.25));
-    float inv_half_samples = RCP(half_samples);
+    uint samples = clamp(uint(motion_pixel_length), 4, 16);
+    float inv_samples = RCP(samples);
     float rand = GetNoise(i.uv) - 0.5;
-    float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
-    float cen_depth = GetLinearizedDepth(i.uv);
-    float3 color = cen_color + cen_color;
+    float3 color = GetColor(i.uv);
 
     // faster than dividing `j` inside the loop
-    motion *= inv_half_samples;
+    motion *= inv_samples;
 
     // < not <=, because center color is added above
-    [unroll]for(uint j = 1; j < half_samples; j++)
-    {
-        float2 offset = motion * (j + rand);
+    [unroll]for(uint j = 1; j < samples; j++)
+        color += GetColor(i.uv - motion * (j + rand));
 
-        color += GetColor(i.uv - offset, cen_color, cen_depth);
-        color += GetColor(i.uv + offset, cen_color, cen_depth);
-    }
-
-    // divide by the amount of all samples
-    o = float4(ApplyGammaCurve(color * (inv_half_samples * 0.5)), 1);
+    o = float4(ApplyGammaCurve(color * inv_samples), 1);
 }
 
 void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, UI_MB_Amount, MB_MOT_VECT_SAMP); }
