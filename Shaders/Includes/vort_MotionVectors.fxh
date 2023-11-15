@@ -94,48 +94,42 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float best_sim = saturate(min(cossim.x, cossim.y));
     static const float max_sim = 1 - 1e-6;
 
-    uint searches = 2;
-    float randseed = frac(GetNoise(i.uv) + searches * INV_PHI) * DOUBLE_PI;
+    float randseed = frac(GetNoise(i.uv) + INV_PHI) * DOUBLE_PI;
     float2 randdir; sincos(randseed, randdir.x, randdir.y);
 
-    while(searches-- > 0 && best_sim < max_sim)
+    float2 local_motion = 0;
+    uint samples = 8;
+
+    while(samples-- > 0 && best_sim < max_sim)
     {
-        float2 local_motion = 0;
-        uint samples = 4;
+        //rotate by larger golden angle
+        randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
 
-        while(samples-- > 0 && best_sim < max_sim)
+        float2 search_offset = randdir * texelsize;
+        float2 search_center = i.uv + total_motion + search_offset;
+
+        moments_search = 0;
+        moments_cov = 0;
+
+        [loop]for(uint k = 0; k < block_area; k++)
         {
-            //rotate by larger golden angle
-            randdir = Rotate2D(randdir, float4(-0.7373688, 0.6754903, -0.6754903, -0.7373688));
+            float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
+            float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
 
-            float2 search_offset = randdir * texelsize;
-            float2 search_center = i.uv + total_motion + search_offset;
-
-            moments_search = 0;
-            moments_cov = 0;
-
-            [loop]for(uint k = 0; k < block_area; k++)
-            {
-                float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
-                float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
-
-                moments_search += t * t;
-                moments_cov += t * local_block[k];
-            }
-
-            cossim = moments_cov * RSQRT(moments_local * moments_search);
-            float sim = saturate(min(cossim.x, cossim.y));
-
-            if(sim < best_sim) continue;
-
-            best_sim = sim;
-            local_motion = search_offset;
+            moments_search += t * t;
+            moments_cov += t * local_block[k];
         }
 
-        total_motion += local_motion;
-        randdir *= 0.5;
+        cossim = moments_cov * RSQRT(moments_local * moments_search);
+        float sim = saturate(min(cossim.x, cossim.y));
+
+        if(sim < best_sim) continue;
+
+        best_sim = sim;
+        local_motion = search_offset;
     }
 
+    total_motion += local_motion;
     moments_local /= block_area;
 
     float variance = dot(sqrt(abs(moments_local - (moments_local / block_area))), 1);
