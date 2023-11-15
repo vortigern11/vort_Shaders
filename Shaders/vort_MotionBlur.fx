@@ -100,11 +100,11 @@ void PS_Blur(PS_ARGS4)
     float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
     float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
-    if(motion_pixel_length < 4.0) discard;
+    if(motion_pixel_length < 1.0) discard;
 
     uint half_samples = min(16, ceil(3 + motion_pixel_length * 0.25));
     float inv_half_samples = RCP(half_samples);
-    float rand = GetNoise(i.uv);
+    float rand = GetNoise(i.uv) - 0.5;
     float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
     float cen_depth = GetLinearizedDepth(i.uv);
     float3 color = cen_color + cen_color;
@@ -115,7 +115,7 @@ void PS_Blur(PS_ARGS4)
     // < not <=, because center color is added above
     [unroll]for(uint j = 1; j < half_samples; j++)
     {
-        float2 offset = motion * (j + rand - 0.5);
+        float2 offset = motion * (j + rand);
 
         color += GetColor(i.uv - offset, cen_color, cen_depth);
         color += GetColor(i.uv + offset, cen_color, cen_depth);
