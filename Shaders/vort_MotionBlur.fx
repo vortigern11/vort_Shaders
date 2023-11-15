@@ -58,10 +58,6 @@ namespace MotBlur {
     #define V_MOT_BLUR_DEBUG 0
 #endif
 
-#ifndef V_MOT_BLUR_HALF_SAMPLES
-    #define V_MOT_BLUR_HALF_SAMPLES 16
-#endif
-
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 1.0)
@@ -75,10 +71,6 @@ _vort_MotBlur_Help_,
 "0 - auto include my motion vectors (highly recommended)\n"
 "1 - manually use motion vectors (mine, qUINT_motionvectors, etc.)\n"
 "2 - manually use iMMERSE motion vectors\n"
-"\n"
-"V_MOT_BLUR_HALF_SAMPLES - >= 4\n"
-"Specifies the half amount of samples used for the motion blur.\n"
-"Lower it to increase performance (but use at least 4).\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
@@ -106,29 +98,31 @@ float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
 void PS_Blur(PS_ARGS4)
 {
     float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
+    float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
-    // discard if less than 1 pixel diff
-    if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
+    if(motion_pixel_length < 4.0) discard;
 
-    static const uint half_samples = V_MOT_BLUR_HALF_SAMPLES;
-    float inv_samples = RCP(half_samples * 2.0);
+    uint half_samples = min(16, ceil(3 + motion_pixel_length * 0.25));
+    float inv_half_samples = RCP(half_samples);
     float rand = GetNoise(i.uv);
     float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
     float cen_depth = GetLinearizedDepth(i.uv);
     float3 color = cen_color + cen_color;
 
-    motion *= inv_samples;
+    // faster than dividing `j` inside the loop
+    motion *= inv_half_samples;
 
-    // samples are reduced, because the center is added above
+    // < not <=, because center color is added above
     [unroll]for(uint j = 1; j < half_samples; j++)
     {
-        float2 offset = motion * (float(j) + (rand - 0.5));
+        float2 offset = motion * (j + rand - 0.5);
 
         color += GetColor(i.uv - offset, cen_color, cen_depth);
         color += GetColor(i.uv + offset, cen_color, cen_depth);
     }
 
-    o = float4(ApplyGammaCurve(color * inv_samples), 1);
+    // divide by the amount of all samples
+    o = float4(ApplyGammaCurve(color * (inv_half_samples * 0.5)), 1);
 }
 
 void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, UI_MB_Amount, MB_MOT_VECT_SAMP); }
