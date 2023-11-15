@@ -65,7 +65,6 @@ namespace MotBlur {
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 1.0)
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_MotThresh, "Motion Threshold", "The min movement required to include a pixel in the blur", 0.0, 0.020, 0.008)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -88,13 +87,14 @@ _vort_MotBlur_Help_,
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv, float3 center_color)
+float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
 {
-    float2 motion = Sample(MB_MOT_VECT_SAMP, uv).xy * UI_MB_Amount;
+    float sample_depth = GetLinearizedDepth(uv);
 
-    // don't blend with pixels which are not in motion
-    if(length(motion) < UI_MB_MotThresh)
-        return center_color;
+    // don't use pixels which are closer to the camera than the center pixel
+    // hence, no abs() on purpose
+    if((cen_depth - sample_depth) > 0.005)
+        return cen_color;
 
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
@@ -113,8 +113,9 @@ void PS_Blur(PS_ARGS4)
     static const uint half_samples = V_MOT_BLUR_HALF_SAMPLES;
     float inv_samples = RCP(half_samples * 2.0);
     float rand = GetNoise(i.uv);
-    float3 center_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
-    float3 color = center_color + center_color;
+    float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
+    float cen_depth = GetLinearizedDepth(i.uv);
+    float3 color = cen_color + cen_color;
 
     motion *= inv_samples;
 
@@ -123,8 +124,8 @@ void PS_Blur(PS_ARGS4)
     {
         float2 offset = motion * (float(j) + (rand - 0.5));
 
-        color += GetColor(i.uv - offset, center_color);
-        color += GetColor(i.uv + offset, center_color);
+        color += GetColor(i.uv - offset, cen_color, cen_depth);
+        color += GetColor(i.uv + offset, cen_color, cen_depth);
     }
 
     o = float4(ApplyGammaCurve(color * inv_samples), 1);
