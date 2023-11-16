@@ -60,6 +60,8 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "If motion vectors are setup correctly, leave at 1.0", 0.0, 2.0, 1.0)
+
 UI_HELP(
 _vort_MotBlur_Help_,
 "V_MOT_BLUR_DEBUG - 0 or 1\n"
@@ -95,7 +97,7 @@ float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
 // only areas behind the pixel are included in the blur
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy;
+    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
     float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
     if(motion_pixel_length < 1.0) discard;
