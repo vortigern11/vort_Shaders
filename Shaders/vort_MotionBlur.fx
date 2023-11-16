@@ -101,6 +101,7 @@ void PS_Blur(PS_ARGS4)
     if(motion_pixel_length < 1.0) discard;
 
     uint samples = clamp(uint(motion_pixel_length), 3, 15);
+    float rand = GetNoise(i.uv) * -0.5; // -0.5 <-> 0
     float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
     float cen_depth = GetLinearizedDepth(i.uv);
     float3 color = cen_color;
@@ -109,7 +110,7 @@ void PS_Blur(PS_ARGS4)
     motion *= rcp(samples);
 
     [unroll]for(uint j = 1; j <= samples; j++)
-        color += GetColor(i.uv - motion * j, cen_color, cen_depth);
+        color += GetColor(i.uv - motion * (j + rand), cen_color, cen_depth);
 
     // divide by samples + 1, because cen_color is used too
     o = float4(ApplyGammaCurve(color * rcp(samples + 1)), 1);
