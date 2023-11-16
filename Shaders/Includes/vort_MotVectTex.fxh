@@ -8,9 +8,9 @@ sampler2D sMotionVectorTex { Texture = texMotionVectors; };
 #define MOT_VECT_TEX texMotionVectors
 #define MOT_VECT_SAMP sMotionVectorTex
 
-float3 DebugMotion(float2 uv, float modifier, sampler mot_samp)
+float3 DebugMotion(float2 uv, sampler mot_samp)
 {
-    float2 motion = Sample(mot_samp, uv).xy * modifier;
+    float2 motion = Sample(mot_samp, uv).xy;
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
 

@@ -37,9 +37,9 @@ UI_FLOAT(
     0.0, 2.0, 1.0
 )
 UI_FLOAT(
-    CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
+    CAT_MOT_VECT, UI_MV_WMMult, "Motion Strength",
     "Enable Debug View and start rotating the camera\n"
-    "The more you increase this value, the less moving objects blend with surroundings.",
+    "Separate objects should be visible when rotating instead of the whole screen being single color.",
     0.0, 2.0, 1.0
 )
 
@@ -92,49 +92,53 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
-    static const float max_sim = 1 - 1e-6;
+    float variance = dot(sqrt(abs(moments_local * (block_area - 1) * RCP(block_area * block_area))), 1);
+
+    // early return when variance is very low
+    if(variance < exp(-32.0))
+        return float4(total_motion, 0, 0);
 
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
+    uint searches = 2;
 
-    float2 local_motion = 0;
-    uint samples = 8;
-
-    while(samples-- > 0 && best_sim < max_sim)
+    while(searches-- > 0)
     {
-        if(samples == 4) randdir *= 0.5;
+        float2 local_motion = 0;
+        uint samples = 4;
 
-        //rotate by 90 degrees
-        randdir = float2(randdir.y, -randdir.x);
-
-        float2 search_offset = randdir * texelsize;
-        float2 search_center = i.uv + total_motion + search_offset;
-
-        moments_search = 0;
-        moments_cov = 0;
-
-        [loop]for(uint k = 0; k < block_area; k++)
+        while(samples-- > 0)
         {
-            float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
-            float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
+            //rotate by 90 degrees
+            randdir = float2(randdir.y, -randdir.x);
 
-            moments_search += t * t;
-            moments_cov += t * local_block[k];
+            float2 search_offset = randdir * texelsize;
+            float2 search_center = i.uv + total_motion + search_offset;
+
+            moments_search = 0;
+            moments_cov = 0;
+
+            [loop]for(uint k = 0; k < block_area; k++)
+            {
+                float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
+                float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
+
+                moments_search += t * t;
+                moments_cov += t * local_block[k];
+            }
+
+            cossim = moments_cov * RSQRT(moments_local * moments_search);
+            float sim = saturate(min(cossim.x, cossim.y));
+
+            if(sim < best_sim) continue;
+
+            best_sim = sim;
+            local_motion = search_offset;
         }
 
-        cossim = moments_cov * RSQRT(moments_local * moments_search);
-        float sim = saturate(min(cossim.x, cossim.y));
-
-        if(sim < best_sim) continue;
-
-        best_sim = sim;
-        local_motion = search_offset;
+        total_motion += local_motion;
+        randdir *= 0.5;
     }
-
-    total_motion += local_motion;
-    moments_local /= block_area;
-
-    float variance = dot(sqrt(abs(moments_local - (moments_local / block_area))), 1);
 
     return float4(total_motion, variance, saturate(1.0 - acos(best_sim) / HALF_PI));
 }
@@ -162,7 +166,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float wz = saturate(abs(sample_z - center_z)) * 50.0 * UI_MV_WZMult;
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 8e3 * UI_MV_WMMult;
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 5000.0 * UI_MV_WMMult;
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);

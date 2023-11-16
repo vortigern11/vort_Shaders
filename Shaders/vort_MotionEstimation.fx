@@ -35,7 +35,7 @@
     Passes
 *******************************************************************************/
 
-void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, 1.0, MOT_VECT_SAMP); }
+void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, MOT_VECT_SAMP); }
 
 /*******************************************************************************
     Techniques

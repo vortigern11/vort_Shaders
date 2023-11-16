@@ -60,8 +60,6 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "The amount of motion blur.", 0.0, 1.0, 1.0)
-
 UI_HELP(
 _vort_MotBlur_Help_,
 "V_MOT_BLUR_DEBUG - 0 or 1\n"
@@ -79,8 +77,13 @@ _vort_MotBlur_Help_,
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv)
+float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
 {
+    float sample_depth = GetLinearizedDepth(uv);
+
+    // don't use pixels which are closer to the camera than the center pixel
+    if((cen_depth - sample_depth) > 0.005) return cen_color;
+
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
@@ -92,27 +95,28 @@ float3 GetColor(float2 uv)
 // only areas behind the pixel are included in the blur
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
+    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy;
     float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
     if(motion_pixel_length < 1.0) discard;
 
-    uint samples = clamp(uint(motion_pixel_length), 4, 16);
-    float inv_samples = RCP(samples);
+    uint samples = clamp(uint(motion_pixel_length), 3, 15);
     float rand = GetNoise(i.uv) - 0.5;
-    float3 color = GetColor(i.uv);
+    float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
+    float cen_depth = GetLinearizedDepth(i.uv);
+    float3 color = cen_color;
 
     // faster than dividing `j` inside the loop
-    motion *= inv_samples;
+    motion *= rcp(samples);
 
-    // < not <=, because center color is added above
-    [unroll]for(uint j = 1; j < samples; j++)
-        color += GetColor(i.uv - motion * (j + rand));
+    [unroll]for(uint j = 1; j <= samples; j++)
+        color += GetColor(i.uv - motion * (j + rand), cen_color, cen_depth);
 
-    o = float4(ApplyGammaCurve(color * inv_samples), 1);
+    // divide by samples + 1, because cen_color is used too
+    o = float4(ApplyGammaCurve(color * rcp(samples + 1)), 1);
 }
 
-void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, UI_MB_Amount, MB_MOT_VECT_SAMP); }
+void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, MB_MOT_VECT_SAMP); }
 
 /*******************************************************************************
     Passes
