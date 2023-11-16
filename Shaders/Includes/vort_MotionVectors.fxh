@@ -166,7 +166,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float wz = saturate(abs(sample_z - center_z)) * 50.0 * UI_MV_WZMult;
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 5000.0 * UI_MV_WMMult;
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 2500.0 * UI_MV_WMMult;
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);
