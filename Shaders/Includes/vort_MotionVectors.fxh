@@ -37,12 +37,15 @@ UI_FLOAT(
     0.0, 2.0, 1.0
 )
 
+static const float tfs = 1.0 / 255.99;
+static const float tfs_tfs = tfs * tfs;
+
 /*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
 
-texture2D CurrFeatureTexVort { TEX_SIZE(MIN_MIP) TEX_RG16 MipLevels = 1 + MAX_MIP - MIN_MIP; };
-texture2D PrevFeatureTexVort { TEX_SIZE(MIN_MIP) TEX_RG16 MipLevels = 1 + MAX_MIP - MIN_MIP; };
+texture2D CurrFeatureTexVort { TEX_SIZE(MIN_MIP) TEX_RG32 MipLevels = 1 + MAX_MIP - MIN_MIP; };
+texture2D PrevFeatureTexVort { TEX_SIZE(MIN_MIP) TEX_RG32 MipLevels = 1 + MAX_MIP - MIN_MIP; };
 
 sampler2D sCurrFeatureTexVort { Texture = CurrFeatureTexVort; };
 sampler2D sPrevFeatureTexVort { Texture = PrevFeatureTexVort; };
@@ -184,9 +187,9 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
 void PS_WriteFeature(PS_ARGS2)
 {
-    float3 color = Filter8Taps(i.uv, sLDRTexVort, MIN_MIP);
+    float3 color = ApplyLinearCurve(Filter8Taps(i.uv, sLDRTexVort, MIN_MIP));
 
-    o.x = RGBToYCbCrLumi(color);
+    o.x = dot(color, float3(tfs, 1.0, tfs_tfs));
     o.y = GetLinearizedDepth(i.uv);
 }
 
