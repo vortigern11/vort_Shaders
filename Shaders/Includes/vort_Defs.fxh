@@ -44,9 +44,7 @@
 #define IS_HDR_HLG (BUFFER_COLOR_SPACE == 4)
 #define IS_8BIT (BUFFER_COLOR_BIT_DEPTH == 8)
 #define IS_DX9 (__RENDERER__ < 0xA000)
-
-struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
-struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
+#define CAN_COMPUTE (__RENDERER__ >= 0xB000)
 
 // safer versions of built-in functions
 float RCP(float x)   { x = rcp(x == 0 ? EPSILON : x); return x; }
@@ -54,6 +52,7 @@ float2 RCP(float2 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 float3 RCP(float3 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 
+#define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
 #define RSQRT(_x) (RCP(sqrt(_x)))
 #define NORMALIZE(_x) ((_x) * RSQRT(_x))
@@ -230,9 +229,21 @@ uniform float FRAME_TIME < source = "frametime"; >;
 #define SAM_REPEAT AddressU = REPEAT; AddressV = REPEAT;
 #define SAM_BORDER AddressU = BORDER; AddressV = BORDER;
 
+struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
+struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
+struct CSIN {
+    uint3 id : SV_DispatchThreadID;
+    uint3 gtid : SV_GroupThreadID;
+    uint3 gid : SV_GroupID;
+    uint gIndex : SV_GroupIndex;
+};
+
+#define PS_ARGS1 in VSOUT i, out float  o : SV_Target0
 #define PS_ARGS2 in VSOUT i, out float2 o : SV_Target0
 #define PS_ARGS3 in VSOUT i, out float3 o : SV_Target0
 #define PS_ARGS4 in VSOUT i, out float4 o : SV_Target0
+
+#define CS_ARGS in CSIN i
 
 #define VS_ARGS \
     in uint id : SV_VertexID, out float4 vpos : SV_Position, out float2 uv : TEXCOORD

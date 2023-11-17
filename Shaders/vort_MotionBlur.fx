@@ -26,6 +26,7 @@
 *******************************************************************************/
 
 #include "Includes/vort_Defs.fxh"
+#include "Includes/vort_Depth.fxh"
 #include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_LDRTex.fxh"
 
@@ -75,17 +76,13 @@ _vort_MotBlur_Help_,
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
 )
+
 /*******************************************************************************
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv, float3 cen_color, float cen_depth)
+float3 GetColor(float2 uv)
 {
-    float sample_depth = GetLinearizedDepth(uv);
-
-    // don't use pixels which are closer to the camera than the center pixel
-    if((cen_depth - sample_depth) > 0.005) return cen_color;
-
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
@@ -102,19 +99,25 @@ void PS_Blur(PS_ARGS4)
 
     if(motion_pixel_length < 1.0) discard;
 
-    uint samples = clamp(uint(motion_pixel_length), 3, 15);
-    float rand = GetNoise(i.uv) * -0.5; // -0.5 <-> 0
-    float3 cen_color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
-    float cen_depth = GetLinearizedDepth(i.uv);
-    float3 color = cen_color;
+    static const uint samples = 15;
+    float rand = -GetNoise(i.uv); // -1.0 <-> 0
+    float3 center_color = GetColor(i.uv);
+    float center_z = GetLinearizedDepth(i.uv);
+    float3 color = center_color;
 
     // faster than dividing `j` inside the loop
     motion *= rcp(samples);
 
     [unroll]for(uint j = 1; j <= samples; j++)
-        color += GetColor(i.uv - motion * (j + rand), cen_color, cen_depth);
+    {
+        float2 uv = i.uv - motion * (j + rand);
+        float sample_z = GetLinearizedDepth(uv);
 
-    // divide by samples + 1, because cen_color is used too
+        // don't use pixels which are closer to the camera than the center pixel
+        color += ((center_z - sample_z) > 0.005) ? center_color : GetColor(uv);
+    }
+
+    // divide by samples + 1, because center_color is used too
     o = float4(ApplyGammaCurve(color * rcp(samples + 1)), 1);
 }
 
