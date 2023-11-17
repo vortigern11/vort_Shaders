@@ -36,12 +36,6 @@ UI_FLOAT(
     "Increase this value if your character/weapon is being covered by color",
     0.0, 2.0, 1.0
 )
-UI_FLOAT(
-    CAT_MOT_VECT, UI_MV_WMMult, "Motion Strength",
-    "Enable Debug View and start rotating the camera\n"
-    "Separate objects should be visible when rotating instead of the whole screen being single color.",
-    0.0, 2.0, 1.0
-)
 
 /*******************************************************************************
     Textures, Samplers
@@ -148,7 +142,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 texelsize = rcp(tex2Dsize(mot_samp));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.0;
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, saturate(i.uv), mip).y;
 
     float2 gbuffer_sum = 0;
@@ -166,7 +160,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float wz = saturate(abs(sample_z - center_z)) * 50.0 * UI_MV_WZMult;
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 2500.0 * UI_MV_WMMult;
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 2000.0;
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);
