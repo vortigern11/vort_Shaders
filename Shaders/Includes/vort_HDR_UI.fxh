@@ -84,10 +84,10 @@
     #define CAT_SHARP "Sharpen"
 
     UI_BOOL(CAT_SHARP, UI_CC_ShowSharpening, "Show only Sharpening", "", false)
-    UI_FLOAT(CAT_SHARP, UI_CC_SharpenLimit, "Sharpen Limit", "Control which pixel to be sharpened", 0.0, 0.1, 0.01)
+    UI_FLOAT(CAT_SHARP, UI_CC_SharpenLimit, "Sharpen Limit", "Control which pixel to be sharpened", 0.0, 0.1, 0.015)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 1.0, 0.8)
-    UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Unsharpening Strength", "Controls the unsharpness strength.", 0.0, 1.0, 0.8)
-    UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "Max disables unsharpening.", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Unsharpening Strength", "Controls the unsharpness strength.", 0.0, 1.0, 0.4)
+    UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "Controls at what distance blurring occurs.", 0.0, 1.0, 0.1)
 #endif
 
 #if V_ENABLE_COLOR_GRADING
