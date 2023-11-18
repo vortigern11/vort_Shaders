@@ -183,13 +183,13 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
 void PS_WriteFeature(PS_ARGS2)
 {
-    float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP));
+    float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
     o.x = dot(color, 0.333);
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(MOT_VECT_SAMP, i.uv) * 0.95); } // no upscaling for MAX_MIP
+void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, Sample(MOT_VECT_SAMP, i.uv).xy * 0.95); } // no upscaling for MAX_MIP
 void PS_Motion5(PS_ARGS4) { o = CalcLayer(i, 5, AtrousUpscale(i, 5, sDownTexVort6)); }
 void PS_Motion4(PS_ARGS4) { o = CalcLayer(i, 4, AtrousUpscale(i, 4, sDownTexVort5)); }
 void PS_Motion3(PS_ARGS4) { o = CalcLayer(i, 3, AtrousUpscale(i, 3, sDownTexVort4)); }
