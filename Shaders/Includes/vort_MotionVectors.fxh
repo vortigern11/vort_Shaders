@@ -37,9 +37,6 @@ UI_FLOAT(
     0.0, 2.0, 1.0
 )
 
-static const float tfs = 1.0 / 255.99;
-static const float tfs_tfs = tfs * tfs;
-
 /*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
@@ -90,10 +87,6 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
     float variance = dot(sqrt(abs(moments_local * (block_area - 1) * RCP(block_area * block_area))), 1);
-
-    // early return when variance is very low
-    if(variance < exp(-32.0))
-        return float4(total_motion, 0, 0);
 
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
@@ -189,7 +182,7 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = ApplyLinearCurve(Filter8Taps(i.uv, sLDRTexVort, MIN_MIP));
 
-    o.x = dot(color, float3(tfs, 1.0, tfs_tfs));
+    o.x = dot(color, float3(exp2(-8), 1.0, exp2(-16)));
     o.y = GetLinearizedDepth(i.uv);
 }
 
