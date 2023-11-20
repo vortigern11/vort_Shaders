@@ -55,6 +55,8 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
+#define SAMP_STR 20
+
 #ifndef V_MOT_BLUR_DEBUG
     #define V_MOT_BLUR_DEBUG 0
 #endif
@@ -99,26 +101,25 @@ void PS_Blur(PS_ARGS4)
 
     if(motion_pixel_length < 1.0) discard;
 
-    static const uint samples = 15;
-    float rand = -GetNoise(i.uv); // -1.0 <-> 0
+    static const uint samples = 6;
     float3 center_color = GetColor(i.uv);
     float center_z = GetLinearizedDepth(i.uv);
-    float3 color = center_color;
+    float3 color = 0.0;
 
     // faster than dividing `j` inside the loop
     motion *= rcp(samples);
 
     [unroll]for(uint j = 1; j <= samples; j++)
     {
-        float2 sample_uv = i.uv - motion * (j + rand);
+        float2 sample_uv = i.uv - motion * (j - 0.5);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         // don't use pixels which are closer to the camera than the center pixel
         color += ((center_z - sample_z) > 0.005) ? center_color : GetColor(sample_uv);
     }
 
-    // divide by samples + 1, because center_color is used too
-    o = float4(ApplyGammaCurve(color * rcp(samples + 1)), 1);
+    color = (color * SAMP_STR + center_color) * rcp(samples * SAMP_STR + 1);
+    o = float4(ApplyGammaCurve(color), 1);
 }
 
 void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, MB_MOT_VECT_SAMP); }
