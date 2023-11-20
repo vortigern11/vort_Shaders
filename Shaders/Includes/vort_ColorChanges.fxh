@@ -114,43 +114,7 @@ namespace ColorChanges {
     Functions
 *******************************************************************************/
 
-float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
-    static const float3x3 LIN_2_LMS_MAT = float3x3(
-        3.90405e-1, 5.49941e-1, 8.92632e-3,
-        7.08416e-2, 9.63172e-1, 1.35775e-3,
-        2.31082e-2, 1.28021e-1, 9.36245e-1
-    );
-
-    float3 lms = mul(LIN_2_LMS_MAT, col);
-
-    temp /= 0.6;
-    tint /= 0.6;
-
-    float x = 0.31271 - temp * (temp < 0 ? 0.1 : 0.05);
-    float y = 2.87 * x - 3 * x * x - 0.27509507 + tint * 0.05;
-
-    float X = x / y;
-    float Z = (1 - x - y) / y;
-
-    static const float3 w1 = float3(0.949237, 1.03542, 1.08728);
-
-    float3 w2 = float3(
-        0.7328 * X + 0.4296 - 0.1624 * Z,
-       -0.7036 * X + 1.6975 + 0.0061 * Z,
-        0.0030 * X + 0.0136 + 0.9834 * Z
-    );
-
-    lms *= w1 / w2;
-
-    static const float3x3 LMS_2_LIN_MAT = float3x3(
-        2.85847e+0, -1.62879e+0, -2.48910e-2,
-       -2.10182e-1,  1.15820e+0,  3.24281e-4,
-       -4.18120e-2, -1.18169e-1,  1.06867e+0
-    );
-
-    return mul(LMS_2_LIN_MAT, lms);
-}
-
+#if V_USE_TONEMAP > 0
 float3 ApplyLottes(float3 c)
 {
     float k = max(1.001, UI_CC_LottesMod);
@@ -166,6 +130,7 @@ float3 InverseLottes(float3 c)
 
     return c * RCP(k - v);
 }
+#endif
 
 #if V_ENABLE_SHARPEN
 float3 ApplySharpen(float3 c, sampler samp, float2 uv)
@@ -190,6 +155,43 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 #endif
 
 #if V_ENABLE_COLOR_GRADING
+float3 ChangeWhiteBalance(float3 col, float temp, float tint) {
+    static const float3x3 LIN_2_LMS_MAT = float3x3(
+        3.90405e-1, 5.49941e-1, 8.92632e-3,
+        7.08416e-2, 9.63172e-1, 1.35775e-3,
+        2.31082e-2, 1.28021e-1, 9.36245e-1
+    );
+
+    float3 lms = mul(LIN_2_LMS_MAT, col);
+
+    temp /= 0.6;
+    tint /= 0.6;
+
+    float x = 0.31271 - temp * (temp < 0 ? 0.1 : 0.05);
+    float y = 2.87 * x - 3 * x * x - 0.27509507 + tint * 0.05;
+
+    float X = x / y;
+    float Z = (1 - x - y) / y;
+
+    static const float3 w1 = float3(0.949237, 1.03542, 1.08728);
+
+    float3 w2 = float3(
+         0.7328 * X + 0.4296 - 0.1624 * Z,
+        -0.7036 * X + 1.6975 + 0.0061 * Z,
+         0.0030 * X + 0.0136 + 0.9834 * Z
+    );
+
+    lms *= w1 / w2;
+
+    static const float3x3 LMS_2_LIN_MAT = float3x3(
+         2.85847e+0, -1.62879e+0, -2.48910e-2,
+        -2.10182e-1,  1.15820e+0,  3.24281e-4,
+        -4.18120e-2, -1.18169e-1,  1.06867e+0
+    );
+
+    return mul(LMS_2_LIN_MAT, lms);
+}
+
 float3 ApplyColorGrading(float3 c)
 {
     // white balance
@@ -262,9 +264,6 @@ float3 ApplyStartProcessing(float3 c)
     c = saturate(c);
 
     #if USE_ACES
-        // instead of inversing ACES,
-        // use simple Lottes inverse tonemap
-        // and convert to AP1(ACEScg)
         c = InverseLottes(c);
         c = RGBToACEScg(c);
     #elif USE_LOTTES

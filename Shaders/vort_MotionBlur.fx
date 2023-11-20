@@ -55,15 +55,13 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define SAMP_STR 20
-
 #ifndef V_MOT_BLUR_DEBUG
     #define V_MOT_BLUR_DEBUG 0
 #endif
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "If motion vectors are setup correctly, leave at 1.0", 0.0, 2.0, 1.0)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -102,6 +100,7 @@ void PS_Blur(PS_ARGS4)
     if(motion_pixel_length < 1.0) discard;
 
     static const uint samples = 6;
+    static const float samples_mult = 20;
     float3 center_color = GetColor(i.uv);
     float center_z = GetLinearizedDepth(i.uv);
     float3 color = 0.0;
@@ -118,7 +117,8 @@ void PS_Blur(PS_ARGS4)
         color += ((center_z - sample_z) > 0.005) ? center_color : GetColor(sample_uv);
     }
 
-    color = (color * SAMP_STR + center_color) * rcp(samples * SAMP_STR + 1);
+    // fake the amount of samples being gathered
+    color = (color * samples_mult + center_color) * rcp(samples * samples_mult + 1);
     o = float4(ApplyGammaCurve(color), 1);
 }
 

@@ -61,7 +61,9 @@
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
 
-    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the inverse tonemap", 1.0, 1.5, 1.025)
+    #if V_USE_TONEMAP > 0
+        UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the tonemapper", 1.0, 1.5, 1.025)
+    #endif
 
     #if V_USE_AUTO_EXPOSURE
         UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpAdaptTime, "Exposure Adaption Time", "Higher values equal longer adaption time", 0.0, 1.0, 0.9)
