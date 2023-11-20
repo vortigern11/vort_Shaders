@@ -33,7 +33,7 @@ float GetLinearizedDepth(float2 texcoord)
     static const float N = 1.0;
     depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-    return depth;
+    return saturate(depth);
 }
 
 float3 GetScreenSpaceNormal(float2 uv)

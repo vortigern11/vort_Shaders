@@ -220,10 +220,10 @@ uniform float FRAME_TIME < source = "frametime"; >;
 #define TEX_RGBA32 Format = RGBA32F;
 #define TEX_R8 Format = R8;
 #define TEX_RG8 Format = RG8;
-#define TEX_RG16 Format = RG16F;
-#define TEX_RG32 Format = RG32F;
 #define TEX_R16 Format = R16F;
 #define TEX_R32 Format = R32F;
+#define TEX_RG16 Format = RG16F;
+#define TEX_RG32 Format = RG32F;
 
 #define SAM_POINT  MagFilter = POINT; MinFilter = POINT; MipFilter = POINT;
 #define SAM_MIRROR AddressU = MIRROR; AddressV = MIRROR;
