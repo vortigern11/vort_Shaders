@@ -27,7 +27,7 @@
 
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
-#include "Includes/vort_MotVectTex.fxh"
+#include "Includes/vort_MotVectUtils.fxh"
 #include "Includes/vort_LDRTex.fxh"
 
 #ifndef V_MOT_BLUR_VECTORS_MODE
@@ -37,16 +37,24 @@
 #if V_MOT_BLUR_VECTORS_MODE <= 1
     #if V_MOT_BLUR_VECTORS_MODE == 0
         #include "Includes/vort_MotionVectors.fxh"
+    #else
+        #include "Includes/vort_MotVectTex.fxh"
     #endif
 
-    #define MB_MOT_VECT_SAMP MOT_VECT_SAMP
+    #define MOT_VECT_SAMP sMotVectTexVort
 #elif V_MOT_BLUR_VECTORS_MODE == 2
     namespace Deferred {
         texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
         sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
     }
 
-    #define MB_MOT_VECT_SAMP Deferred::sMotionVectorsTex
+    #define MOT_VECT_SAMP Deferred::sMotionVectorsTex
+#else
+    // the names used in qUINT_of, qUINT_motionvectors and other older implementations
+    texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
+    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
+
+    #define MOT_VECT_SAMP sMotionVectorTex
 #endif
 
 namespace MotBlur {
@@ -55,23 +63,20 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#ifndef V_MOT_BLUR_DEBUG
-    #define V_MOT_BLUR_DEBUG 0
-#endif
-
 #define CAT_MOT_BLUR "Motion Blur"
 
 UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
-"V_MOT_BLUR_DEBUG - 0 or 1\n"
+"V_MOT_VECT_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
 "\n"
 "V_MOT_BLUR_VECTORS_MODE - [0 - 3]\n"
 "0 - auto include my motion vectors (highly recommended)\n"
-"1 - manually use motion vectors (mine, qUINT_motionvectors, etc.)\n"
+"1 - manually use vort_MotionEstimation\n"
 "2 - manually use iMMERSE motion vectors\n"
+"3 - manually use older motion vectors (qUINT_of, qUINT_motionvectors, etc.)\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
@@ -81,10 +86,7 @@ _vort_MotBlur_Help_,
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv)
-{
-    return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
-}
+float3 GetColor(float2 uv) { return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb); }
 
 /*******************************************************************************
     Shaders
@@ -94,7 +96,7 @@ float3 GetColor(float2 uv)
 // only areas behind the pixel are included in the blur
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(MB_MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
     float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
     if(motion_pixel_length < 1.0) discard;
@@ -122,17 +124,7 @@ void PS_Blur(PS_ARGS4)
     o = float4(ApplyGammaCurve(color), 1);
 }
 
-void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, MB_MOT_VECT_SAMP); }
-
-/*******************************************************************************
-    Passes
-*******************************************************************************/
-
-#define PASS_MOT_BLUR \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
-
-#define PASS_MOT_BLUR_DEBUG \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP); }
 
 } // namespace end
 
@@ -146,9 +138,9 @@ technique vort_MotionBlur
         PASS_MOT_VECT
     #endif
 
-    #if V_MOT_BLUR_DEBUG
-        PASS_MOT_BLUR_DEBUG
+    #if V_MOT_VECT_DEBUG
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
-        PASS_MOT_BLUR
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
 }

@@ -25,17 +25,13 @@
 *******************************************************************************/
 
 #include "Includes/vort_MotionVectors.fxh"
-#include "Includes/vort_MotVectTex.fxh"
-
-#ifndef V_MOT_VECT_DEBUG
-    #define V_MOT_VECT_DEBUG 0
-#endif
+#include "Includes/vort_MotVectUtils.fxh"
 
 /*******************************************************************************
-    Passes
+    Shaders
 *******************************************************************************/
 
-void PS_Debug(PS_ARGS3) { o = DebugMotion(i.uv, MOT_VECT_SAMP); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, sMotVectTexVort); }
 
 /*******************************************************************************
     Techniques
