@@ -54,7 +54,6 @@
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_ExpTex.fxh"
-#include "Includes/vort_ACES.fxh"
 
 namespace ColorChanges {
 
@@ -70,13 +69,9 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-#define USE_ACES IS_SRGB && V_USE_TONEMAP == 1
-#define USE_LOTTES IS_SRGB && V_USE_TONEMAP == 2
+#define USE_LOTTES IS_SRGB && V_USE_TONEMAP == 1
 
-#if USE_ACES
-    #define LINEAR_MIN FLOAT_MIN
-    #define LINEAR_MAX FLOAT_MAX
-#elif USE_LOTTES
+#if USE_LOTTES
     #define LINEAR_MIN 0.0
     #define LINEAR_MAX FLOAT_MAX
 #elif IS_SRGB
@@ -96,19 +91,11 @@ namespace ColorChanges {
     #define LINEAR_MAX 1.0
 #endif
 
-#if USE_ACES
-    #define TO_LOG_CS(_x) ACEScgToACEScct(_x)
-    #define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
-    #define GET_LUMI(_x) RGBToACESLumi(_x)
-    #define LINEAR_MID_GRAY 0.18
-    #define LOG_MID_GRAY ACES_LOG_MID_GRAY
-#else
-    #define TO_LOG_CS(_x) LOG2(_x)
-    #define TO_LINEAR_CS(_x) exp2(_x)
-    #define GET_LUMI(_x) RGBToYCbCrLumi(_x)
-    #define LINEAR_MID_GRAY 0.18
-    #define LOG_MID_GRAY 0.18
-#endif
+#define TO_LOG_CS(_x) LOG2(_x)
+#define TO_LINEAR_CS(_x) exp2(_x)
+#define GET_LUMI(_x) RGBToYCbCrLumi(_x)
+#define LINEAR_MID_GRAY 0.18
+#define LOG_MID_GRAY 0.18
 
 /*******************************************************************************
     Functions
@@ -263,10 +250,7 @@ float3 ApplyStartProcessing(float3 c)
 #if IS_SRGB
     c = saturate(c);
 
-    #if USE_ACES
-        c = InverseLottes(c);
-        c = RGBToACEScg(c);
-    #elif USE_LOTTES
+    #if USE_LOTTES
         c = InverseLottes(c);
     #endif
 #endif
@@ -290,9 +274,7 @@ float3 ApplyEndProcessing(float3 c)
     // clamp before tonemapping
     c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
-    #if USE_ACES
-        c = ApplyACESFitted(c);
-    #elif USE_LOTTES
+    #if USE_LOTTES
         c = ApplyLottes(c);
     #endif
 

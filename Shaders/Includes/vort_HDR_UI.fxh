@@ -27,7 +27,7 @@
 #pragma once
 
 #ifndef V_USE_TONEMAP
-    #define V_USE_TONEMAP 2
+    #define V_USE_TONEMAP 1
 #endif
 
 #ifndef V_ENABLE_BLOOM
@@ -118,10 +118,9 @@
 
 UI_HELP(
 _vort_HDR_Help_,
-"V_USE_TONEMAP - 0, 1 or 2\n"
+"V_USE_TONEMAP - 0 or 1\n"
 "0 for no tonemapping\n"
-"1 for ACES tonemapping\n"
-"2 for Lottes tonemapping\n"
+"1 for Lottes tonemapping\n"
 "\n"
 "V_ENABLE_BLOOM - 0 or 1\n"
 "Toggle the bloom effect.\n"
