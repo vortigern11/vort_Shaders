@@ -65,7 +65,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 1.0)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 0.75)
 
 UI_HELP(
 _vort_MotBlur_Help_,
