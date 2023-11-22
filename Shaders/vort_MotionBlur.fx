@@ -101,8 +101,8 @@ void PS_Blur(PS_ARGS4)
 
     if(motion_pixel_length < 1.0) discard;
 
-    static const uint samples = 6;
-    static const float samples_mult = 20;
+    static const uint samples = 8;
+    float rand = GetNoise(i.uv);
     float3 center_color = GetColor(i.uv);
     float center_z = GetLinearizedDepth(i.uv);
     float3 color = 0.0;
@@ -112,7 +112,7 @@ void PS_Blur(PS_ARGS4)
 
     [unroll]for(uint j = 1; j <= samples; j++)
     {
-        float2 sample_uv = i.uv - motion * (j - 0.5);
+        float2 sample_uv = i.uv - motion * (j - rand);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         // don't use pixels which are closer to the camera than the center pixel
@@ -120,7 +120,7 @@ void PS_Blur(PS_ARGS4)
     }
 
     // fake the amount of samples being gathered
-    color = (color * samples_mult + center_color) * rcp(samples * samples_mult + 1);
+    color = (color * samples + center_color) * rcp(samples * samples + 1);
     o = float4(ApplyGammaCurve(color), 1);
 }
 

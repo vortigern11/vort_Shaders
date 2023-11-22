@@ -136,7 +136,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
-    float2 center_feat = Sample(sCurrFeatureTexVort, i.uv, mip).xy;
+    float center_z = Sample(sCurrFeatureTexVort, i.uv, mip).y;
 
     float2 gbuffer_sum = 0;
     float wsum = 1e-6;
@@ -147,13 +147,10 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     {
         float2 sample_uv = saturate(i.uv + Rotate2D(float2(x, y), rotator) * texelsize);
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
-        float2 sample_feat = Sample(sCurrFeatureTexVort, sample_uv, mip).xy;
-
-        // color delta
-        float wc = abs(sample_feat.x - center_feat.x) * 0.5;
+        float sample_z = Sample(sCurrFeatureTexVort, sample_uv, mip).y;
 
         // depth delta
-        float wz = min(0.5, abs(sample_feat.y - center_feat.y) * 50.0 * UI_MV_WZMult);
+        float wz = min(0.5, abs(sample_z - center_z) * 50.0 * UI_MV_WZMult);
 
         // long motion vectors
         float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0;
@@ -164,7 +161,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         // bad block matching
         float ws = saturate(1.0 - sample_gbuf.w);
 
-        float weight = exp2(-(wc + wz + wm + wf + ws) * 8.0);
+        float weight = exp2(-(wz + wm + wf + ws) * 8.0);
 
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
         gbuffer_sum += sample_gbuf.xy * weight;
