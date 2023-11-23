@@ -26,10 +26,6 @@
 
 #pragma once
 
-#ifndef V_USE_TONEMAP
-    #define V_USE_TONEMAP 1
-#endif
-
 #ifndef V_ENABLE_BLOOM
     #define V_ENABLE_BLOOM 1
 #endif
@@ -50,10 +46,6 @@
     #define V_BLOOM_DEBUG 0
 #endif
 
-#ifndef V_USE_AUTO_EXPOSURE
-    #define V_USE_AUTO_EXPOSURE 0
-#endif
-
 #ifndef V_SHOW_ONLY_HDR_COLORS
     #define V_SHOW_ONLY_HDR_COLORS 0
 #endif
@@ -61,17 +53,8 @@
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
 
-    #if V_USE_TONEMAP > 0
-        UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the tonemapper", 1.0, 1.5, 1.025)
-    #endif
-
-    #if V_USE_AUTO_EXPOSURE
-        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpAdaptTime, "Exposure Adaption Time", "Higher values equal longer adaption time", 0.0, 1.0, 0.9)
-        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMin, "Exposure Min Value", "The min value used for the averaging of the scene", 0.0, 0.5, 0.025)
-        UI_FLOAT(CAT_TONEMAP, UI_CC_AutoExpMax, "Exposure Max Value", "The max value used for the averaging of the scene", 0.0, 1.0, 0.100)
-    #else
-        UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
-    #endif
+    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the tonemapper", 1.0, 1.5, 1.025)
+    UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
 #endif
 
 #if V_ENABLE_BLOOM
@@ -118,10 +101,6 @@
 
 UI_HELP(
 _vort_HDR_Help_,
-"V_USE_TONEMAP - 0 or 1\n"
-"0 for no tonemapping\n"
-"1 for Lottes tonemapping\n"
-"\n"
 "V_ENABLE_BLOOM - 0 or 1\n"
 "Toggle the bloom effect.\n"
 "\n"
@@ -138,11 +117,8 @@ _vort_HDR_Help_,
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
 "\n"
-"V_USE_AUTO_EXPOSURE - 0 or 1\n"
-"Toggle the Auto-Exposure(Eye Adaption) effect\n"
-"\n"
 "V_SHOW_ONLY_HDR_COLORS - 0 or 1\n"
-"If 1, shows only the HDR colors before the tonemapping in gray\n"
+"If 1, shows in white the HDR colors\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"

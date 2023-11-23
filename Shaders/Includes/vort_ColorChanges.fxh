@@ -29,7 +29,7 @@
     Agx -> https://github.com/MrLixm/AgXc/tree/main/reshade
     Tony McMapface -> https://github.com/h3r2tic/tony-mc-mapface/tree/main
 
-- Move the inverse tonemap, tonemap and color grading to a LUTs
+- Move the inverse tonemap, tonemap and color grading to a LUT
 
 - Useful links for applying LUTs:
     https://www.lightillusion.com/what_are_luts.html
@@ -53,7 +53,7 @@
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
-#include "Includes/vort_ExpTex.fxh"
+#include "Includes/vort_ACES.fxh"
 
 namespace ColorChanges {
 
@@ -69,14 +69,9 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-#define USE_LOTTES IS_SRGB && V_USE_TONEMAP == 1
-
-#if USE_LOTTES
-    #define LINEAR_MIN 0.0
+#if IS_SRGB
+    #define LINEAR_MIN FLOAT_MIN
     #define LINEAR_MAX FLOAT_MAX
-#elif IS_SRGB
-    #define LINEAR_MIN 0.0
-    #define LINEAR_MAX 1.0
 #elif IS_SCRGB
     #define LINEAR_MIN -0.5
     #define LINEAR_MAX (1e4 / V_HDR_WHITE_LVL)
@@ -91,17 +86,16 @@ namespace ColorChanges {
     #define LINEAR_MAX 1.0
 #endif
 
-#define TO_LOG_CS(_x) LOG2(_x)
-#define TO_LINEAR_CS(_x) exp2(_x)
-#define GET_LUMI(_x) RGBToYCbCrLumi(_x)
+#define TO_LOG_CS(_x) ACEScgToACEScct(_x)
+#define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
+#define GET_LUMI(_x) ACESToLumi(_x)
 #define LINEAR_MID_GRAY 0.18
-#define LOG_MID_GRAY 0.18
+#define LOG_MID_GRAY ACES_LOG_MID_GRAY
 
 /*******************************************************************************
     Functions
 *******************************************************************************/
 
-#if V_USE_TONEMAP > 0
 float3 ApplyLottes(float3 c)
 {
     float k = max(1.001, UI_CC_LottesMod);
@@ -117,7 +111,6 @@ float3 InverseLottes(float3 c)
 
     return c * RCP(k - v);
 }
-#endif
 
 #if V_ENABLE_SHARPEN
 float3 ApplySharpen(float3 c, sampler samp, float2 uv)
@@ -249,10 +242,8 @@ float3 ApplyStartProcessing(float3 c)
 
 #if IS_SRGB
     c = saturate(c);
-
-    #if USE_LOTTES
-        c = InverseLottes(c);
-    #endif
+    c = InverseLottes(c);
+    c = RGBToACEScg(c);
 #endif
 
     return c;
@@ -263,21 +254,13 @@ float3 ApplyEndProcessing(float3 c)
 #if V_SHOW_ONLY_HDR_COLORS
     c = !all(saturate(c - c * c)) ? 1.0 : 0.0;
 #elif IS_SRGB
-    #if V_USE_AUTO_EXPOSURE
-        float avg_for_exp = Sample(sExpTexVort, float2(0.5, 0.5), 8).x;
-
-        c = c >= 0 ? (c * LINEAR_MID_GRAY * RCP(avg_for_exp)) : c;
-    #else
-        c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
-    #endif
+    c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
 
     // clamp before tonemapping
     c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
-    #if USE_LOTTES
-        c = ApplyLottes(c);
-    #endif
-
+    c = ACEScgToRGB(c);
+    c = ApplyLottes(c);
     c = saturate(c);
 #endif
 
@@ -289,20 +272,6 @@ float3 ApplyEndProcessing(float3 c)
 /*******************************************************************************
     Shaders
 *******************************************************************************/
-
-#if V_USE_AUTO_EXPOSURE
-void PS_AutoExposure(PS_ARGS4)
-{
-    float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
-    c = clamp(c, UI_CC_AutoExpMin, UI_CC_AutoExpMax);
-
-    // Min3 works better when there are both very bright
-    // and very dark screen areas at the same time
-    float avg = Min3(c.r, c.g, c.b);
-
-    o = float4(avg.xxx, UI_CC_AutoExpAdaptTime);
-}
-#endif
 
 void PS_Start(PS_ARGS4) {
     float3 c = Sample(sLDRTexVort, i.uv).rgb;
@@ -333,23 +302,7 @@ void PS_End(PS_ARGS4)
 #define PASS_START \
     pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Start; RenderTarget = CC_OUT_TEX; }
 
-// Averaging for auto exposure is from author papadanku
-#if V_USE_AUTO_EXPOSURE
-    #define PASS_END \
-        pass { \
-            VertexShader = PostProcessVS; \
-            PixelShader = ColorChanges::PS_AutoExposure; \
-            ClearRenderTargets = false; \
-            BlendEnable = true; \
-            BlendOp = ADD; \
-            SrcBlend = INVSRCALPHA; \
-            DestBlend = SRCALPHA; \
-            RenderTarget = ExpTexVort; \
-        } \
-        pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; SRGB_WRITE_ENABLE }
-#else
-    #define PASS_END \
-        pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; SRGB_WRITE_ENABLE }
-#endif
+#define PASS_END \
+    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; SRGB_WRITE_ENABLE }
 
 } // namespace end

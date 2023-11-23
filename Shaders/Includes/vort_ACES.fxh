@@ -471,7 +471,7 @@ float3 ACESccToACEScg(float3 c)
     return c < -0.3013699 ? (exp2(c * 17.52 - 9.72) * 2.0 - 0.0000306) : c < 1.4680365 ? exp2(c * 17.52 - 9.72) : FLOAT_MAX;
 }
 
-float RGBToACESLumi(float3 c)
+float ACESToLumi(float3 c)
 {
     return dot(c, float3(0.272229, 0.674082, 0.0536895));
 }
@@ -481,6 +481,13 @@ float3 RGBToACEScg(float3 c)
     static const float3x3 BT709_2_AP1 = float3x3(0.6130973, 0.3395229, 0.0473793, 0.0701942, 0.9163556, 0.0134526, 0.0206156, 0.1095698, 0.8698151);
 
     return mul(BT709_2_AP1, c);
+}
+
+float3 ACEScgToRGB(float3 c)
+{
+    static const float3x3 AP1_2_BT709 = float3x3(1.70505, -0.621791, -0.0832584, -0.130257, 1.1408, -0.0105485, -0.0240033, -0.128969, 1.15297);
+
+    return mul(AP1_2_BT709, c);
 }
 
 float3 ApplyACESFitted(float3 c)
