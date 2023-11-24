@@ -111,7 +111,7 @@ void PS_Blur(PS_ARGS4)
 
     [unroll]for(uint j = 1; j <= samples; j++)
     {
-        float2 sample_uv = i.uv - motion * (j - 0.5);
+        float2 sample_uv = saturate(i.uv - motion * j);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         // don't use pixels which are closer to the camera than the center pixel
