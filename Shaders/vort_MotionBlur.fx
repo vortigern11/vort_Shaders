@@ -102,7 +102,6 @@ void PS_Blur(PS_ARGS4)
     if(motion_pixel_length < 1.0) discard;
 
     static const uint samples = 8;
-    float rand = GetNoise(i.uv);
     float3 center_color = GetColor(i.uv);
     float center_z = GetLinearizedDepth(i.uv);
     float4 color = 0.0;
@@ -112,7 +111,7 @@ void PS_Blur(PS_ARGS4)
 
     [unroll]for(uint j = 1; j <= samples; j++)
     {
-        float2 sample_uv = i.uv - motion * (j - rand);
+        float2 sample_uv = i.uv - motion * (j - 0.5);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         // don't use pixels which are closer to the camera than the center pixel
