@@ -31,7 +31,7 @@
     Shaders
 *******************************************************************************/
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, sMotVectTexVort); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, sMotVectTexVort, 1.0); }
 
 /*******************************************************************************
     Techniques

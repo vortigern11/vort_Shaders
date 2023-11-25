@@ -96,7 +96,7 @@ float3 GetColor(float2 uv) { return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb
 // only areas behind the pixel are included in the blur
 void PS_Blur(PS_ARGS4)
 {
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * 0.75 * UI_MB_Amount;
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
     float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
 
     if(motion_pixel_length < 1.0) discard;
@@ -123,7 +123,7 @@ void PS_Blur(PS_ARGS4)
     o = float4(ApplyGammaCurve(color.rgb), 1);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_Amount); }
 
 } // namespace end
 

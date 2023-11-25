@@ -117,15 +117,15 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             cossim = moments_cov * RSQRT(moments_local * moments_search);
             float sim = saturate(min(cossim.x, cossim.y));
 
-                if(sim < best_sim) continue;
+            if(sim < best_sim) continue;
 
-                best_sim = sim;
-                local_motion = search_offset;
-            }
-
-            total_motion += local_motion;
-            randdir *= 0.5;
+            best_sim = sim;
+            local_motion = search_offset;
         }
+
+        total_motion += local_motion;
+        randdir *= 0.5;
+    }
 
     return float4(total_motion, variance, saturate(1.0 - acos(best_sim) / HALF_PI));
 }
@@ -154,7 +154,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float wz = saturate(abs(sample_z - center_z) * 200.0 * UI_MV_WZMult);
 
         // long motion vectors
-        float wm = saturate(dot(sample_gbuf.xy, sample_gbuf.xy) * 4000.0);
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 4000.0;
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - sample_gbuf.z * 128.0);
