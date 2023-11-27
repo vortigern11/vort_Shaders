@@ -65,7 +65,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 1.0)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 0.667)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -120,6 +120,7 @@ void PS_Blur(PS_ARGS4)
 
     // fake the amount of samples being gathered
     color.rgb = (color.rgb * 10 + center_color) * rcp(color.w * 10 + 1);
+
     o = float4(ApplyGammaCurve(color.rgb), 1);
 }
 

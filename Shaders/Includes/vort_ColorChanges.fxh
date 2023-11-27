@@ -116,7 +116,7 @@ float3 InverseLottes(float3 c)
 float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 {
     float3 blurred = Filter9Taps(uv, samp, 0);
-    float3 sharp = RGBToYCbCrLumi(c - blurred);
+    float3 sharp = GET_LUMI(c - blurred);
     float depth = GetLinearizedDepth(uv);
     float limit = abs(dot(sharp, 0.3333));
 
@@ -125,10 +125,7 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
     if (UI_CC_ShowSharpening) return sharp;
 
     // apply sharpening and unsharpening
-    if(depth < UI_CC_SharpenSwitchPoint)
-        c = c + sharp;
-    else
-        c = lerp(c, blurred, depth * UI_CC_UnsharpenStrength);
+    c = depth < UI_CC_SharpenSwitchPoint ? c + sharp : lerp(c, blurred, depth * UI_CC_UnsharpenStrength);
 
     return c;
 }
