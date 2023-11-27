@@ -55,11 +55,11 @@ float2 Rotate2D(float2 v, float4 r) { return float2(dot(v, r.xy), dot(v, r.zw));
 
 float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 {
-    int feature_mip = max(0, mip - MIN_MIP);
+    uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
     float2 local_block[16]; // just use max size possible
-    int block_size = mip > 1 ? 4 : 2;
-    int block_area = block_size * block_size;
+    uint block_size = mip > 1 ? 4 : 2;
+    uint block_area = block_size * block_size;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
@@ -89,12 +89,12 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
     uint searches = mip + (mip % 2);
 
-    while(searches-- > 0)
+    while(searches-- > 0 && best_sim < 0.999999)
     {
         float2 local_motion = 0;
         uint samples = 4;
 
-        while(samples-- > 0)
+        while(samples-- > 0 && best_sim < 0.999999)
         {
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
@@ -132,7 +132,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
 float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
-    int feature_mip = max(0, mip - MIN_MIP);
+    uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = rcp(tex2Dsize(mot_samp));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
