@@ -94,13 +94,11 @@ float3 Filter13Taps(float2 uv, sampler samp, int mip)
 {
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
     float3 color = 0;
-    float2 offset = 0;
-    float2 tap_uv = 0;
 
     [loop]for(int j = 0; j < 13; j++)
     {
-        offset = COORDS_13_TAPS[j] * texelsize;
-        tap_uv = uv + offset;
+        float2 offset = COORDS_13_TAPS[j] * texelsize;
+        float2 tap_uv = uv + offset;
 
         // repeat
         /* tap_uv = saturate(tap_uv); */
@@ -129,13 +127,11 @@ float3 Filter9Taps(float2 uv, sampler samp, int mip)
 {
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
     float3 color = 0;
-    float2 offset = 0;
-    float2 tap_uv = 0;
 
     [loop]for(int j = 0; j < 9; j++)
     {
-        offset = COORDS_9_TAPS[j] * texelsize;
-        tap_uv = uv + offset;
+        float2 offset = COORDS_9_TAPS[j] * texelsize;
+        float2 tap_uv = uv + offset;
 
         // repeat
         /* tap_uv = saturate(tap_uv); */
@@ -159,13 +155,11 @@ float3 Filter8Taps(float2 uv, sampler samp, int mip)
 {
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
     float3 color = 0;
-    float2 offset = 0;
-    float2 tap_uv = 0;
 
     [loop]for(int j = 0; j < 8; j++)
     {
-        offset = COORDS_8_TAPS[j] * texelsize;
-        tap_uv = uv + offset;
+        float2 offset = COORDS_8_TAPS[j] * texelsize;
+        float2 tap_uv = uv + offset;
 
         // repeat
         /* tap_uv = saturate(tap_uv); */

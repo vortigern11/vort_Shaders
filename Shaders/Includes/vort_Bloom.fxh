@@ -70,7 +70,12 @@ float4 UpsampleAndCombine(VSOUT i, sampler prev_samp, sampler curr_samp, int cur
 void PS_Debug(PS_ARGS4)
 {
     static const int off = 8;
-    static const float max_c = 500;
+    float3 max_c = 1;
+
+    if(UI_CC_Tonemapper == 0)
+        max_c = InverseLottes(max_c);
+    else
+        max_c = InverseACESNarkowicz(max_c);
 
     int2 f1 = int2(BUFFER_SCREEN_SIZE.x * 0.2, BUFFER_SCREEN_SIZE.y * 0.5);
     int2 f2 = int2(f1.x * 2, f1.y);
@@ -80,13 +85,15 @@ void PS_Debug(PS_ARGS4)
     float3 c = 0;
 
     if(all(bool4(pixels >= (f1 - off), pixels <= f1)))
-        c.r = max_c;
+        c.r = max_c.r;
     else if(all(bool4(pixels >= (f2 - off), pixels <= f2)))
-        c.g = max_c;
+        c.g = max_c.g;
     else if(all(bool4(pixels >= (f3 - off), pixels <= f3)))
-        c.b = max_c;
+        c.b = max_c.b;
     else if(all(bool4(pixels >= (f4 - off), pixels <= f4)))
         c = max_c;
+    else
+        discard;
 
     o = float4(c, 1);
 }
@@ -101,65 +108,19 @@ void PS_Down6(PS_ARGS4) { o = Downsample(i, sDownTexVort6, 6); }
 void PS_Down7(PS_ARGS4) { o = Downsample(i, sDownTexVort7, 7); }
 void PS_Down8(PS_ARGS4) { o = Downsample(i, sDownTexVort8, 8); }
 
-#if (V_BLOOM_MANUAL_PASSES >= 9 || V_BLOOM_MANUAL_PASSES == 0) && BUFFER_HEIGHT >= 2160
+#if BUFFER_HEIGHT >= 2160
     void PS_UpAndComb8(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort9, sDownTexVort8, 8); }
     void PS_UpAndComb7(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort8, sDownTexVort7, 7); }
-    void PS_UpAndComb6(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort7, sDownTexVort6, 6); }
-    void PS_UpAndComb5(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort6, sDownTexVort5, 5); }
-    void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort5, sDownTexVort4, 4); }
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if (V_BLOOM_MANUAL_PASSES >= 8 || V_BLOOM_MANUAL_PASSES == 0) && BUFFER_HEIGHT < 2160
+#else
     void PS_UpAndComb7(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort8, sDownTexVort7, 7); }
-    void PS_UpAndComb6(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort7, sDownTexVort6, 6); }
-    void PS_UpAndComb5(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort6, sDownTexVort5, 5); }
-    void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort5, sDownTexVort4, 4); }
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
 #endif
 
-#if V_BLOOM_MANUAL_PASSES == 7
-    void PS_UpAndComb6(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort7, sDownTexVort6, 6); }
-    void PS_UpAndComb5(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort6, sDownTexVort5, 5); }
-    void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort5, sDownTexVort4, 4); }
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 6
-    void PS_UpAndComb5(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort6, sDownTexVort5, 5); }
-    void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort5, sDownTexVort4, 4); }
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 5
-    void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort5, sDownTexVort4, 4); }
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 4
-    void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort4, sDownTexVort3, 3); }
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 3
-    void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort3, sDownTexVort2, 2); }
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 1 || V_BLOOM_MANUAL_PASSES == 2
-    void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sDownTexVort2, sDownTexVort1, 1); }
-#endif
+void PS_UpAndComb6(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort7, sDownTexVort6, 6); }
+void PS_UpAndComb5(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort6, sDownTexVort5, 5); }
+void PS_UpAndComb4(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort5, sDownTexVort4, 4); }
+void PS_UpAndComb3(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort4, sDownTexVort3, 3); }
+void PS_UpAndComb2(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort3, sDownTexVort2, 2); }
+void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVort1, 1); }
 
 void PS_UpAndComb0(PS_ARGS4)
 {
@@ -182,129 +143,40 @@ void PS_UpAndComb0(PS_ARGS4)
 #define PASS_BLOOM_DEBUG \
     pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Debug; RenderTarget = BLOOM_IN_TEX; }
 
-#define PASS_BLOOM_DOWN_DEFAULT \
-    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down0; RenderTarget = DownTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down1; RenderTarget = DownTexVort2; }
-
-#define PASS_BLOOM_UP_DEFAULT \
-    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb1; RenderTarget = UpTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb0; RenderTarget = BLOOM_OUT_TEX; }
-
-#if V_BLOOM_MANUAL_PASSES == 1 || V_BLOOM_MANUAL_PASSES == 2
-    #define PASS_BLOOM_DOWN PASS_BLOOM_DOWN_DEFAULT
-    #define PASS_BLOOM_UP PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 3
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 4
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 5
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 6
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down5; RenderTarget = DownTexVort6; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb5; RenderTarget = UpTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if V_BLOOM_MANUAL_PASSES == 7
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down5; RenderTarget = DownTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down6; RenderTarget = DownTexVort7; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb6; RenderTarget = UpTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb5; RenderTarget = UpTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if (V_BLOOM_MANUAL_PASSES >= 8 || V_BLOOM_MANUAL_PASSES == 0) && BUFFER_HEIGHT < 2160
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down5; RenderTarget = DownTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down6; RenderTarget = DownTexVort7; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down7; RenderTarget = DownTexVort8; }
-
-    #define PASS_BLOOM_UP \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb7; RenderTarget = UpTexVort7; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb6; RenderTarget = UpTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb5; RenderTarget = UpTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
-#endif
-
-#if (V_BLOOM_MANUAL_PASSES >= 9 || V_BLOOM_MANUAL_PASSES == 0) && BUFFER_HEIGHT >= 2160
-    #define PASS_BLOOM_DOWN \
-        PASS_BLOOM_DOWN_DEFAULT \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down5; RenderTarget = DownTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down6; RenderTarget = DownTexVort7; } \
+#if BUFFER_HEIGHT >= 2160
+    #define PASS_BLOOM_DOWN_DEFAULT \
         pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down7; RenderTarget = DownTexVort8; } \
         pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down8; RenderTarget = DownTexVort9; }
 
-    #define PASS_BLOOM_UP \
+    #define PASS_BLOOM_UP_DEFAULT \
         pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb8; RenderTarget = UpTexVort8; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb7; RenderTarget = UpTexVort7; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb6; RenderTarget = UpTexVort6; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb5; RenderTarget = UpTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
-        PASS_BLOOM_UP_DEFAULT
+        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb7; RenderTarget = UpTexVort7; }
+#else
+    #define PASS_BLOOM_DOWN_DEFAULT \
+        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down7; RenderTarget = DownTexVort8; }
+
+    #define PASS_BLOOM_UP_DEFAULT \
+        pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb7; RenderTarget = UpTexVort7; }
 #endif
+
+#define PASS_BLOOM_DOWN \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down0; RenderTarget = DownTexVort1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down1; RenderTarget = DownTexVort2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down2; RenderTarget = DownTexVort3; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down3; RenderTarget = DownTexVort4; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down4; RenderTarget = DownTexVort5; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down5; RenderTarget = DownTexVort6; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_Down6; RenderTarget = DownTexVort7; } \
+    PASS_BLOOM_DOWN_DEFAULT
+
+#define PASS_BLOOM_UP \
+    PASS_BLOOM_UP_DEFAULT \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb6; RenderTarget = UpTexVort6; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb5; RenderTarget = UpTexVort5; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb4; RenderTarget = UpTexVort4; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb3; RenderTarget = UpTexVort3; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb2; RenderTarget = UpTexVort2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb1; RenderTarget = UpTexVort1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = Bloom::PS_UpAndComb0; RenderTarget = BLOOM_OUT_TEX; }
 
 } // namespace end

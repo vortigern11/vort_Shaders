@@ -38,10 +38,6 @@
     #define V_ENABLE_COLOR_GRADING 1
 #endif
 
-#ifndef V_BLOOM_MANUAL_PASSES
-    #define V_BLOOM_MANUAL_PASSES 0 // if 0 -> auto select depending on the resolution, else -> 2 <= X <= 9
-#endif
-
 #ifndef V_BLOOM_DEBUG
     #define V_BLOOM_DEBUG 0
 #endif
@@ -53,15 +49,15 @@
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
 
-    UI_FLOAT(CAT_TONEMAP, UI_CC_LottesMod, "Lottes Modifier", "Changes the color range of the tonemapper", 1.0, 1.5, 1.025)
+    UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "Which tonemapper to use", "Lottes\0ACES Narkowicz\0", 1)
     UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
 #endif
 
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.02)
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.05)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.75)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_DitherStrength, "Dither Strength", "How much noise to add.", 0.0, 1.0, 0.05)
 #endif
 
@@ -109,10 +105,6 @@ _vort_HDR_Help_,
 "\n"
 "V_ENABLE_COLOR_GRADING - 0 or 1\n"
 "Toggle all the color granding effects\n"
-"\n"
-"V_BLOOM_MANUAL_PASSES - 0 or [2 - 9].\n"
-"How many downsample/upsamples of the image to do in order to perform the bloom.\n"
-"At 0 defaults to 8 passes for 1080p and 9 for 4K resolution.\n"
 "\n"
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"

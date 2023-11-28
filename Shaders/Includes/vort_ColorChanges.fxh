@@ -53,7 +53,7 @@
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
-#include "Includes/vort_ACES.fxh"
+#include "Includes/vort_Tonemap.fxh"
 
 namespace ColorChanges {
 
@@ -95,22 +95,6 @@ namespace ColorChanges {
 /*******************************************************************************
     Functions
 *******************************************************************************/
-
-float3 ApplyLottes(float3 c)
-{
-    float k = max(1.001, UI_CC_LottesMod);
-    float3 v = Max3(c.r, c.g, c.b);
-
-    return k * c * RCP(1.0 + v);
-}
-
-float3 InverseLottes(float3 c)
-{
-    float k = max(1.001, UI_CC_LottesMod);
-    float3 v = Max3(c.r, c.g, c.b);
-
-    return c * RCP(k - v);
-}
 
 #if V_ENABLE_SHARPEN
 float3 ApplySharpen(float3 c, sampler samp, float2 uv)
@@ -233,47 +217,22 @@ float3 ApplyColorGrading(float3 c)
 }
 #endif
 
-float3 ApplyStartProcessing(float3 c)
-{
-    c = ApplyLinearCurve(c);
-
-#if IS_SRGB
-    c = saturate(c);
-    c = InverseLottes(c);
-    c = RGBToACEScg(c);
-#endif
-
-    return c;
-}
-
-float3 ApplyEndProcessing(float3 c)
-{
-#if V_SHOW_ONLY_HDR_COLORS
-    c = !all(saturate(c - c * c)) ? 1.0 : 0.0;
-#elif IS_SRGB
-    c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
-
-    // clamp before tonemapping
-    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
-
-    c = ACEScgToRGB(c);
-    c = ApplyLottes(c);
-    c = saturate(c);
-#endif
-
-    c = ApplyGammaCurve(c);
-
-    return c;
-}
-
 /*******************************************************************************
     Shaders
 *******************************************************************************/
 
 void PS_Start(PS_ARGS4) {
-    float3 c = Sample(sLDRTexVort, i.uv).rgb;
+    float3 c = ApplyLinearCurve(Sample(sLDRTexVort, i.uv).rgb);
 
-    c = ApplyStartProcessing(c);
+#if IS_SRGB
+    c = saturate(c);
+
+    if(UI_CC_Tonemapper == 0)
+        c = InverseLottes(c);
+    else
+        c = InverseACESNarkowicz(c);
+#endif
+
     o = float4(c, 1);
 }
 
@@ -289,8 +248,24 @@ void PS_End(PS_ARGS4)
     c = ApplyColorGrading(c);
 #endif
 
-    c = ApplyEndProcessing(c);
-    o = float4(c, 1);
+#if V_SHOW_ONLY_HDR_COLORS
+    c = !all(saturate(c - c * c)) ? 1.0 : 0.0;
+#elif IS_SRGB
+    // exposure before tonemap
+    c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
+
+    // clamp before tonemapping
+    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
+
+    if(UI_CC_Tonemapper == 0)
+        c = ApplyLottes(c);
+    else
+        c = ApplyACESNarkowicz(c);
+
+    c = saturate(c);
+#endif
+
+    o = float4(ApplyGammaCurve(c), 1);
 }
 
 /*******************************************************************************

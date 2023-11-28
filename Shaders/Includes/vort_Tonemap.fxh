@@ -522,3 +522,41 @@ float3 ApplyACESFitted(float3 c)
 
     return c;
 }
+
+float3 ApplyACESNarkowicz(float3 x)
+{
+    static const float a = 2.51;
+    static const float b = 0.03;
+    static const float c = 2.43;
+    static const float d = 0.59;
+    static const float e = 0.14;
+
+    return (x*(a*x+b)) * RCP(x*(c*x+d)+e);
+}
+
+float3 InverseACESNarkowicz(float3 x)
+{
+    static const float a = 2.51;
+    static const float b = 0.03;
+    static const float c = 2.43;
+    static const float d = 0.59;
+    static const float e = 0.14;
+
+    return (sqrt(2.0*(2.0*a*e - b*d)*x + b*b - (4.0*c*e - d*d) * x*x) + d*x - b) * RCP(2.0*(a - c*x));
+}
+
+float3 ApplyLottes(float3 c)
+{
+    c = ACEScgToRGB(c);
+    c = (1.02 * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
+
+    return c;
+}
+
+float3 InverseLottes(float3 c)
+{
+    c = c * RCP(1.02 - Max3(c.r, c.g, c.b));
+    c = RGBToACEScg(c);
+
+    return c;
+}
