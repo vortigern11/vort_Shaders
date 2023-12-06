@@ -65,7 +65,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 0.667)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 0.75)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -103,7 +103,7 @@ void PS_Blur(PS_ARGS4)
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
-    float center_z = GetLinearizedDepth(i.uv);
+    float center_z = has_depth ? GetLinearizedDepth(i.uv) : 0;
     float4 color = 0.0;
 
     // faster than dividing `j` inside the loop
@@ -115,7 +115,7 @@ void PS_Blur(PS_ARGS4)
         float sample_z = GetLinearizedDepth(sample_uv);
 
         // don't use pixels which are closer to the camera than the center pixel
-        color += ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
+        color += has_depth && ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
     }
 
     // fake the amount of samples being gathered

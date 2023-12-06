@@ -149,6 +149,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
+    float wz_mod = has_depth ? 200.0 : 100.0;
 
     float2 gbuffer_sum = 0;
     float wsum = 1e-6;
@@ -162,7 +163,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         // depth delta
-        float wz = saturate(abs(sample_z - center_z) * 200.0 * UI_MV_WZMult);
+        float wz = saturate(abs(sample_z - center_z) * wz_mod * UI_MV_WZMult);
 
         // long motion vectors
         float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 2000.0 * UI_MV_WMMult;
@@ -192,7 +193,7 @@ void PS_WriteFeature(PS_ARGS2)
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
     o.x = dot(color, 0.333);
-    o.y = GetLinearizedDepth(i.uv);
+    o.y = has_depth ? GetLinearizedDepth(i.uv) : o.x;
 }
 
 #if MAX_MIP == 9

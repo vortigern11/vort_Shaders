@@ -119,8 +119,9 @@ float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
     static const float2 ScreenSize = float2(BUFFER_WIDTH, BUFFER_HEIGHT);
 #endif
 
-uniform uint FRAME_COUNT < source = "framecount"; >;
-uniform float FRAME_TIME < source = "frametime"; >;
+uniform uint frame_count < source = "framecount"; >;
+uniform float frame_time < source = "frametime"; >;
+uniform bool has_depth < source = "bufready_depth"; >;
 
 // works since REST addon v1.2.1
 #ifndef V_USE_HW_LIN
