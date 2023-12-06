@@ -149,7 +149,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
-    float wz_mod = has_depth ? 200.0 : 100.0;
+    float wz_mod = V_HAS_DEPTH ? 200.0 : 100.0;
 
     float2 gbuffer_sum = 0;
     float wsum = 1e-6;
@@ -193,7 +193,12 @@ void PS_WriteFeature(PS_ARGS2)
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
     o.x = dot(color, 0.333);
-    o.y = has_depth ? GetLinearizedDepth(i.uv) : o.x;
+
+#if V_HAS_DEPTH
+    o.y = GetLinearizedDepth(i.uv);
+#else
+    o.y =  o.x;
+#endif
 }
 
 #if MAX_MIP == 9

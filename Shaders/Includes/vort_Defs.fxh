@@ -121,11 +121,14 @@ float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 
 uniform uint frame_count < source = "framecount"; >;
 uniform float frame_time < source = "frametime"; >;
-uniform bool has_depth < source = "bufready_depth"; >;
 
 // works since REST addon v1.2.1
 #ifndef V_USE_HW_LIN
     #define V_USE_HW_LIN 0
+#endif
+
+#ifndef V_HAS_DEPTH
+    #define V_HAS_DEPTH 1
 #endif
 
 #if !IS_SRGB

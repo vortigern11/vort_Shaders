@@ -240,7 +240,7 @@ void PS_End(PS_ARGS4)
 {
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
 
-#if V_ENABLE_SHARPEN
+#if V_ENABLE_SHARPEN && V_HAS_DEPTH
     c = ApplySharpen(c, CC_IN_SAMP, i.uv);
 #endif
 

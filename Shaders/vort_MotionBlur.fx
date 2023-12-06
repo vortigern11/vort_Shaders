@@ -78,6 +78,9 @@ _vort_MotBlur_Help_,
 "2 - manually use iMMERSE motion vectors\n"
 "3 - manually use older motion vectors (qUINT_of, qUINT_motionvectors, etc.)\n"
 "\n"
+"V_HAS_DEPTH - 0 or 1\n"
+"Whether the game has depth (2D or 3D)\n"
+"\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggles hardware linearization. Disable if you use REST addon version older than 1.2.1\n"
 )
@@ -103,8 +106,11 @@ void PS_Blur(PS_ARGS4)
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
-    float center_z = has_depth ? GetLinearizedDepth(i.uv) : 0;
     float4 color = 0.0;
+
+#if V_HAS_DEPTH
+    float center_z = GetLinearizedDepth(i.uv);
+#endif
 
     // faster than dividing `j` inside the loop
     motion *= rcp(samples);
@@ -114,8 +120,12 @@ void PS_Blur(PS_ARGS4)
         float2 sample_uv = saturate(i.uv - motion * j);
         float sample_z = GetLinearizedDepth(sample_uv);
 
+    #if V_HAS_DEPTH
         // don't use pixels which are closer to the camera than the center pixel
-        color += has_depth && ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
+        color += ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
+    #else
+        color += float4(GetColor(sample_uv), 1);
+    #endif
     }
 
     // fake the amount of samples being gathered
