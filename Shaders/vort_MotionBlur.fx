@@ -67,7 +67,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the blur length.", 0.0, 1.0, 1.0)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the blur length.", 0.0, 1.0, 0.75)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -113,6 +113,15 @@ float Cylinder(float xy_len, float v_len)
     return 1.0 - smoothstep(0.95 * v_len, 1.05 * v_len + EPSILON, xy_len);
 }
 
+float2 SoftDepthCompare(float zf, float zb)
+{
+    static const float rcp_z_extent = 1000.0;
+    float x = (zf - zb) * rcp_z_extent;
+
+    // we use positive depth, unlike the research paper
+    return saturate(1.0 + float2(x, -x));
+}
+
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -147,9 +156,11 @@ void PS_Blur(PS_ARGS3)
         float sample_z = Sample(sDepthTexVort, sample_uv).x;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
 
+        float2 fb = SoftDepthCompare(center_z, sample_z);
         float weight = 0;
 
-        weight += Cone(uv_dist, center_z < sample_z ? center_mpl : sample_mpl);
+        weight += fb.x * Cone(uv_dist, sample_mpl);
+        weight += fb.y * Cone(uv_dist, center_mpl);
         weight += 2.0 * (Cylinder(uv_dist, sample_mpl) * Cylinder(uv_dist, center_mpl));
 
         color += float4(GetColor(sample_uv) * weight, weight);
