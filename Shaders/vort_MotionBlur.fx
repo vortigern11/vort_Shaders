@@ -91,8 +91,8 @@ _vort_MotBlur_Help_,
     Textures, Samplers
 *******************************************************************************/
 
-texture2D DepthTexVort { TEX_SIZE(0) TEX_R16 };
-sampler2D sDepthTexVort { Texture = DepthTexVort; };
+texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
+sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
 /*******************************************************************************
     Functions
@@ -115,7 +115,7 @@ float Cylinder(float xy_len, float v_len)
 
 float2 SoftDepthCompare(float zf, float zb)
 {
-    static const float rcp_z_extent = 1000.0;
+    static const float rcp_z_extent = 1000.0; // best results
     float x = (zf - zb) * rcp_z_extent;
 
     // we use positive depth, unlike the research paper
@@ -128,40 +128,36 @@ float2 SoftDepthCompare(float zf, float zb)
 
 void PS_Blur(PS_ARGS3)
 {
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
-    float center_mpl = length(motion * BUFFER_SCREEN_SIZE);
+    // x = motion pixel length, y = linear depth
+    float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
-    if(center_mpl < 1.0) discard;
+    if(center_info.x < 1.0) discard;
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
-    float center_z = Sample(sDepthTexVort, i.uv).x;
     float rand = GetNoise(i.uv) * 0.5;
     float4 color = 0.0;
 
     // add center color
-    color.w = rcp(center_mpl);
+    color.w = rcp(center_info.x);
     color.rgb = center_color * color.w;
 
     // faster than dividing `j` inside the loop
-    motion *= rcp(samples);
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount * rcp(samples);
 
     // due to circular movement looking bad otherwise,
     // only areas behind the pixel are included in the blur
     [unroll]for(uint j = 1; j <= samples; j++)
     {
         float2 sample_uv = saturate(i.uv - motion * (float(j) - rand));
-        float2 sample_motion = Sample(MOT_VECT_SAMP, sample_uv).xy * UI_MB_Amount;
-        float sample_mpl = length(sample_motion * BUFFER_SCREEN_SIZE);
-        float sample_z = Sample(sDepthTexVort, sample_uv).x;
+        float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
+        float2 fb = SoftDepthCompare(center_info.y, sample_info.y);
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
-
-        float2 fb = SoftDepthCompare(center_z, sample_z);
         float weight = 0;
 
-        weight += fb.x * Cone(uv_dist, sample_mpl);
-        weight += fb.y * Cone(uv_dist, center_mpl);
-        weight += 2.0 * (Cylinder(uv_dist, sample_mpl) * Cylinder(uv_dist, center_mpl));
+        weight += fb.x * Cone(uv_dist, sample_info.x);
+        weight += fb.y * Cone(uv_dist, center_info.x);
+        weight += 2.0 * (Cylinder(uv_dist, sample_info.x) * Cylinder(uv_dist, center_info.x));
 
         color += float4(GetColor(sample_uv) * weight, weight);
     }
@@ -169,7 +165,11 @@ void PS_Blur(PS_ARGS3)
     o = ApplyGammaCurve(color.rgb * rcp(color.w));
 }
 
-void PS_WriteDepth(PS_ARGS1) { o = GetLinearizedDepth(i.uv); }
+void PS_WriteInfo(PS_ARGS2)
+{
+    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
+    o.y = GetLinearizedDepth(i.uv);
+}
 
 void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_Amount); }
 
@@ -188,7 +188,7 @@ technique vort_MotionBlur
     #if V_MOT_VECT_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteDepth; RenderTarget = MotBlur::DepthTexVort; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
 }
