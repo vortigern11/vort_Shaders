@@ -197,7 +197,7 @@ void PS_WriteFeature(PS_ARGS2)
 #if V_HAS_DEPTH
     o.y = GetLinearizedDepth(i.uv);
 #else
-    o.y =  o.x;
+    o.y = o.x;
 #endif
 }
 

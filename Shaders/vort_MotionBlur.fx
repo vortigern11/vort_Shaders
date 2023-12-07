@@ -1,6 +1,8 @@
 /*******************************************************************************
     Author: Vortigern
-    Based on: https://github.com/Kink3d/kMotion/blob/master/Shaders/MotionBlur.shader
+    Sources:
+         https://github.com/Kink3d/kMotion/blob/master/Shaders/MotionBlur.shader
+         "A Reconstruction Filter for Plausible Motion Blur" by McGuire et al.
 
     License: MIT, Copyright (c) 2023 Vortigern
 
@@ -65,7 +67,7 @@ namespace MotBlur {
 
 #define CAT_MOT_BLUR "Motion Blur"
 
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the speed of motion.", 0.0, 2.0, 0.75)
+UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the blur length.", 0.0, 1.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -86,53 +88,77 @@ _vort_MotBlur_Help_,
 )
 
 /*******************************************************************************
+    Textures, Samplers
+*******************************************************************************/
+
+texture2D DepthTexVort { TEX_SIZE(0) TEX_R16 };
+sampler2D sDepthTexVort { Texture = DepthTexVort; };
+
+/*******************************************************************************
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv) { return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb); }
+float3 GetColor(float2 uv)
+{
+    return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
+}
+
+float Cone(float xy_len, float v_len)
+{
+    return saturate(1.0 - xy_len * rcp(v_len + EPSILON));
+}
+
+float Cylinder(float xy_len, float v_len)
+{
+    return 1.0 - smoothstep(0.95 * v_len, 1.05 * v_len + EPSILON, xy_len);
+}
 
 /*******************************************************************************
     Shaders
 *******************************************************************************/
 
-// due to circular movement looking bad otherwise,
-// only areas behind the pixel are included in the blur
-void PS_Blur(PS_ARGS4)
+void PS_Blur(PS_ARGS3)
 {
     float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount;
-    float motion_pixel_length = length(motion * BUFFER_SCREEN_SIZE);
+    float center_mpl = length(motion * BUFFER_SCREEN_SIZE);
 
-    if(motion_pixel_length < 1.0) discard;
+    if(center_mpl < 1.0) discard;
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
+    float center_z = Sample(sDepthTexVort, i.uv).x;
+    float rand = GetNoise(i.uv) * 0.5;
     float4 color = 0.0;
 
-#if V_HAS_DEPTH
-    float center_z = GetLinearizedDepth(i.uv);
-#endif
+    // add center color
+    color.w = rcp(center_mpl);
+    color.rgb = center_color * color.w;
 
     // faster than dividing `j` inside the loop
     motion *= rcp(samples);
 
+    // due to circular movement looking bad otherwise,
+    // only areas behind the pixel are included in the blur
     [unroll]for(uint j = 1; j <= samples; j++)
     {
-        float2 sample_uv = saturate(i.uv - motion * j);
-        float sample_z = GetLinearizedDepth(sample_uv);
+        float2 sample_uv = saturate(i.uv - motion * (float(j) - rand));
+        float2 sample_motion = Sample(MOT_VECT_SAMP, sample_uv).xy * UI_MB_Amount;
+        float sample_mpl = length(sample_motion * BUFFER_SCREEN_SIZE);
+        float sample_z = Sample(sDepthTexVort, sample_uv).x;
+        float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
 
-    #if V_HAS_DEPTH
-        // don't use pixels which are closer to the camera than the center pixel
-        color += ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
-    #else
-        color += float4(GetColor(sample_uv), 1);
-    #endif
+        float weight = 0;
+
+        weight += Cone(uv_dist, center_z < sample_z ? center_mpl : sample_mpl);
+        weight += 2.0 * (Cylinder(uv_dist, sample_mpl) * Cylinder(uv_dist, center_mpl));
+
+        color += float4(GetColor(sample_uv) * weight, weight);
     }
 
-    // fake the amount of samples being gathered
-    color.rgb = (color.rgb * 10 + center_color) * rcp(color.w * 10 + 1);
-
-    o = float4(ApplyGammaCurve(color.rgb), 1);
+    o = ApplyGammaCurve(color.rgb * rcp(color.w));
 }
+
+void PS_WriteDepth(PS_ARGS1) { o = GetLinearizedDepth(i.uv); }
 
 void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_Amount); }
 
@@ -151,6 +177,7 @@ technique vort_MotionBlur
     #if V_MOT_VECT_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteDepth; RenderTarget = MotBlur::DepthTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
 }
