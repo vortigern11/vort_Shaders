@@ -140,6 +140,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_FLOAT(_category, _name, _label, _descr, _min, _max, _default) \
     uniform float _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_min = _min; \
         ui_max = _max; \
@@ -151,6 +152,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_FLOAT2(_category, _name, _label, _descr, _min, _max, _default) \
     uniform float2 _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_min = _min; \
         ui_max = _max; \
@@ -162,6 +164,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_INT(_category, _name, _label, _descr, _min, _max, _default) \
     uniform int _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_min = _min; \
         ui_max = _max; \
@@ -173,6 +176,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_INT2(_category, _name, _label, _descr, _min, _max, _default) \
     uniform int2 _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_min = _min; \
         ui_max = _max; \
@@ -184,6 +188,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_BOOL(_category, _name, _label, _descr, _default) \
     uniform bool _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_tooltip = _descr; \
         ui_type = "radio"; \
@@ -192,6 +197,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_LIST(_category, _name, _label, _descr, _items, _default) \
     uniform int _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_items = _items; \
         ui_tooltip = _descr; \
@@ -201,6 +207,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_COLOR(_category, _name, _label, _descr, _default) \
     uniform float3 _name < \
         ui_category = _category; \
+        ui_category_closed = true; \
         ui_label = _label; \
         ui_min = 0.0; \
         ui_max = 1.0; \
@@ -213,6 +220,7 @@ uniform float frame_time < source = "frametime"; >;
 #define UI_HELP(_name, _descr) \
     uniform int _name < \
         ui_category = "Preprocessor Help"; \
+        ui_category_closed = true; \
         ui_label = " "; \
         ui_text = _descr; \
         ui_type = "radio"; \

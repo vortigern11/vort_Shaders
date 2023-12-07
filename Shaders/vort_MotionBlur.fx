@@ -122,7 +122,7 @@ void PS_Blur(PS_ARGS4)
 
     #if V_HAS_DEPTH
         // don't use pixels which are closer to the camera than the center pixel
-        color += ((center_z - sample_z) > 0.001) ? 0 : float4(GetColor(sample_uv), 1);
+        color += ((center_z - sample_z) > 0.005) ? 0 : float4(GetColor(sample_uv), 1);
     #else
         color += float4(GetColor(sample_uv), 1);
     #endif
