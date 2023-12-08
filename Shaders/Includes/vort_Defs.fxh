@@ -122,9 +122,8 @@ float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
 uniform uint frame_count < source = "framecount"; >;
 uniform float frame_time < source = "frametime"; >;
 
-// works since REST addon v1.2.1
 #ifndef V_USE_HW_LIN
-    #define V_USE_HW_LIN 0
+    #define V_USE_HW_LIN 1
 #endif
 
 #ifndef V_HAS_DEPTH

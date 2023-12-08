@@ -117,5 +117,5 @@ _vort_HDR_Help_,
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"
-"Disable if you use REST addon version older than 1.2.1\n"
+"Disable if you have color issues due to some bug (like older REST versions).\n"
 )
