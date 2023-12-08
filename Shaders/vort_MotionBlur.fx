@@ -65,9 +65,8 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define CAT_MOT_BLUR "Motion Blur"
-
-UI_FLOAT(CAT_MOT_BLUR, UI_MB_Amount, "Blur Amount", "Modifies the blur length.", 0.0, 1.0, 0.75)
+#define K 20 // same value as in the paper
+#define MB_MOD 0.8 // "looks" more correct
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -94,6 +93,15 @@ _vort_MotBlur_Help_,
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
+texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
+sampler2D sTileFstTexVort { Texture = TileFstTexVort; };
+
+texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+sampler2D sTileSndTexVort { Texture = TileSndTexVort; };
+
+texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
+
 /*******************************************************************************
     Functions
 *******************************************************************************/
@@ -105,7 +113,7 @@ float3 GetColor(float2 uv)
 
 float Cone(float xy_len, float v_len)
 {
-    return saturate(1.0 - xy_len * rcp(v_len + EPSILON));
+    return saturate(1.0 - xy_len * RCP(v_len));
 }
 
 float Cylinder(float xy_len, float v_len)
@@ -128,22 +136,25 @@ float2 SoftDepthCompare(float zf, float zb)
 
 void PS_Blur(PS_ARGS3)
 {
-    // x = motion pixel length, y = linear depth
-    float2 center_info = Sample(sInfoTexVort, i.uv).xy;
+    float2 motion = Sample(sNeighMaxTexVort, i.uv).xy;
+    float motion_pix_len = length(motion * BUFFER_SCREEN_SIZE);
 
-    if(center_info.x < 1.0) discard;
+    if(motion_pix_len < 1.0) discard;
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
     float4 color = 0.0;
 
+    // x = motion pixel length, y = linear depth
+    float2 center_info = Sample(sInfoTexVort, i.uv).xy;
+
     // add center color
-    color.w = rcp(center_info.x);
+    color.w = RCP(center_info.x);
     color.rgb = center_color * color.w;
 
     // faster than dividing `j` inside the loop
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount * rcp(samples);
+    motion *= rcp(samples);
 
     // due to circular movement looking bad otherwise,
     // only areas behind the pixel are included in the blur
@@ -167,11 +178,81 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
+    float motion_len = length(Sample(MOT_VECT_SAMP, i.uv).xy * MB_MOD * BUFFER_SCREEN_SIZE);
+
+    o.x = min(motion_len, K); // limit the motion like in the paper
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_Amount); }
+void PS_TileDownHor(PS_ARGS2)
+{
+    // xy = motion, z = weight
+    float3 max_motion = 0;
+    float3 avg_motion = 0;
+
+    [unroll]for(uint x = 0; x < K; x++)
+    {
+        float2 pos = float2(floor(i.vpos.x) * K + x, i.vpos.y);
+        float2 motion = Sample(MOT_VECT_SAMP, pos * BUFFER_PIXEL_SIZE).xy * MB_MOD;
+
+        // limit the motion like in the paper
+        float mot_len = length(motion * BUFFER_SCREEN_SIZE);
+        motion *= min(mot_len, K) * RCP(mot_len);
+
+        float sq_len = dot(motion, motion); // squared to prevent outlier influence
+
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+        avg_motion += float3(motion * sq_len, sq_len);
+    }
+
+    avg_motion.xy *= RCP(avg_motion.z);
+
+    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
+
+    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
+}
+
+void PS_TileDownVert(PS_ARGS2)
+{
+    // xy = motion, z = weight
+    float3 max_motion = 0;
+    float3 avg_motion = 0;
+
+    [unroll]for(uint y = 0; y < K; y++)
+    {
+        float2 pos = float2(i.vpos.x, floor(i.vpos.y) * K + y);
+        float2 motion = tex2Dfetch(sTileFstTexVort, pos).xy;
+        float sq_len = dot(motion, motion); // squared to prevent outlier influence
+
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+        avg_motion += float3(motion * sq_len, sq_len);
+    }
+
+    avg_motion.xy *= RCP(avg_motion.z);
+
+    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
+
+    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
+}
+
+void PS_NeighbourMax(PS_ARGS2)
+{
+    // xy = motion, z = weight
+    float3 max_motion = 0;
+
+    [unroll]for(int x = -1; x <= 1; x++)
+    [unroll]for(int y = -1; y <= 1; y++)
+    {
+        float2 motion = tex2Doffset(sTileSndTexVort, i.uv, int2(x, y)).xy;
+        float sq_len = dot(motion, motion); // squared to prevent outlier influence
+
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+    }
+
+    o = max_motion.xy;
+}
+
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, MB_MOD); }
 
 } // namespace end
 
@@ -189,6 +270,9 @@ technique vort_MotionBlur
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
 }

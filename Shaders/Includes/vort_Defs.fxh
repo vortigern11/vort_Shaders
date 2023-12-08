@@ -32,7 +32,7 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-7)
+#define EPSILON (1e-8)
 #define PI (3.1415927)
 #define HALF_PI (1.5707963)
 #define DOUBLE_PI (6.2831853)
