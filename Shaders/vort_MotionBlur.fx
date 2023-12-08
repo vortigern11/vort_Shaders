@@ -66,7 +66,6 @@ namespace MotBlur {
 *******************************************************************************/
 
 #define K 20 // same value as in the paper
-#define MB_MOD 0.8 // "looks" more correct
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -179,7 +178,7 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    float motion_len = length(Sample(MOT_VECT_SAMP, i.uv).xy * MB_MOD * BUFFER_SCREEN_SIZE);
+    float motion_len = length(Sample(MOT_VECT_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
 
     o.x = min(motion_len, K); // limit the motion like in the paper
     o.y = GetLinearizedDepth(i.uv);
@@ -194,7 +193,7 @@ void PS_TileDownHor(PS_ARGS2)
     [unroll]for(uint x = 0; x < K; x++)
     {
         float2 pos = float2(floor(i.vpos.x) * K + x, i.vpos.y);
-        float2 motion = Sample(MOT_VECT_SAMP, pos * BUFFER_PIXEL_SIZE).xy * MB_MOD;
+        float2 motion = Sample(MOT_VECT_SAMP, pos * BUFFER_PIXEL_SIZE).xy;
 
         // limit the motion like in the paper
         float mot_len = length(motion * BUFFER_SCREEN_SIZE);
@@ -253,7 +252,7 @@ void PS_NeighbourMax(PS_ARGS2)
     o = max_motion.xy;
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, MB_MOD); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, 1.0); }
 
 } // namespace end
 

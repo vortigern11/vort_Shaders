@@ -36,16 +36,10 @@ namespace MotVect {
 #define CAT_MOT_VECT "Motion Vectors"
 
 UI_FLOAT(
-    CAT_MOT_VECT, UI_MV_WZMult, "Depth Delta Weight",
-    "Enable Debug View and start rotating the camera\n"
-    "Increase this value if your character/weapon is being covered by color",
-    0.0, 5.0, 1.0
-)
-UI_FLOAT(
     CAT_MOT_VECT, UI_MV_WMMult, "Long Motion Weight",
     "Enable Debug View and start moving in-game\n"
     "Increase this value if your character/weapon is being covered by color",
-    0.0, 5.0, 1.0
+    0.0, 10.0, 1.0
 )
 
 /*******************************************************************************
@@ -149,7 +143,6 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
-    float wz_mod = V_HAS_DEPTH ? 200.0 : 100.0;
 
     float2 gbuffer_sum = 0;
     float wsum = 1e-6;
@@ -163,7 +156,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         // depth delta
-        float wz = saturate(abs(sample_z - center_z) * wz_mod * UI_MV_WZMult);
+        float wz = saturate(abs(sample_z - center_z) * 200.0);
 
         // long motion vectors
         float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 2000.0 * UI_MV_WMMult;
