@@ -116,14 +116,9 @@ float Cone(float xy_len, float v_len)
     return saturate(1.0 - xy_len * RCP(v_len));
 }
 
-float Cylinder(float xy_len, float v_len)
-{
-    return 1.0 - smoothstep(0.95 * v_len, 1.05 * v_len + EPSILON, xy_len);
-}
-
 float2 SoftDepthCompare(float zf, float zb)
 {
-    static const float rcp_z_extent = 1000.0; // best results
+    static const float rcp_z_extent = 100.0;
     float x = (zf - zb) * rcp_z_extent;
 
     // we use positive depth, unlike the research paper
@@ -168,7 +163,6 @@ void PS_Blur(PS_ARGS3)
 
         weight += fb.x * Cone(uv_dist, sample_info.x);
         weight += fb.y * Cone(uv_dist, center_info.x);
-        weight += 2.0 * (Cylinder(uv_dist, sample_info.x) * Cylinder(uv_dist, center_info.x));
 
         color += float4(GetColor(sample_uv) * weight, weight);
     }
