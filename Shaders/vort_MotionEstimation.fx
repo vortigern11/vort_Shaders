@@ -24,6 +24,11 @@
     DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
+// Change the 0 to 1 below in order to use this shader
+// Most people won't use it, so no need to delay the shaders compile time
+// and show up in the effects list
+#if 0
+
 #include "Includes/vort_MotionVectors.fxh"
 #include "Includes/vort_MotVectUtils.fxh"
 
@@ -53,3 +58,5 @@ technique vort_MotionEstimation
         pass { VertexShader = PostProcessVS; PixelShader = PS_Debug; }
     #endif
 }
+
+#endif

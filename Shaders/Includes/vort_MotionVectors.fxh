@@ -13,7 +13,6 @@
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
-#include "Includes/vort_Filters.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_MotVectTex.fxh"
@@ -62,16 +61,18 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 {
     uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
-    float2 local_block[16]; // just use max size possible
-    uint block_size = mip > 1 ? 4 : 2;
-    uint block_area = block_size * block_size;
+
+    // reduced compile time, same visual/perf
+    float2 local_block[9]; // just use max size possible
+    static const uint block_size = 3;
+    static const uint block_area = 9;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float2 moments_cov = 0;
 
     //since we only use to sample the blocks now, offset by half a block so we can do it easier inline
-    i.uv -= texelsize * (block_size / 2);
+    i.uv -= texelsize * (block_size * 0.5);
 
     [unroll]for(uint k = 0; k < block_area; k++)
     {
@@ -92,14 +93,14 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
-    uint searches = mip > 1 ? 4 : 2;
+    int searches = mip > 1 ? 4 : 2;
 
-    while(searches-- > 0 && best_sim < 0.999999)
+    [loop]while(searches-- > 0 && best_sim < 0.999999)
     {
         float2 local_motion = 0;
-        uint samples = 4;
+        int samples = 4;
 
-        while(samples-- > 0 && best_sim < 0.999999)
+        [loop]while(samples-- > 0 && best_sim < 0.999999)
         {
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
@@ -122,10 +123,12 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             cossim = moments_cov * RSQRT(moments_local * moments_search);
             float sim = saturate(min(cossim.x, cossim.y));
 
-            if(sim < best_sim) continue;
-
-            best_sim = sim;
-            local_motion = search_offset;
+            // reduced DX9 complile time
+            if (sim > best_sim)
+            {
+                best_sim = sim;
+                local_motion = search_offset;
+            }
         }
 
         total_motion += local_motion;
@@ -186,12 +189,7 @@ void PS_WriteFeature(PS_ARGS2)
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
     o.x = dot(color, 0.333);
-
-#if V_HAS_DEPTH
     o.y = GetLinearizedDepth(i.uv);
-#else
-    o.y = o.x;
-#endif
 }
 
 #if MAX_MIP == 9

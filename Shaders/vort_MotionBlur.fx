@@ -93,6 +93,8 @@ _vort_MotBlur_Help_,
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
+// Too many samplers for DX9
+#if !IS_DX9
 texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
 sampler2D sTileFstTexVort { Texture = TileFstTexVort; };
 
@@ -101,6 +103,7 @@ sampler2D sTileSndTexVort { Texture = TileSndTexVort; };
 
 texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
+#endif
 
 /*******************************************************************************
     Functions
@@ -131,7 +134,12 @@ float2 SoftDepthCompare(float zf, float zb)
 
 void PS_Blur(PS_ARGS3)
 {
+#if IS_DX9
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
+#else
     float2 motion = Sample(sNeighMaxTexVort, i.uv).xy;
+#endif
+
     float motion_pix_len = length(motion * BUFFER_SCREEN_SIZE);
 
     if(motion_pix_len < 1.0) discard;
@@ -153,7 +161,7 @@ void PS_Blur(PS_ARGS3)
 
     // due to circular movement looking bad otherwise,
     // only areas behind the pixel are included in the blur
-    [unroll]for(uint j = 1; j <= samples; j++)
+    [loop]for(uint j = 1; j <= samples; j++)
     {
         float2 sample_uv = saturate(i.uv - motion * (float(j) - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
@@ -174,17 +182,23 @@ void PS_WriteInfo(PS_ARGS2)
 {
     float motion_len = length(Sample(MOT_VECT_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
 
+#if IS_DX9
+    o.x = motion_len;
+#else
     o.x = min(motion_len, K); // limit the motion like in the paper
+#endif
+
     o.y = GetLinearizedDepth(i.uv);
 }
 
+#if !IS_DX9
 void PS_TileDownHor(PS_ARGS2)
 {
     // xy = motion, z = weight
     float3 max_motion = 0;
     float3 avg_motion = 0;
 
-    [unroll]for(uint x = 0; x < K; x++)
+    [loop]for(uint x = 0; x < K; x++)
     {
         float2 pos = float2(floor(i.vpos.x) * K + x, i.vpos.y);
         float2 motion = Sample(MOT_VECT_SAMP, pos * BUFFER_PIXEL_SIZE).xy;
@@ -212,7 +226,7 @@ void PS_TileDownVert(PS_ARGS2)
     float3 max_motion = 0;
     float3 avg_motion = 0;
 
-    [unroll]for(uint y = 0; y < K; y++)
+    [loop]for(uint y = 0; y < K; y++)
     {
         float2 pos = float2(i.vpos.x, floor(i.vpos.y) * K + y);
         float2 motion = tex2Dfetch(sTileFstTexVort, pos).xy;
@@ -245,6 +259,7 @@ void PS_NeighbourMax(PS_ARGS2)
 
     o = max_motion.xy;
 }
+#endif // not IS_DX9
 
 void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, 1.0); }
 
@@ -263,10 +278,13 @@ technique vort_MotionBlur
     #if V_MOT_VECT_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
+        #if !IS_DX9
+            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; }
+            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; }
+            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
+        #endif
+
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; }
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; }
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
 }

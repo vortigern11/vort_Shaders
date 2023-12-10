@@ -47,11 +47,7 @@
 #define CAN_COMPUTE (__RENDERER__ >= 0xB000)
 
 // safer versions of built-in functions
-float RCP(float x)   { x = rcp(x == 0 ? EPSILON : x); return x; }
-float2 RCP(float2 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
-float3 RCP(float3 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
-float4 RCP(float4 x) { x = rcp(x == 0 ? EPSILON : x); return x; }
-
+#define RCP(_x) (rcp(max(EPSILON, (_x))))
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
 #define RSQRT(_x) (RCP(sqrt(_x)))
