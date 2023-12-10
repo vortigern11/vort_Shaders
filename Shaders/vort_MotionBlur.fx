@@ -65,8 +65,6 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define K 20 // same value as in the paper
-
 UI_HELP(
 _vort_MotBlur_Help_,
 "V_MOT_VECT_DEBUG - 0 or 1\n"
@@ -93,18 +91,6 @@ _vort_MotBlur_Help_,
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
-// Too many samplers for DX9
-#if !IS_DX9
-texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
-sampler2D sTileFstTexVort { Texture = TileFstTexVort; };
-
-texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
-sampler2D sTileSndTexVort { Texture = TileSndTexVort; };
-
-texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
-sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
-#endif
-
 /*******************************************************************************
     Functions
 *******************************************************************************/
@@ -121,7 +107,7 @@ float Cone(float xy_len, float v_len)
 
 float2 SoftDepthCompare(float zf, float zb)
 {
-    static const float rcp_z_extent = 100.0;
+    static const float rcp_z_extent = 1000.0;
     float x = (zf - zb) * rcp_z_extent;
 
     // we use positive depth, unlike the research paper
@@ -134,23 +120,16 @@ float2 SoftDepthCompare(float zf, float zb)
 
 void PS_Blur(PS_ARGS3)
 {
-#if IS_DX9
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
-#else
-    float2 motion = Sample(sNeighMaxTexVort, i.uv).xy;
-#endif
+    // x = motion pixel length, y = linear depth
+    float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
-    float motion_pix_len = length(motion * BUFFER_SCREEN_SIZE);
-
-    if(motion_pix_len < 1.0) discard;
+    if(center_info.x < 1.0) discard;
 
     static const uint samples = 8;
     float3 center_color = GetColor(i.uv);
-    float rand = GetNoise(i.uv) * 0.5;
+    float rand = GetNoise(i.uv);
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
     float4 color = 0.0;
-
-    // x = motion pixel length, y = linear depth
-    float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
     // add center color
     color.w = RCP(center_info.x);
@@ -180,86 +159,9 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    float motion_len = length(Sample(MOT_VECT_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
-
-#if IS_DX9
-    o.x = motion_len;
-#else
-    o.x = min(motion_len, K); // limit the motion like in the paper
-#endif
-
+    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
-
-#if !IS_DX9
-void PS_TileDownHor(PS_ARGS2)
-{
-    // xy = motion, z = weight
-    float3 max_motion = 0;
-    float3 avg_motion = 0;
-
-    [loop]for(uint x = 0; x < K; x++)
-    {
-        float2 pos = float2(floor(i.vpos.x) * K + x, i.vpos.y);
-        float2 motion = Sample(MOT_VECT_SAMP, pos * BUFFER_PIXEL_SIZE).xy;
-
-        // limit the motion like in the paper
-        float mot_len = length(motion * BUFFER_SCREEN_SIZE);
-        motion *= min(mot_len, K) * RCP(mot_len);
-
-        float sq_len = dot(motion, motion); // squared to prevent outlier influence
-
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-        avg_motion += float3(motion * sq_len, sq_len);
-    }
-
-    avg_motion.xy *= RCP(avg_motion.z);
-
-    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
-
-    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
-}
-
-void PS_TileDownVert(PS_ARGS2)
-{
-    // xy = motion, z = weight
-    float3 max_motion = 0;
-    float3 avg_motion = 0;
-
-    [loop]for(uint y = 0; y < K; y++)
-    {
-        float2 pos = float2(i.vpos.x, floor(i.vpos.y) * K + y);
-        float2 motion = tex2Dfetch(sTileFstTexVort, pos).xy;
-        float sq_len = dot(motion, motion); // squared to prevent outlier influence
-
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-        avg_motion += float3(motion * sq_len, sq_len);
-    }
-
-    avg_motion.xy *= RCP(avg_motion.z);
-
-    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
-
-    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
-}
-
-void PS_NeighbourMax(PS_ARGS2)
-{
-    // xy = motion, z = weight
-    float3 max_motion = 0;
-
-    [unroll]for(int x = -1; x <= 1; x++)
-    [unroll]for(int y = -1; y <= 1; y++)
-    {
-        float2 motion = tex2Doffset(sTileSndTexVort, i.uv, int2(x, y)).xy;
-        float sq_len = dot(motion, motion); // squared to prevent outlier influence
-
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-    }
-
-    o = max_motion.xy;
-}
-#endif // not IS_DX9
 
 void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, 1.0); }
 
@@ -278,12 +180,6 @@ technique vort_MotionBlur
     #if V_MOT_VECT_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
-        #if !IS_DX9
-            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; }
-            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; }
-            pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
-        #endif
-
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
     #endif
