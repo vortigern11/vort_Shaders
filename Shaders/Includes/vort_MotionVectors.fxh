@@ -68,10 +68,10 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
 
-    // reduced compile time, same visual/perf
+    // reduced DX9 compile time and better performance
+    uint block_size = mip > 2 ? 3 : 2;
+    uint block_area = block_size * block_size;
     float2 local_block[9]; // just use max size possible
-    static const uint block_size = 3;
-    static const uint block_area = 9;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
