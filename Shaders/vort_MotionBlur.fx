@@ -105,15 +105,6 @@ float Cone(float xy_len, float v_len)
     return saturate(1.0 - xy_len * RCP(v_len));
 }
 
-float2 SoftDepthCompare(float zf, float zb)
-{
-    static const float rcp_z_extent = 1000.0;
-    float x = (zf - zb) * rcp_z_extent;
-
-    // we use positive depth, unlike the research paper
-    return saturate(1.0 + float2(x, -x));
-}
-
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -122,12 +113,13 @@ void PS_Blur(PS_ARGS3)
 {
     // x = motion pixel length, y = linear depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
+    int i_mot_pix_len = int(center_info.x);
 
-    if(center_info.x < 1.0) discard;
+    if(i_mot_pix_len < 4) discard;
 
-    static const uint samples = 8;
+    int samples = clamp(i_mot_pix_len, 4, 16);
     float3 center_color = GetColor(i.uv);
-    float rand = GetNoise(i.uv);
+    float rand = GetNoise(i.uv) * 0.5;
     float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
     float4 color = 0.0;
 
@@ -140,16 +132,13 @@ void PS_Blur(PS_ARGS3)
 
     // due to circular movement looking bad otherwise,
     // only areas behind the pixel are included in the blur
-    [loop]for(uint j = 1; j <= samples; j++)
+    [loop]for(int j = 1; j <= samples; j++)
     {
         float2 sample_uv = saturate(i.uv - motion * (float(j) - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
-        float2 fb = SoftDepthCompare(center_info.y, sample_info.y);
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
-        float weight = 0;
-
-        weight += fb.x * Cone(uv_dist, sample_info.x);
-        weight += fb.y * Cone(uv_dist, center_info.x);
+        float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
+        float weight = Cone(uv_dist, cmpl);
 
         color += float4(GetColor(sample_uv) * weight, weight);
     }

@@ -508,6 +508,40 @@ float3 LABToRGB(float3 c)
     return XYZToRGB(LABToXYZ(c));
 }
 
+float3 RGBToOKLAB(float3 c)
+{
+    static const float3x3 lms_mat = float3x3(
+        0.4122214708, 0.5363325363, 0.0514459929,
+        0.2119034982, 0.6806995451, 0.1073969566,
+        0.0883024619, 0.2817188376, 0.6299787005
+    );
+
+    float3 lms = POW(mul(lms_mat, c), 1.0 / 3.0);
+
+    return float3(
+        0.2104542553 * lms.x + 0.7936177850 * lms.y - 0.0040720468 * lms.z,
+        1.9779984951 * lms.x - 2.4285922050 * lms.y + 0.4505937099 * lms.z,
+        0.0259040371 * lms.x + 0.7827717662 * lms.y - 0.8086757660 * lms.z
+    );
+}
+
+float3 OKLABToRGB(float3 lab)
+{
+    float3 lms = float3(
+        lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z,
+        lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z,
+        lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z
+    );
+
+    lms *= lms * lms;
+
+    return float3(
+        +4.0767416621 * lms.x - 3.3077115913 * lms.y + 0.2309699292 * lms.z,
+        -1.2684380046 * lms.x + 2.6097574011 * lms.y - 0.3413193965 * lms.z,
+        -0.0041960863 * lms.x - 0.7034186147 * lms.y + 1.7076147010 * lms.z
+    );
+}
+
 float Max3(float a, float b, float c) { return max(a, max(b, c)); }
 float2 Max3(float2 a, float2 b, float2 c) { return max(a, max(b, c)); }
 float3 Max3(float3 a, float3 b, float3 c) { return max(a, max(b, c)); }

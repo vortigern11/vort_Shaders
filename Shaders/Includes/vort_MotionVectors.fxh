@@ -101,12 +101,12 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
     int searches = mip > 1 ? 4 : 2;
 
-    [loop]while(searches-- > 0 && best_sim < 0.999999)
+    [loop]while(searches-- > 0 && best_sim < 1.0)
     {
         float2 local_motion = 0;
         int samples = 4;
 
-        [loop]while(samples-- > 0 && best_sim < 0.999999)
+        [loop]while(samples-- > 0 && best_sim < 1.0)
         {
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
@@ -153,14 +153,14 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
 
-    float2 gbuffer_sum = 0;
-    float wsum = 1e-6;
+    // xy = motion, z = weight
+    float3 gbuffer = 0;
     int rad = mip > 1 ? 2 : 1;
 
     [loop]for(int x = -rad; x <= rad; x++)
     [loop]for(int y = -rad; y <= rad; y++)
     {
-        float2 sample_uv = saturate(i.uv + Rotate2D(float2(x, y), rotator) * texelsize);
+        float2 sample_uv = i.uv + Rotate2D(float2(x, y), rotator) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
@@ -179,11 +179,10 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float weight = exp2(-(wz + wm + wf + ws) * 4.0);
 
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
-        gbuffer_sum += sample_gbuf.xy * weight;
-        wsum += weight;
+        gbuffer += float3(sample_gbuf.xy * weight, weight);
     }
 
-    return gbuffer_sum / wsum;
+    return gbuffer.xy * RCP(gbuffer.z);
 }
 
 /*******************************************************************************
@@ -194,7 +193,7 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
-    o.x = dot(color, 0.333);
+    o.x = RGBToOKLAB(color).x;
     o.y = GetLinearizedDepth(i.uv);
 }
 
