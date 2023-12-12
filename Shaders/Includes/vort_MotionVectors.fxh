@@ -149,13 +149,13 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     {
         float2 sample_uv = i.uv + Rotate2D(float2(x, y), rotator) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
-        float2 sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
+        float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         // depth delta
         float wz = saturate(abs(sample_z - center_z) * 200.0);
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * (2500.0 * (1.0 - sample_z));
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * max(500.0, 2500.0 * (1.0 - sample_z));
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0));
