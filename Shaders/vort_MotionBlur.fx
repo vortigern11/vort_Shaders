@@ -115,9 +115,9 @@ void PS_Blur(PS_ARGS3)
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
     int i_mot_pix_len = int(center_info.x);
 
-    if(i_mot_pix_len < 4) discard;
+    if(i_mot_pix_len < 2) discard;
 
-    int samples = clamp(i_mot_pix_len, 4, 16);
+    int samples = clamp(i_mot_pix_len, 2, 16);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
     float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
@@ -134,7 +134,7 @@ void PS_Blur(PS_ARGS3)
     // only areas behind the pixel are included in the blur
     [loop]for(int j = 1; j <= samples; j++)
     {
-        float2 sample_uv = saturate(i.uv - motion * (float(j) - rand));
+        float2 sample_uv = saturate(i.uv + motion * (float(j) - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
