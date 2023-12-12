@@ -118,6 +118,7 @@ void PS_Blur(PS_ARGS3)
     if(i_mot_pix_len < 2) discard;
 
     int samples = clamp(i_mot_pix_len, 2, 16);
+    int half_samples = ceil(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
     float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
@@ -130,11 +131,12 @@ void PS_Blur(PS_ARGS3)
     // faster than dividing `j` inside the loop
     motion *= rcp(samples);
 
-    // due to circular movement looking bad otherwise,
-    // only areas behind the pixel are included in the blur
-    [loop]for(int j = 1; j <= samples; j++)
+    // circular movement looks bad anyways
+    // might as well blur in both directions
+    [loop]for(int m = -1; m <= 1; m += 2)
+    [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 sample_uv = saturate(i.uv + motion * (float(j) - rand));
+        float2 sample_uv = saturate(i.uv + motion * m * (float(j) - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
