@@ -47,14 +47,14 @@ technique vort_MotionEstimation
     ui_label = "vort_MotionEstimation (read the tooltip before enabling)";
     ui_tooltip =
         "Only needed if you want to use my motion vectors with other than my shaders\n"
-        "or you've disabled the auto inclusion (Ex: V_MOT_BLUR_VECTORS_MODE isn't 0)\n"
+        "or you've disabled the auto inclusion (Ex: V_MB_VECTORS_MODE isn't 0)\n"
         "\n"
         "Put them before other shaders which would require motion vectors.";
 >
 {
-    PASS_MOT_VECT
+    PASS_MV
 
-    #if V_MOT_VECT_DEBUG
+    #if V_MV_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = PS_Debug; }
     #endif
 }

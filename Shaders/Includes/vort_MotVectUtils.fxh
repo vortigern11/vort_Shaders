@@ -7,8 +7,8 @@ namespace MotVectUtils {
     Globals
 *******************************************************************************/
 
-#ifndef V_MOT_VECT_DEBUG
-    #define V_MOT_VECT_DEBUG 0
+#ifndef V_MV_DEBUG
+    #define V_MV_DEBUG 0
 #endif
 
 /*******************************************************************************

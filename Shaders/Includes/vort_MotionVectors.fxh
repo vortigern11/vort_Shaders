@@ -24,13 +24,17 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
-#if BUFFER_HEIGHT >= 2160
-    #define MAX_MIP 9
-#else
-    #define MAX_MIP 8
+#ifndef V_MV_EXTRA_QUALITY
+    #define V_MV_EXTRA_QUALITY 0
 #endif
 
-#define MIN_MIP 1
+#if BUFFER_HEIGHT >= 2160
+    #define MAX_MIP 9
+    #define MIN_MIP (2 - V_MV_EXTRA_QUALITY)
+#else
+    #define MAX_MIP 8
+    #define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
+#endif
 
 /*******************************************************************************
     Textures, Samplers
@@ -82,7 +86,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float best_sim = saturate(min(cossim.x, cossim.y));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
-    int searches = mip > 1 ? 4 : 2;
+    int searches = mip > MIN_MIP ? 4 : 2;
 
     [loop]while(searches-- > 0 && best_sim < 0.999999)
     {
@@ -142,7 +146,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
     // xy = motion, z = weight
     float3 gbuffer = 0;
-    int rad = mip > 1 ? 2 : 1;
+    int rad = mip > MIN_MIP ? 2 : 1;
 
     [loop]for(int x = -rad; x <= rad; x++)
     [loop]for(int y = -rad; y <= rad; y++)
@@ -172,6 +176,21 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     return gbuffer.xy * RCP(gbuffer.z);
 }
 
+float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
+{
+    float2 motion = 0;
+
+    if(mip == MAX_MIP)
+        motion = Sample(mot_samp, i.uv).xy * 0.95;
+    else
+        motion = AtrousUpscale(i, mip, mot_samp);
+
+    if(mip >= MIN_MIP)
+        return CalcLayer(i, mip, motion);
+    else
+        return float4(motion.xy, 0, 0);
+}
+
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -185,37 +204,37 @@ void PS_WriteFeature(PS_ARGS2)
 }
 
 #if MAX_MIP == 9
-    void PS_Motion9(PS_ARGS4) { o = CalcLayer(i, 9, Sample(sMotVectTexVort, i.uv).xy * 0.95); }
-    void PS_Motion8(PS_ARGS4) { o = CalcLayer(i, 8, AtrousUpscale(i, 8, sDownTexVort9)); }
+    void PS_Motion9(PS_ARGS4) { o = EstimateMotion(i, 9, sMotVectTexVort); }
+    void PS_Motion8(PS_ARGS4) { o = EstimateMotion(i, 8, sDownTexVort9); }
 #else
-    void PS_Motion8(PS_ARGS4) { o = CalcLayer(i, 8, Sample(sMotVectTexVort, i.uv).xy * 0.95); }
+    void PS_Motion8(PS_ARGS4) { o = EstimateMotion(i, 8, sMotVectTexVort); }
 #endif
 
-void PS_Motion7(PS_ARGS4) { o = CalcLayer(i, 7, AtrousUpscale(i, 7, sDownTexVort8)); }
-void PS_Motion6(PS_ARGS4) { o = CalcLayer(i, 6, AtrousUpscale(i, 6, sDownTexVort7)); }
-void PS_Motion5(PS_ARGS4) { o = CalcLayer(i, 5, AtrousUpscale(i, 5, sDownTexVort6)); }
-void PS_Motion4(PS_ARGS4) { o = CalcLayer(i, 4, AtrousUpscale(i, 4, sDownTexVort5)); }
-void PS_Motion3(PS_ARGS4) { o = CalcLayer(i, 3, AtrousUpscale(i, 3, sDownTexVort4)); }
-void PS_Motion2(PS_ARGS4) { o = CalcLayer(i, 2, AtrousUpscale(i, 2, sDownTexVort3)); }
-void PS_Motion1(PS_ARGS4) { o = CalcLayer(i, 1, AtrousUpscale(i, 1, sDownTexVort2)); }
-void PS_Motion0(PS_ARGS2) { o =                 AtrousUpscale(i, 0, sDownTexVort1);  }
+void PS_Motion7(PS_ARGS4) { o = EstimateMotion(i, 7, sDownTexVort8); }
+void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sDownTexVort7); }
+void PS_Motion5(PS_ARGS4) { o = EstimateMotion(i, 5, sDownTexVort6); }
+void PS_Motion4(PS_ARGS4) { o = EstimateMotion(i, 4, sDownTexVort5); }
+void PS_Motion3(PS_ARGS4) { o = EstimateMotion(i, 3, sDownTexVort4); }
+void PS_Motion2(PS_ARGS4) { o = EstimateMotion(i, 2, sDownTexVort3); }
+void PS_Motion1(PS_ARGS4) { o = EstimateMotion(i, 1, sDownTexVort2); }
+void PS_Motion0(PS_ARGS4) { o = EstimateMotion(i, 0, sDownTexVort1); }
 
 /*******************************************************************************
     Passes
 *******************************************************************************/
 
 #if MAX_MIP == 9
-    #define PASS_MOT_VECT_LAST \
+    #define PASS_MV_LAST \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion9; RenderTarget = DownTexVort9; } \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = DownTexVort8; }
 #else
-    #define PASS_MOT_VECT_LAST \
+    #define PASS_MV_LAST \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = DownTexVort8; }
 #endif
 
-#define PASS_MOT_VECT \
+#define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::CurrFeatureTexVort; } \
-    PASS_MOT_VECT_LAST \
+    PASS_MV_LAST \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion7; RenderTarget = DownTexVort7; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6; RenderTarget = DownTexVort6; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5; RenderTarget = DownTexVort5; } \

@@ -32,31 +32,31 @@
 #include "Includes/vort_MotVectUtils.fxh"
 #include "Includes/vort_LDRTex.fxh"
 
-#ifndef V_MOT_BLUR_VECTORS_MODE
-    #define V_MOT_BLUR_VECTORS_MODE 0
+#ifndef V_MB_VECTORS_MODE
+    #define V_MB_VECTORS_MODE 0
 #endif
 
-#if V_MOT_BLUR_VECTORS_MODE <= 1
-    #if V_MOT_BLUR_VECTORS_MODE == 0
+#if V_MB_VECTORS_MODE <= 1
+    #if V_MB_VECTORS_MODE == 0
         #include "Includes/vort_MotionVectors.fxh"
     #else
         #include "Includes/vort_MotVectTex.fxh"
     #endif
 
-    #define MOT_VECT_SAMP sMotVectTexVort
-#elif V_MOT_BLUR_VECTORS_MODE == 2
+    #define MV_SAMP sMotVectTexVort
+#elif V_MB_VECTORS_MODE == 2
     namespace Deferred {
         texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
         sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
     }
 
-    #define MOT_VECT_SAMP Deferred::sMotionVectorsTex
+    #define MV_SAMP Deferred::sMotionVectorsTex
 #else
     // the names used in qUINT_of, qUINT_motionvectors and other older implementations
     texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
     sampler2D sMotionVectorTex { Texture = texMotionVectors; };
 
-    #define MOT_VECT_SAMP sMotionVectorTex
+    #define MV_SAMP sMotionVectorTex
 #endif
 
 namespace MotBlur {
@@ -72,10 +72,14 @@ UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur", 
 
 UI_HELP(
 _vort_MotBlur_Help_,
-"V_MOT_VECT_DEBUG - 0 or 1\n"
+"V_MV_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
 "\n"
-"V_MOT_BLUR_VECTORS_MODE - [0 - 3]\n"
+"V_MV_EXTRA_QUALITY - 0 or 1\n"
+"If set to 1, will sacrifice performance for higher quality vectors.\n"
+"Isn't needed, but if you have RTX 9999 GPU, might as well :).\n"
+"\n"
+"V_MB_VECTORS_MODE - [0 - 3]\n"
 "0 - auto include my motion vectors (highly recommended)\n"
 "1 - manually use vort_MotionEstimation\n"
 "2 - manually use iMMERSE motion vectors\n"
@@ -126,7 +130,7 @@ void PS_Blur(PS_ARGS3)
     int half_samples = ceil(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_BlurAmount;
+    float2 motion = Sample(MV_SAMP, i.uv).xy * UI_MB_BlurAmount;
     float4 color = 0.0;
 
     // add center color
@@ -155,11 +159,11 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_BlurAmount * BUFFER_SCREEN_SIZE);
+    o.x = length(Sample(MV_SAMP, i.uv).xy * UI_MB_BlurAmount * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_BlurAmount); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MV_SAMP, UI_MB_BlurAmount); }
 
 } // namespace end
 
@@ -169,11 +173,11 @@ void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_Blu
 
 technique vort_MotionBlur
 {
-    #if V_MOT_BLUR_VECTORS_MODE == 0
-        PASS_MOT_VECT
+    #if V_MB_VECTORS_MODE == 0
+        PASS_MV
     #endif
 
-    #if V_MOT_VECT_DEBUG
+    #if V_MV_DEBUG
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
     #else
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
