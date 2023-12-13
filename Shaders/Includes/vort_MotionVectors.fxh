@@ -32,9 +32,6 @@ namespace MotVect {
 
 #define MIN_MIP 1
 
-#define CAT_MOT_VECT "Motion Vectors"
-
-
 /*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
@@ -139,6 +136,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
+    float wm_mult = lerp(2500.0, 500.0, sqrt(center_z));
 
     // xy = motion, z = weight
     float3 gbuffer = 0;
@@ -155,7 +153,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float wz = saturate(abs(sample_z - center_z) * 200.0);
 
         // long motion vectors
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * max(500.0, 2000.0 * (1.0 - sample_z));
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * wm_mult;
 
         // blocks which had near 0 variance
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0));
