@@ -65,6 +65,11 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
+#define CAT_MB "Motion Blur"
+
+// in case users want unrealistic results
+UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur", 0.0, 5.0, 1.0)
+
 UI_HELP(
 _vort_MotBlur_Help_,
 "V_MOT_VECT_DEBUG - 0 or 1\n"
@@ -121,7 +126,7 @@ void PS_Blur(PS_ARGS3)
     int half_samples = ceil(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
-    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy;
+    float2 motion = Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_BlurAmount;
     float4 color = 0.0;
 
     // add center color
@@ -150,11 +155,11 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
+    o.x = length(Sample(MOT_VECT_SAMP, i.uv).xy * UI_MB_BlurAmount * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, 1.0); }
+void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MOT_VECT_SAMP, UI_MB_BlurAmount); }
 
 } // namespace end
 
