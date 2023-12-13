@@ -56,11 +56,11 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     // reduced DX9 compile time and better performance
     uint block_size = mip > 2 ? 3 : 2;
     uint block_area = block_size * block_size;
-    float local_block[9]; // just use max size possible
+    float2 local_block[9]; // just use max size possible
 
-    float moments_local = 0;
-    float moments_search = 0;
-    float moments_cov = 0;
+    float2 moments_local = 0;
+    float2 moments_search = 0;
+    float2 moments_cov = 0;
 
     //since we only use to sample the blocks now, offset by half a block so we can do it easier inline
     i.uv -= texelsize * (block_size * 0.5);
@@ -68,8 +68,8 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     [unroll]for(uint k = 0; k < block_area; k++)
     {
         float2 tuv = i.uv + float2(k % block_size, k / block_size) * texelsize;
-        float t_local = dot(0.5, Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).xy);
-        float t_search = dot(0.5, Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).xy);
+        float2 t_local = Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).xy;
+        float2 t_search = Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).xy;
 
         local_block[k] = t_local;
 
@@ -78,17 +78,18 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         moments_cov += t_local * t_search;
     }
 
-    float best_sim = saturate(moments_cov * RSQRT(moments_local * moments_search));
+    float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
+    float best_sim = saturate(min(cossim.x, cossim.y));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
     int searches = mip > 1 ? 4 : 2;
 
-    [loop]while(searches-- > 0 && best_sim < 1.0)
+    [loop]while(searches-- > 0 && best_sim < 0.999999)
     {
         float2 local_motion = 0;
         int samples = 4;
 
-        [loop]while(samples-- > 0 && best_sim < 1.0)
+        [loop]while(samples-- > 0 && best_sim < 0.999999)
         {
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
@@ -102,13 +103,14 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             [loop]for(uint k = 0; k < block_area; k++)
             {
                 float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
-                float t = dot(0.5, Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy);
+                float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
 
                 moments_search += t * t;
                 moments_cov += t * local_block[k];
             }
 
-            float sim = saturate(moments_cov * RSQRT(moments_local * moments_search));
+            cossim = moments_cov * RSQRT(moments_local * moments_search);
+            float sim = saturate(min(cossim.x, cossim.y));
 
             // reduced DX9 complile time
             if (sim > best_sim)
