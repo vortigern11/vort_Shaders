@@ -123,14 +123,14 @@ void PS_Blur(PS_ARGS3)
     // x = motion pixel length, y = linear depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
-    if(center_info.x < 4.0) discard;
+    if(center_info.x < 2.0) discard;
 
-    float samples = clamp(center_info.x, 4.0, 16.0);
+    float samples = clamp(center_info.x, 2.0, 16.0);
     int half_samples = floor(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
     float2 motion = Sample(MV_SAMP, i.uv).xy * UI_MB_BlurAmount;
-    float4 color = 0.0;
+    float4 color = 0;
 
     // add center color
     color.w = RCP(center_info.x);
