@@ -266,6 +266,7 @@ struct CSIN {
     uv.y = (id == 1) ? 1.0 : (1 - k); \
     VS_VPOS_FROM_UV
 
+#define SRGB_READ_ENABLE SRGBTexture = IS_SRGB && IS_8BIT && V_USE_HW_LIN;
 #define SRGB_WRITE_ENABLE SRGBWriteEnable = IS_SRGB && IS_8BIT && V_USE_HW_LIN;
 
 /*******************************************************************************
@@ -281,9 +282,12 @@ void PostProcessVS(in uint id : SV_VertexID, out float4 position : SV_Position, 
 }
 
 // to be used instead of tex2D and tex2Dlod
-float4 Sample(sampler samp, float2 uv) { return tex2Dlod(samp, float4(uv, 0, 0)); }
+float4 Sample(sampler samp, float2 uv)          { return tex2Dlod(samp, float4(uv, 0, 0)); }
 float4 Sample(sampler samp, float2 uv, int mip) { return tex2Dlod(samp, float4(uv, 0, mip)); }
-float4 Sample(sampler samp, float2 uv, int mip, int2 offs) { return tex2Dlod(samp, float4(uv, 0, mip), offs); }
+
+// to be used instead of tex2Dfetch
+float4 Fetch(sampler samp, int2 pos)          { return tex2Dfetch(samp, pos); }
+float4 Fetch(sampler samp, int2 pos, int mip) { return tex2Dfetch(samp, pos, mip); }
 
 float3 SRGBToLin(float3 c)
 {
