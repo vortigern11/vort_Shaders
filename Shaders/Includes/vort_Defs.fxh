@@ -57,6 +57,10 @@
 #define LOG10(_x) (log10(max(EPSILON, (_x))))
 #define exp10(_x) (exp2(3.3219281 * (_x)))
 
+// call TO_STR(ANOTHER_MACRO)
+#define _TO_STR(x) #x
+#define TO_STR(x) _TO_STR(x)
+
 #if !defined(__RESHADE__) || __RESHADE__ < 30000
     #error "ReShade 3.0+ is required to use this header file"
 #endif
@@ -266,8 +270,9 @@ struct CSIN {
     uv.y = (id == 1) ? 1.0 : (1 - k); \
     VS_VPOS_FROM_UV
 
-#define SRGB_READ_ENABLE SRGBTexture = IS_SRGB && IS_8BIT && V_USE_HW_LIN;
-#define SRGB_WRITE_ENABLE SRGBWriteEnable = IS_SRGB && IS_8BIT && V_USE_HW_LIN;
+#define HW_LIN_IS_USED IS_SRGB && IS_8BIT && V_USE_HW_LIN
+#define SRGB_READ_ENABLE SRGBTexture = HW_LIN_IS_USED;
+#define SRGB_WRITE_ENABLE SRGBWriteEnable = HW_LIN_IS_USED;
 
 /*******************************************************************************
     Functions

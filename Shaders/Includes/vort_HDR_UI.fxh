@@ -38,6 +38,14 @@
     #define V_ENABLE_COLOR_GRADING 1
 #endif
 
+#if __RESHADE__ >= 50902 // TODO: Change to 5.9.3 when released
+    #ifndef V_ENABLE_LUT
+        #define V_ENABLE_LUT 0
+    #endif
+#else
+    #define V_ENABLE_LUT 0
+#endif
+
 #ifndef V_BLOOM_DEBUG
     #define V_BLOOM_DEBUG 0
 #endif
@@ -45,6 +53,23 @@
 #ifndef V_SHOW_ONLY_HDR_COLORS
     #define V_SHOW_ONLY_HDR_COLORS 0
 #endif
+
+#if V_ENABLE_LUT
+    #ifndef V_LUT_FILE
+        #define V_LUT_FILE 15
+    #endif
+
+    #ifndef V_LUT_SIZE
+        #define V_LUT_SIZE 33
+    #endif
+
+    #ifndef V_LOAD_ALL_LUTS
+        #define V_LOAD_ALL_LUTS 0
+    #endif
+
+    #define LOAD_ALL_LUTS V_LOAD_ALL_LUTS && !IS_DX9
+#endif
+
 
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
@@ -69,6 +94,17 @@
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 1.0, 0.75)
     UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 1.0, 0.75)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "Controls at what distance blurring occurs.", 0.0, 1.0, 0.25)
+#endif
+
+#if V_ENABLE_LUT
+    #define CAT_LUT "LUT Settings"
+
+    #if LOAD_ALL_LUTS
+        UI_INT(CAT_LUT, UI_CC_LUTName, "LUT Name", "Chooses which LUT filename to use", 1, 40, 1)
+    #endif
+
+    UI_FLOAT(CAT_LUT, UI_CC_LUTChroma, "LUT Chroma", "Changes the chroma intensity of the LUT", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_LUT, UI_CC_LUTLuma, "LUT Luma", "Changes the luma intensity of the LUT", 0.0, 1.0, 1.0)
 #endif
 
 #if V_ENABLE_COLOR_GRADING
