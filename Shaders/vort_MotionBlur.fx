@@ -68,7 +68,7 @@ namespace MotBlur {
 #define CAT_MB "Motion Blur"
 
 // in case users want unrealistic results
-UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur", 0.0, 5.0, 1.0)
+UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur.", 0.0, 2.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -125,7 +125,7 @@ void PS_Blur(PS_ARGS3)
 
     if(center_info.x < 2.0) discard;
 
-    float samples = clamp(center_info.x, 2.0, 16.0);
+    float samples = min(center_info.x, 16.0);
     int half_samples = floor(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float rand = GetNoise(i.uv) * 0.5;
@@ -144,7 +144,7 @@ void PS_Blur(PS_ARGS3)
     [loop]for(int m = -1; m <= 1; m += 2)
     [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 sample_uv = saturate(i.uv + motion * m * (float(j) - rand));
+        float2 sample_uv = saturate(i.uv + motion * m * (j - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
