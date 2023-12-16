@@ -142,7 +142,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 4.0;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
-    float wm_mult = lerp(2000.0, 1000.0, sqrt(center_z));
+    float wm_mult = lerp(2000.0, 750.0, sqrt(center_z));
 
     // xy = motion, z = weight
     float3 gbuffer = 0;
