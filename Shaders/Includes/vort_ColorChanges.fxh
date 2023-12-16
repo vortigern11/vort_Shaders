@@ -97,7 +97,7 @@ namespace ColorChanges {
 *******************************************************************************/
 
 #if V_ENABLE_LUT
-    #if !LOAD_ALL_LUTS
+    #if !V_LOAD_ALL_LUTS
         texture3D CubeTexVort < source = TO_STR(V_LUT_FILE) ".cube"; >
         { Width = V_LUT_SIZE; Height = V_LUT_SIZE; Depth = V_LUT_SIZE; TEX_RGBA32 };
         sampler3D sCubeTexVort { Texture = CubeTexVort; };
@@ -284,7 +284,7 @@ float3 ApplyLUT(float3 c)
     c = LinToSRGB(c);
 #endif
 
-#if !LOAD_ALL_LUTS
+#if !V_LOAD_ALL_LUTS
     c = tex3D(sCubeTexVort, c).rgb;
 #else
     switch(UI_CC_LUTName)

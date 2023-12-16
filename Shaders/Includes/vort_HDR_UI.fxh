@@ -63,11 +63,13 @@
         #define V_LUT_SIZE 33
     #endif
 
-    #ifndef V_LOAD_ALL_LUTS
+    #if IS_DX9
         #define V_LOAD_ALL_LUTS 0
+    #else
+        #ifndef V_LOAD_ALL_LUTS
+            #define V_LOAD_ALL_LUTS 0
+        #endif
     #endif
-
-    #define LOAD_ALL_LUTS V_LOAD_ALL_LUTS && !IS_DX9
 #endif
 
 
@@ -99,7 +101,7 @@
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
 
-    #if LOAD_ALL_LUTS
+    #if V_LOAD_ALL_LUTS
         UI_INT(CAT_LUT, UI_CC_LUTName, "LUT Name", "Chooses which LUT filename to use", 1, 40, 1)
     #endif
 

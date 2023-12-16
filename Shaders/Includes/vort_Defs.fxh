@@ -46,6 +46,8 @@
 #define IS_DX9 (__RENDERER__ < 0xA000)
 #define CAN_COMPUTE (__RENDERER__ >= 0xB000)
 
+static const float A_THIRD = rcp(3.0);
+
 // safer versions of built-in functions
 #define RCP(_x) (rcp(max(EPSILON, (_x))))
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
@@ -525,29 +527,29 @@ float3 RGBToOKLAB(float3 c)
         0.0883024619, 0.2817188376, 0.6299787005
     );
 
-    float3 lms = POW(mul(lms_mat, c), 1.0 / 3.0);
+    float3 lms = POW(mul(lms_mat, c), A_THIRD);
 
     return float3(
-        0.2104542553 * lms.x + 0.7936177850 * lms.y - 0.0040720468 * lms.z,
-        1.9779984951 * lms.x - 2.4285922050 * lms.y + 0.4505937099 * lms.z,
-        0.0259040371 * lms.x + 0.7827717662 * lms.y - 0.8086757660 * lms.z
+        (0.2104542553 * lms.x) + (0.7936177850 * lms.y) - (0.0040720468 * lms.z),
+        (1.9779984951 * lms.x) - (2.4285922050 * lms.y) + (0.4505937099 * lms.z),
+        (0.0259040371 * lms.x) + (0.7827717662 * lms.y) - (0.8086757660 * lms.z)
     );
 }
 
 float3 OKLABToRGB(float3 lab)
 {
     float3 lms = float3(
-        lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z,
-        lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z,
-        lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z
+        lab.x + (0.3963377774 * lab.y) + (0.2158037573 * lab.z),
+        lab.x - (0.1055613458 * lab.y) - (0.0638541728 * lab.z),
+        lab.x - (0.0894841775 * lab.y) - (1.2914855480 * lab.z)
     );
 
     lms *= lms * lms;
 
     return float3(
-        +4.0767416621 * lms.x - 3.3077115913 * lms.y + 0.2309699292 * lms.z,
-        -1.2684380046 * lms.x + 2.6097574011 * lms.y - 0.3413193965 * lms.z,
-        -0.0041960863 * lms.x - 0.7034186147 * lms.y + 1.7076147010 * lms.z
+        (+4.0767416621 * lms.x) - (3.3077115913 * lms.y) + (0.2309699292 * lms.z),
+        (-1.2684380046 * lms.x) + (2.6097574011 * lms.y) - (0.3413193965 * lms.z),
+        (-0.0041960863 * lms.x) - (0.7034186147 * lms.y) + (1.7076147010 * lms.z)
     );
 }
 
