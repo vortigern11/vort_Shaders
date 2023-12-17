@@ -269,6 +269,107 @@ float3 ApplyColorGrading(float3 c)
 }
 #endif
 
+#if V_ENABLE_PALETTE
+float3 ApplyPalette(float3 c, float2 vpos)
+{
+    // OKHSV color space info
+    // https://bottosson.github.io/posts/colorpicker
+
+    uint seed = UI_CPS_Seed;
+
+    float hue = Hash(seed);
+    float sat_base = lerp(0.65, 1.0, Hash(seed + 5));
+    float val_base = lerp(0.3, 0.65, Hash(seed + 13));
+    static const float contrast = 0.35;
+
+    // default is analogous
+    float3 colors[9];
+    int max_idx = 7;
+    int hue_switch = 99;
+    float hue_offset = 0.0;
+
+    switch(UI_CPS_Harmony)
+    {
+        case 1: // complementary
+        {
+            max_idx = 7;
+            hue_switch = (max_idx + 1) * 0.5;
+            hue_offset = 0.5;
+            break;
+        }
+        case 2: // triadic
+        {
+            max_idx = 8;
+            hue_switch = 3;
+            hue_offset = A_THIRD;
+            break;
+        }
+    }
+
+    // generate the palette
+    [loop]for(int j = 0; j <= max_idx; j++)
+    {
+        float j_mult = float(j) / float(max_idx);
+
+        // rotate hue depending on harmony
+        if(j % hue_switch == 0) hue += hue_offset;
+
+        float3 hsv = float3(
+            hue,
+            sat_base - contrast * j_mult,
+            val_base + contrast * j_mult
+        );
+
+        colors[j] = OKColors::OKHSVToRGB(hsv);
+    }
+
+    bool c_has_changed = false;
+
+    if(UI_CPS_ShowPalette)
+    {
+        static const int off = 20;
+        static const int2 f = int2(off + 5, off + 5);
+        static const int2 palette_area = int2(f.x + 5 + max_idx * (off + 5), f.y + 5);
+
+        bool is_border = all(int2(vpos <= palette_area));
+
+        // black border
+        if(is_border) c = 0.0;
+
+        bool is_square = false;
+
+        for(int j = 0; j <= max_idx; j++)
+        {
+            int2 fs = int2(f.x + j * (off + 5), f.y);
+            is_square = all(int2(vpos >= (fs - off) && vpos <= fs));
+
+            if(is_square) { c = colors[j]; break; }
+        }
+
+        c_has_changed = is_border || is_square;
+    }
+
+    if(!c_has_changed)
+    {
+        int idx = OKColors::RGBToOKLAB(c).x * max_idx;
+        float3 new_color = colors[idx];
+        float hue_num = ceil(float(idx + 1) / float(hue_switch));
+        float blend = 1.0;
+
+        switch(hue_num)
+        {
+            case 1: blend = UI_CPS_BlendHue1; break;
+            case 2: blend = UI_CPS_BlendHue2; break;
+            case 3: blend = UI_CPS_BlendHue3; break;
+        }
+
+        c = lerp(c, new_color, blend);
+    }
+
+    return c;
+}
+#endif
+
 #if V_ENABLE_LUT
 float3 ApplyLUT(float3 c)
 {
@@ -379,9 +480,7 @@ void PS_End(PS_ARGS3)
     c = ApplyColorGrading(c);
 #endif
 
-#if V_SHOW_ONLY_HDR_COLORS
-    c = !all(saturate(c - c * c)) ? 1.0 : 0.0;
-#elif IS_SRGB
+#if IS_SRGB
     // exposure before tonemap
     c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
 
@@ -394,6 +493,10 @@ void PS_End(PS_ARGS3)
         c = ApplyACESNarkowicz(c);
 
     c = saturate(c);
+#endif
+
+#if V_ENABLE_PALETTE
+    c = ApplyPalette(c, i.vpos.xy);
 #endif
 
     o = ApplyGammaCurve(c);

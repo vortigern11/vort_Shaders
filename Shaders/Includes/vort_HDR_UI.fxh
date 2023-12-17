@@ -38,6 +38,10 @@
     #define V_ENABLE_COLOR_GRADING 1
 #endif
 
+#ifndef V_ENABLE_PALETTE
+    #define V_ENABLE_PALETTE 1
+#endif
+
 #if __RESHADE__ >= 50902 // TODO: Change to 5.9.3 when released
     #ifndef V_ENABLE_LUT
         #define V_ENABLE_LUT 0
@@ -48,10 +52,6 @@
 
 #ifndef V_BLOOM_DEBUG
     #define V_BLOOM_DEBUG 0
-#endif
-
-#ifndef V_SHOW_ONLY_HDR_COLORS
-    #define V_SHOW_ONLY_HDR_COLORS 0
 #endif
 
 #if V_ENABLE_LUT
@@ -71,7 +71,6 @@
         #endif
     #endif
 #endif
-
 
 #if IS_SRGB
     #define CAT_TONEMAP "Tonemapping"
@@ -96,6 +95,17 @@
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 1.0, 0.75)
     UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 1.0, 0.75)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "Controls at what distance blurring occurs.", 0.0, 1.0, 0.25)
+#endif
+
+#if V_ENABLE_PALETTE
+    #define CAT_CPS "Color Palette Swap"
+
+    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
+    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
+    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0Triadic\0", 0)
+    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue1, "Hue 1 Blend", "How much to blend the first hue from the palette", 0.0, 1.0, 0.0)
+    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue2, "Hue 2 Blend", "How much to blend the second hue from the palette", 0.0, 1.0, 0.0)
+    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue3, "Hue 3 Blend", "How much to blend the third hue from the palette", 0.0, 1.0, 0.0)
 #endif
 
 #if V_ENABLE_LUT
@@ -138,19 +148,25 @@ _vort_HDR_Help_,
 "V_ENABLE_SHARPEN - 0 or 1\n"
 "Toggle the sharpening and far blur.\n"
 "\n"
+"V_ENABLE_LUT - 0 or 1\n"
+"Toggle use of 3D .cube LUT\n"
+"\n"
+"V_ENABLE_PALETTE - 0 or 1\n"
+"Toggle color palette generation\n"
+"\n"
 "V_ENABLE_COLOR_GRADING - 0 or 1\n"
 "Toggle all the color grading effects\n"
 "\n"
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
 "\n"
-"V_SHOW_ONLY_HDR_COLORS - 0 or 1\n"
-"If 1, shows in white the HDR colors\n"
+"V_LOAD_ALL_LUTS - 0 or 1\n"
+"If shown and set to 1, loads all LUTs for you to look at by using the UI\n"
 "\n"
 "V_HAS_DEPTH - 0 or 1\n"
-"Whether the game has depth (2D or 3D)\n"
+"Whether the game has depth (2D or 3D game)\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"
-"Disable if you have color issues due to some bug (like older REST versions).\n"
+"Disable if you have color issues due to some bug (like older REST addon).\n"
 )

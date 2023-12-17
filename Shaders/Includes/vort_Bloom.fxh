@@ -69,31 +69,35 @@ float4 UpsampleAndCombine(VSOUT i, sampler prev_samp, sampler curr_samp, int cur
 
 void PS_Debug(PS_ARGS4)
 {
-    static const int off = 8;
-    float3 max_c = 1;
+    static const int off = 20;
+    static const int2 f = int2(BUFFER_SCREEN_SIZE.x * 0.2, BUFFER_SCREEN_SIZE.y * 0.5);
+    float2 vpos = i.vpos.xy;
+    float3 max_c = 1.0;
+    float3 c = 0.0;
 
     if(UI_CC_Tonemapper == 0)
         max_c = InverseLottes(max_c);
     else
         max_c = InverseACESNarkowicz(max_c);
 
-    int2 f1 = int2(BUFFER_SCREEN_SIZE.x * 0.2, BUFFER_SCREEN_SIZE.y * 0.5);
-    int2 f2 = int2(f1.x * 2, f1.y);
-    int2 f3 = int2(f1.x * 3, f1.y);
-    int2 f4 = int2(f1.x * 4, f1.y);
-    int2 pixels = i.uv * BUFFER_SCREEN_SIZE;
-    float3 c = 0;
+    float3 colors[4] = {
+        float3(max_c.r, 0, 0),
+        float3(0, max_c.g, 0),
+        float3(0, 0, max_c.b),
+        max_c
+    };
 
-    if(all(bool4(pixels >= (f1 - off), pixels <= f1)))
-        c.r = max_c.r;
-    else if(all(bool4(pixels >= (f2 - off), pixels <= f2)))
-        c.g = max_c.g;
-    else if(all(bool4(pixels >= (f3 - off), pixels <= f3)))
-        c.b = max_c.b;
-    else if(all(bool4(pixels >= (f4 - off), pixels <= f4)))
-        c = max_c;
-    else
-        discard;
+    bool is_square = false;
+
+    for(int j = 0; j < 4; j++)
+    {
+        int2 fs = int2(f.x * (j + 1), f.y);
+        is_square = all(int2(vpos >= (fs - off) && vpos <= fs));
+
+        if(is_square) { c = colors[j]; break; }
+    }
+
+    if(!is_square) discard;
 
     o = float4(c, 1);
 }

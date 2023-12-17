@@ -559,3 +559,11 @@ float GetNoise(float2 co)
 {
     return frac(sin(dot(co, float2(12.9898, 78.233))) * 43758.5453);
 }
+
+// integer hash copied from Hugo Elias
+float Hash(uint n) {
+    n = (n << 13) ^ n;
+    n = n * (n * n * 15731U + 0x789221U) + 0x1376312589U;
+
+    return float(n & uint(0x7fffffffU)) / float(0x7fffffff);
+}
