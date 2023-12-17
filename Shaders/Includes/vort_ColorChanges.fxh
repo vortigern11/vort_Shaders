@@ -54,6 +54,7 @@
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
+#include "Includes/vort_OKColors.fxh"
 
 namespace ColorChanges {
 
@@ -104,7 +105,7 @@ namespace ColorChanges {
     #else
         #define MAKE_LUT_TS(x) \
             texture3D CubeTexVort##x < source = TO_STR(x) ".cube"; > \
-            { Width = 33; Height = 33; Depth = 33; TEX_RGBA32 }; \
+            { Width = V_LUT_SIZE; Height = V_LUT_SIZE; Depth = V_LUT_SIZE; TEX_RGBA32 }; \
             sampler3D sCubeTexVort##x { Texture = CubeTexVort##x; };
 
         MAKE_LUT_TS(1)
@@ -223,13 +224,6 @@ float3 ApplyColorGrading(float3 c)
     float lumi = GET_LUMI(c);
     c = lerp(lumi.xxx, c, UI_CC_Saturation + 1.0);
 
-    // RGB(channel) mixer
-    c = float3(
-        dot(c.rgb, UI_CC_RGBMixerRed.rgb * 4.0 - 2.0),
-        dot(c.rgb, UI_CC_RGBMixerGreen.rgb * 4.0 - 2.0),
-        dot(c.rgb, UI_CC_RGBMixerBlue.rgb * 4.0 - 2.0)
-    );
-
     // Hue Shift
     float3 hsv = RGBToHSV(c);
     hsv.x = frac(hsv.x + UI_CC_HueShift);
@@ -284,6 +278,9 @@ float3 ApplyLUT(float3 c)
     c = LinToSRGB(c);
 #endif
 
+    // remap the color depending on the LUT size
+    c = (c - 0.5) * ((V_LUT_SIZE - 1.0) / V_LUT_SIZE) + 0.5;
+
 #if !V_LOAD_ALL_LUTS
     c = tex3D(sCubeTexVort, c).rgb;
 #else
@@ -332,18 +329,15 @@ float3 ApplyLUT(float3 c)
     }
 #endif
 
-    // texture filtering isn't perfect yet, hence the addition
-    c += 0.005;
-
 #if HW_LIN_IS_USED
     c = SRGBToLin(c);
 #endif
 
-    orig_c = RGBToOKLAB(orig_c); c = RGBToOKLAB(c);
-    c.x = lerp(orig_c.x, c.x, UI_CC_LUTLuma);
-    c.yz = lerp(orig_c.yz, c.yz, UI_CC_LUTChroma);
+    float3 lut_mult = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
+    orig_c = OKColors::RGBToOKLAB(orig_c); c = OKColors::RGBToOKLAB(c);
+    c = OKColors::OKLABToRGB(lerp(orig_c, c, lut_mult));
 
-    return OKLABToRGB(c);
+    return c;
 }
 #endif
 

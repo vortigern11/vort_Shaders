@@ -118,19 +118,16 @@
     UI_FLOAT(CAT_CC, UI_CC_Saturation, "Saturation", "Changes the saturation of all colors", -1.0, 1.0, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_HueShift, "Hue Shift", "Changes the hue of all colors", -0.5, 0.5, 0.0)
     UI_COLOR(CAT_CC, UI_CC_ColorFilter, "Color Filter", "Multiplies every color by this color", 1.0);
-    UI_COLOR(CAT_CC, UI_CC_RGBMixerRed, "RGB Mixer Red", "Modifies the reds", float3(0.75, 0.5, 0.5))
-    UI_COLOR(CAT_CC, UI_CC_RGBMixerGreen, "RGB Mixer Green", "Modifies the greens", float3(0.5, 0.75, 0.5))
-    UI_COLOR(CAT_CC, UI_CC_RGBMixerBlue, "RGB Mixer Blue", "Modifies the blues", float3(0.5, 0.5, 0.75))
-
-    UI_COLOR(CAT_CC, UI_CC_ShadowsColor, "Shadows Color", "Changes the color of the shadows mainly.", 0.5)
-    UI_COLOR(CAT_CC, UI_CC_MidtonesColor, "Midtones Color", "Changes the color of the midtones mainly.", 0.5)
-    UI_COLOR(CAT_CC, UI_CC_HighlightsColor, "Highlights Color", "Changes the color of the highlights mainly.", 0.5)
-    UI_COLOR(CAT_CC, UI_CC_OffsetColor, "Offset Color", "Changes the color of the whole curve.", 0.5)
 
     UI_FLOAT(CAT_CC, UI_CC_ShadowsLumi, "Shadows Luminance", "Changes the luminance of the shadows mainly.", -0.5, 0.5, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_MidtonesLumi, "Midtones Luminance", "Change the luminance of the midtones mainly.", -0.5, 0.5, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_HighlightsLumi, "Highlights Luminance", "Changes the luminance of the highlights mainly.", -0.5, 0.5, 0.0)
     UI_FLOAT(CAT_CC, UI_CC_OffsetLumi, "Offset Luminance", "Changes the luminance of whole curve.", -0.5, 0.5, 0.0)
+
+    UI_COLOR(CAT_CC, UI_CC_ShadowsColor, "Shadows Color", "Changes the color of the shadows mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_MidtonesColor, "Midtones Color", "Changes the color of the midtones mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_HighlightsColor, "Highlights Color", "Changes the color of the highlights mainly.", 0.5)
+    UI_COLOR(CAT_CC, UI_CC_OffsetColor, "Offset Color", "Changes the color of the whole curve.", 0.5)
 #endif
 
 UI_HELP(

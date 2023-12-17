@@ -17,6 +17,7 @@
 #include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_LDRTex.fxh"
+#include "Includes/vort_OKColors.fxh"
 
 namespace MotVect {
 
@@ -199,7 +200,7 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
-    o.x = RGBToOKLAB(color).x;
+    o.x = OKColors::RGBToOKLAB(color).x;
     o.y = GetLinearizedDepth(i.uv);
 }
 
