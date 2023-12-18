@@ -280,31 +280,18 @@ float3 ApplyPalette(float3 c, float2 vpos)
     float hue = Hash(seed);
     float sat_base = lerp(0.65, 1.0, Hash(seed + 5));
     float val_base = lerp(0.3, 0.65, Hash(seed + 13));
+
     static const float contrast = 0.35;
+    static const int max_idx = 7;
+    static const int mid_idx = 4;
+    float3 colors[8];
 
     // default is analogous
-    float3 colors[9];
-    int max_idx = 7;
     int hue_switch = 99;
     float hue_offset = 0.0;
 
-    switch(UI_CPS_Harmony)
-    {
-        case 1: // complementary
-        {
-            max_idx = 7;
-            hue_switch = (max_idx + 1) * 0.5;
-            hue_offset = 0.5;
-            break;
-        }
-        case 2: // triadic
-        {
-            max_idx = 8;
-            hue_switch = 3;
-            hue_offset = A_THIRD;
-            break;
-        }
-    }
+    // complementary
+    if(UI_CPS_Harmony == 1) { hue_switch = mid_idx; hue_offset = 0.5; }
 
     // generate the palette
     [loop]for(int j = 0; j <= max_idx; j++)
@@ -312,7 +299,7 @@ float3 ApplyPalette(float3 c, float2 vpos)
         float j_mult = float(j) / float(max_idx);
 
         // rotate hue depending on harmony
-        if(j % hue_switch == 0) hue += hue_offset;
+        if(j == hue_switch) hue += hue_offset;
 
         float3 hsv = float3(
             hue,
@@ -351,19 +338,20 @@ float3 ApplyPalette(float3 c, float2 vpos)
 
     if(!c_has_changed)
     {
-        int idx = OKColors::RGBToOKLAB(c).x * max_idx;
-        float3 new_color = colors[idx];
-        float hue_num = ceil(float(idx + 1) / float(hue_switch));
-        float blend = 1.0;
+        float3 c_lab = OKColors::RGBToOKLAB(c);
+        int idx = c_lab.x * float(max_idx);
+        int s_idx = idx < mid_idx ? idx : max_idx - idx;
+        float3 shadows_c = colors[s_idx];
+        float3 highlights_c = colors[max_idx - s_idx];
+        float3 new_c = c;
 
-        switch(hue_num)
-        {
-            case 1: blend = UI_CPS_BlendHue1; break;
-            case 2: blend = UI_CPS_BlendHue2; break;
-            case 3: blend = UI_CPS_BlendHue3; break;
-        }
+        new_c = OverlayBlend(new_c, lerp((0.5).xxx, shadows_c, 1.0 - c_lab.x));
+        new_c = OverlayBlend(new_c, lerp((0.5).xxx, highlights_c, c_lab.x));
 
-        c = lerp(c, new_color, blend);
+        float3 new_c_lab = OKColors::RGBToOKLAB(new_c);
+
+        c_lab.yz = lerp(c_lab.yz, new_c_lab.yz, UI_CPS_Blend);
+        c = OKColors::OKLABToRGB(c_lab);
     }
 
     return c;
@@ -434,9 +422,9 @@ float3 ApplyLUT(float3 c)
     c = SRGBToLin(c);
 #endif
 
-    float3 lut_mult = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
+    float3 factor = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
     orig_c = OKColors::RGBToOKLAB(orig_c); c = OKColors::RGBToOKLAB(c);
-    c = OKColors::OKLABToRGB(lerp(orig_c, c, lut_mult));
+    c = OKColors::OKLABToRGB(lerp(orig_c, c, factor));
 
     return c;
 }

@@ -31,15 +31,15 @@
 #endif
 
 #ifndef V_ENABLE_SHARPEN
-    #define V_ENABLE_SHARPEN 1
+    #define V_ENABLE_SHARPEN 0
 #endif
 
 #ifndef V_ENABLE_COLOR_GRADING
-    #define V_ENABLE_COLOR_GRADING 1
+    #define V_ENABLE_COLOR_GRADING 0
 #endif
 
 #ifndef V_ENABLE_PALETTE
-    #define V_ENABLE_PALETTE 1
+    #define V_ENABLE_PALETTE 0
 #endif
 
 #if __RESHADE__ >= 50902 // TODO: Change to 5.9.3 when released
@@ -97,17 +97,6 @@
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenSwitchPoint, "Switch Point", "Controls at what distance blurring occurs.", 0.0, 1.0, 0.25)
 #endif
 
-#if V_ENABLE_PALETTE
-    #define CAT_CPS "Color Palette Swap"
-
-    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
-    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
-    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0Triadic\0", 0)
-    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue1, "Hue 1 Blend", "How much to blend the first hue from the palette", 0.0, 1.0, 0.0)
-    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue2, "Hue 2 Blend", "How much to blend the second hue from the palette", 0.0, 1.0, 0.0)
-    UI_FLOAT(CAT_CPS, UI_CPS_BlendHue3, "Hue 3 Blend", "How much to blend the third hue from the palette", 0.0, 1.0, 0.0)
-#endif
-
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
 
@@ -138,6 +127,15 @@
     UI_COLOR(CAT_CC, UI_CC_MidtonesColor, "Midtones Color", "Changes the color of the midtones mainly.", 0.5)
     UI_COLOR(CAT_CC, UI_CC_HighlightsColor, "Highlights Color", "Changes the color of the highlights mainly.", 0.5)
     UI_COLOR(CAT_CC, UI_CC_OffsetColor, "Offset Color", "Changes the color of the whole curve.", 0.5)
+#endif
+
+#if V_ENABLE_PALETTE
+    #define CAT_CPS "Color Palette Swap"
+
+    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
+    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
+    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
+    UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 1.0, 1.0)
 #endif
 
 UI_HELP(
