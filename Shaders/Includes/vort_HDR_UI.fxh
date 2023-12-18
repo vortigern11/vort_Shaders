@@ -108,6 +108,15 @@
     UI_FLOAT(CAT_LUT, UI_CC_LUTLuma, "LUT Luma", "Changes the luma intensity of the LUT", 0.0, 1.0, 1.0)
 #endif
 
+#if V_ENABLE_PALETTE
+    #define CAT_CPS "Color Palette Swap"
+
+    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
+    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
+    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
+    UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 2.0, 1.0)
+#endif
+
 #if V_ENABLE_COLOR_GRADING
     #define CAT_CC "Color Grading"
 
@@ -127,15 +136,6 @@
     UI_COLOR(CAT_CC, UI_CC_MidtonesColor, "Midtones Color", "Changes the color of the midtones mainly.", 0.5)
     UI_COLOR(CAT_CC, UI_CC_HighlightsColor, "Highlights Color", "Changes the color of the highlights mainly.", 0.5)
     UI_COLOR(CAT_CC, UI_CC_OffsetColor, "Offset Color", "Changes the color of the whole curve.", 0.5)
-#endif
-
-#if V_ENABLE_PALETTE
-    #define CAT_CPS "Color Palette Swap"
-
-    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
-    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
-    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
-    UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 1.0, 1.0)
 #endif
 
 UI_HELP(

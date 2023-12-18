@@ -438,11 +438,14 @@ void PS_Start(PS_ARGS4) {
     float3 c = Sample(sLDRTexVort, i.uv).rgb;
 
 #if V_ENABLE_LUT
-    // input must be sRGB
-    c = ApplyLUT(c);
+    c = ApplyLUT(c); // input must be sRGB
 #endif
 
     c = ApplyLinearCurve(c);
+
+#if V_ENABLE_PALETTE
+    c = ApplyPalette(c, i.vpos.xy);
+#endif
 
 #if IS_SRGB
     c = saturate(c);
@@ -481,10 +484,6 @@ void PS_End(PS_ARGS3)
         c = ApplyACESNarkowicz(c);
 
     c = saturate(c);
-#endif
-
-#if V_ENABLE_PALETTE
-    c = ApplyPalette(c, i.vpos.xy);
 #endif
 
     o = ApplyGammaCurve(c);
