@@ -278,10 +278,10 @@ float3 ApplyPalette(float3 c, float2 vpos)
     uint seed = UI_CPS_Seed;
 
     float hue = Hash(seed);
-    float sat_base = lerp(0.65, 1.0, Hash(seed + 5));
-    float val_base = lerp(0.3, 0.65, Hash(seed + 13));
+    float sat_base = lerp(0.6, 1.0, Hash(seed + 5));
+    float val_base = lerp(0.2, 0.6, Hash(seed + 13));
 
-    static const float contrast = 0.35;
+    static const float contrast = 0.4;
     static const int max_idx = 7;
     static const int mid_idx = 4;
     float3 colors[8];
@@ -338,16 +338,17 @@ float3 ApplyPalette(float3 c, float2 vpos)
 
     if(!c_has_changed)
     {
-        float3 c_lab = OKColors::RGBToOKLAB(c);
-        int idx = c_lab.x * float(max_idx);
+        float lumi = RGBToYCbCrLumi(c);
+        int idx = lumi * float(max_idx);
         int s_idx = idx < mid_idx ? idx : max_idx - idx;
         float3 shadows_c = colors[s_idx];
         float3 highlights_c = colors[max_idx - s_idx];
         float3 new_c = c;
 
-        new_c = OverlayBlend(new_c, lerp((0.5).xxx, shadows_c, 1.0 - c_lab.x));
-        new_c = OverlayBlend(new_c, lerp((0.5).xxx, highlights_c, c_lab.x));
+        new_c = SoftLightBlend(new_c, lerp(shadows_c, (0.5).xxx, lumi));
+        new_c = SoftLightBlend(new_c, lerp((0.5).xxx, highlights_c, lumi));
 
+        float3 c_lab = OKColors::RGBToOKLAB(c);
         float3 new_c_lab = OKColors::RGBToOKLAB(new_c);
 
         c_lab.yz = lerp(c_lab.yz, new_c_lab.yz, UI_CPS_Blend);

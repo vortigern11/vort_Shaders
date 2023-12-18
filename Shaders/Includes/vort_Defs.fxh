@@ -548,6 +548,12 @@ float3 OverlayBlend(float3 a, float3 b)
     return a < 0.5 ? (2.0 * a * b) : (1.0 - 2.0 * (1.0 - a) * (1.0 - b));
 }
 
+float3 SoftLightBlend(float3 a, float3 b)
+{
+    // pegtop version
+    return (1.0 - 2.0 * b) * a * a + 2.0 * b * a;
+}
+
 float Max3(float3 f) { return max(f.x, max(f.y, f.z)); }
 float Max3(float a, float b, float c) { return max(a, max(b, c)); }
 float2 Max3(float2 a, float2 b, float2 c) { return max(a, max(b, c)); }
