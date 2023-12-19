@@ -30,13 +30,6 @@
 #if 0
 
 #include "Includes/vort_MotionVectors.fxh"
-#include "Includes/vort_MotVectUtils.fxh"
-
-/*******************************************************************************
-    Shaders
-*******************************************************************************/
-
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, sMotVectTexVort, 1.0); }
 
 /*******************************************************************************
     Techniques
@@ -55,7 +48,7 @@ technique vort_MotionEstimation
     PASS_MV
 
     #if V_MV_DEBUG
-        pass { VertexShader = PostProcessVS; PixelShader = PS_Debug; }
+        PASS_MV_DEBUG
     #endif
 }
 

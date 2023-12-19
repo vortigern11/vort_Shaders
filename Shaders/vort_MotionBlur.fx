@@ -1,8 +1,6 @@
 /*******************************************************************************
     Author: Vortigern
-    Sources:
-         https://github.com/Kink3d/kMotion/blob/master/Shaders/MotionBlur.shader
-         "A Reconstruction Filter for Plausible Motion Blur" by McGuire et al.
+    Source: "A Reconstruction Filter for Plausible Motion Blur" by McGuire et al.
 
     License: MIT, Copyright (c) 2023 Vortigern
 
@@ -29,7 +27,6 @@
 
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
-#include "Includes/vort_MotVectUtils.fxh"
 #include "Includes/vort_LDRTex.fxh"
 
 #ifndef V_MB_VECTORS_MODE
@@ -67,8 +64,7 @@ namespace MotBlur {
 
 #define CAT_MB "Motion Blur"
 
-// in case users want unrealistic results
-UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur.", 0.0, 2.0, 1.0)
+UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur.", 0.0, 1.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -162,8 +158,6 @@ void PS_WriteInfo(PS_ARGS2)
     o.y = GetLinearizedDepth(i.uv);
 }
 
-void PS_Debug(PS_ARGS3) { o = MotVectUtils::Debug(i.uv, MV_SAMP, UI_MB_BlurAmount); }
-
 } // namespace end
 
 /*******************************************************************************
@@ -176,8 +170,8 @@ technique vort_MotionBlur
         PASS_MV
     #endif
 
-    #if V_MV_DEBUG
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Debug; }
+    #if V_MB_VECTORS_MODE == 0 && V_MV_DEBUG
+        PASS_MV_DEBUG
     #else
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }

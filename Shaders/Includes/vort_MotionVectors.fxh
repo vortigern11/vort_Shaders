@@ -25,17 +25,16 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
+#ifndef V_MV_DEBUG
+    #define V_MV_DEBUG 0
+#endif
+
 #ifndef V_MV_EXTRA_QUALITY
     #define V_MV_EXTRA_QUALITY 0
 #endif
 
-#if BUFFER_HEIGHT >= 2160
-    #define MAX_MIP 9
-    #define MIN_MIP (2 - V_MV_EXTRA_QUALITY)
-#else
-    #define MAX_MIP 8
-    #define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
-#endif
+#define MAX_MIP 6
+#define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
 
 /*******************************************************************************
     Textures, Samplers
@@ -117,8 +116,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             cossim = moments_cov * RSQRT(moments_local * moments_search);
             float sim = saturate(min(cossim.x, cossim.y));
 
-            // reduced DX9 complile time
-            if (sim > best_sim)
+            if(sim > best_sim)
             {
                 best_sim = sim;
                 local_motion = search_offset;
@@ -204,15 +202,7 @@ void PS_WriteFeature(PS_ARGS2)
     o.y = GetLinearizedDepth(i.uv);
 }
 
-#if MAX_MIP == 9
-    void PS_Motion9(PS_ARGS4) { o = EstimateMotion(i, 9, sMotVectTexVort); }
-    void PS_Motion8(PS_ARGS4) { o = EstimateMotion(i, 8, sDownTexVort9); }
-#else
-    void PS_Motion8(PS_ARGS4) { o = EstimateMotion(i, 8, sMotVectTexVort); }
-#endif
-
-void PS_Motion7(PS_ARGS4) { o = EstimateMotion(i, 7, sDownTexVort8); }
-void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sDownTexVort7); }
+void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sMotVectTexVort); }
 void PS_Motion5(PS_ARGS4) { o = EstimateMotion(i, 5, sDownTexVort6); }
 void PS_Motion4(PS_ARGS4) { o = EstimateMotion(i, 4, sDownTexVort5); }
 void PS_Motion3(PS_ARGS4) { o = EstimateMotion(i, 3, sDownTexVort4); }
@@ -220,23 +210,24 @@ void PS_Motion2(PS_ARGS4) { o = EstimateMotion(i, 2, sDownTexVort3); }
 void PS_Motion1(PS_ARGS4) { o = EstimateMotion(i, 1, sDownTexVort2); }
 void PS_Motion0(PS_ARGS4) { o = EstimateMotion(i, 0, sDownTexVort1); }
 
+void PS_Debug(PS_ARGS3)
+{
+    float2 motion = Sample(sMotVectTexVort, i.uv).xy;
+    float angle = atan2(motion.y, motion.x);
+    float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
+
+    o = lerp(0.5, rgb, saturate(length(motion) * 100));
+}
+
 /*******************************************************************************
     Passes
 *******************************************************************************/
 
-#if MAX_MIP == 9
-    #define PASS_MV_LAST \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion9; RenderTarget = DownTexVort9; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = DownTexVort8; }
-#else
-    #define PASS_MV_LAST \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = DownTexVort8; }
-#endif
+#define PASS_MV_DEBUG \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Debug; }
 
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::CurrFeatureTexVort; } \
-    PASS_MV_LAST \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion7; RenderTarget = DownTexVort7; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6; RenderTarget = DownTexVort6; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5; RenderTarget = DownTexVort5; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4; RenderTarget = DownTexVort4; } \
