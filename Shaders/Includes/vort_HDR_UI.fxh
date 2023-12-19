@@ -42,11 +42,12 @@
     #define V_ENABLE_PALETTE 0
 #endif
 
-#if __RESHADE__ >= 50902 // TODO: Change to 5.9.3 when released
+#if __RESHADE__ > 50902 // TODO: Change to 5.9.3 when released
     #ifndef V_ENABLE_LUT
         #define V_ENABLE_LUT 0
     #endif
 #else
+    #undef V_ENABLE_LUT
     #define V_ENABLE_LUT 0
 #endif
 
