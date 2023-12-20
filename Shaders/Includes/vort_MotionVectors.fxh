@@ -34,7 +34,12 @@ namespace MotVect {
 #endif
 
 #define MAX_MIP 6
-#define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
+
+#if BUFFER_HEIGHT >= 2160
+    #define MIN_MIP (2 - V_MV_EXTRA_QUALITY)
+#else
+    #define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
+#endif
 
 /*******************************************************************************
     Textures, Samplers
@@ -139,9 +144,9 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 texelsize = rcp(tex2Dsize(mot_samp));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 2.0; // don't change
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * 3.5;
+    static const float3 gauss = float3(1.0, 0.5, 0.25);
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
-    static const float3 gauss = float3(1.0, 0.85, 0.65);
 
     // xy = motion, z = weight
     float3 gbuffer = 0;
@@ -155,7 +160,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         float wz = saturate(abs(sample_z - center_z) * 3.0 * RCP(max(center_z, sample_z))); // depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1600.0; // long motion
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0)); // small variance
         float ws = saturate(1.0 - sample_gbuf.w); // bad block matching
         float weight = exp2(-(wz + wm + wf + ws) * 4.0);
