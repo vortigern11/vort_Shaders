@@ -291,7 +291,7 @@ struct CSIN {
     vpos = float4(uv * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
 
 #define VS_SMALL_TRIANGLE(_num) \
-    float k = RCP(1 << _num); \
+    float k = rcp(1 << _num); \
     uv.x = (id == 2) ? k * 2.0 : 0.0; \
     uv.y = (id == 1) ? 1.0 : (1 - k); \
     VS_VPOS_FROM_UV

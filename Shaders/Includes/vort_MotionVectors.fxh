@@ -132,7 +132,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         randdir *= 0.5;
     }
 
-    float variance = dot(sqrt(abs(moments_local * (block_area - 1) * RCP(block_area * block_area))), 1);
+    float variance = dot(sqrt(abs(moments_local * (block_area - 1) * rcp(block_area * block_area))), 1);
     float similarity = saturate(1.0 - acos(best_sim) / HALF_PI);
 
     return float4(total_motion, variance, similarity);
