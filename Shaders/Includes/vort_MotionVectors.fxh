@@ -178,7 +178,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         float wz = abs(sample_z - center_z) * RCP(max(center_z, sample_z)) * 3.0; // depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1250.0; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0; // long motion
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0)); // small variance
         float ws = saturate(1.0 - sample_gbuf.w); ws *= ws; // bad block matching
         float weight = exp2(-(wz + wm + wf + ws) * 4.0);
