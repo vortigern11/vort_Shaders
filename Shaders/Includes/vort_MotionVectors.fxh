@@ -14,7 +14,6 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
-#include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_OKColors.fxh"
@@ -51,6 +50,21 @@ texture2D PrevFeatureTexVort { TEX_SIZE(MIN_MIP) TEX_RG16 MipLevels = 1 + MAX_MI
 sampler2D sCurrFeatureTexVort { Texture = CurrFeatureTexVort; };
 sampler2D sPrevFeatureTexVort { Texture = PrevFeatureTexVort; };
 
+// don't need all textures from vort_DownTex
+texture2D DownTexVort1 { TEX_SIZE(1) TEX_RGBA16 };
+texture2D DownTexVort2 { TEX_SIZE(2) TEX_RGBA16 };
+texture2D DownTexVort3 { TEX_SIZE(3) TEX_RGBA16 };
+texture2D DownTexVort4 { TEX_SIZE(4) TEX_RGBA16 };
+texture2D DownTexVort5 { TEX_SIZE(5) TEX_RGBA16 };
+texture2D DownTexVort6 { TEX_SIZE(6) TEX_RGBA16 };
+
+sampler2D sDownTexVort1 { Texture = DownTexVort1; };
+sampler2D sDownTexVort2 { Texture = DownTexVort2; };
+sampler2D sDownTexVort3 { Texture = DownTexVort3; };
+sampler2D sDownTexVort4 { Texture = DownTexVort4; };
+sampler2D sDownTexVort5 { Texture = DownTexVort5; };
+sampler2D sDownTexVort6 { Texture = DownTexVort6; };
+
 /*******************************************************************************
     Functions
 *******************************************************************************/
@@ -60,10 +74,10 @@ float2 Rotate2D(float2 v, float4 r) { return float2(dot(v, r.xy), dot(v, r.zw));
 float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 {
     uint feature_mip = max(0, mip - MIN_MIP);
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(feature_mip);
+    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
 
     // reduced DX9 compile time and better performance
-    uint block_size = mip > 2 ? 3 : 2;
+    uint block_size = mip > MIN_MIP ? 3 : 2;
     uint block_area = block_size * block_size;
     float2 local_block[9]; // just use max size possible
 
@@ -87,18 +101,24 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         moments_cov += t_local * t_search;
     }
 
+    float variance = dot(sqrt(abs(moments_local * (block_area - 1) * rcp(block_area * block_area))), 1);
     float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
+    static const float max_best_sim = 0.999999;
+
+    if(variance < exp(-32.0) || best_sim > max_best_sim)
+        return float4(total_motion, 0, 0);
+
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
-    float2 randdir; sincos(randseed * DOUBLE_PI, randdir.x, randdir.y);
+    float2 randdir; sincos(randseed * HALF_PI, randdir.x, randdir.y); randdir *= 0.5;
     int searches = mip > MIN_MIP ? 4 : 2;
 
-    [loop]while(searches-- > 0 && best_sim < 0.999999)
+    [loop]while(searches-- > 0 && best_sim < max_best_sim)
     {
         float2 local_motion = 0;
         int samples = 4;
 
-        [loop]while(samples-- > 0 && best_sim < 0.999999)
+        [loop]while(samples-- > 0 && best_sim < max_best_sim)
         {
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
@@ -132,8 +152,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         randdir *= 0.5;
     }
 
-    float variance = dot(sqrt(abs(moments_local * (block_area - 1) * rcp(block_area * block_area))), 1);
-    float similarity = saturate(1.0 - acos(best_sim) / HALF_PI);
+    float similarity = saturate(1.0 - acos(best_sim) * PI);
 
     return float4(total_motion, variance, similarity);
 }
@@ -144,7 +163,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 texelsize = rcp(tex2Dsize(mot_samp));
     float randseed = frac(GetNoise(i.uv) + (mip + MIN_MIP) * INV_PHI);
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
-    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * PI;
+    float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * (mip + 2.0);
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
 
     // xy = motion, z = weight
@@ -159,7 +178,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         float wz = abs(sample_z - center_z) * RCP(max(center_z, sample_z)) * 3.0; // depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1250.0; // long motion
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0)); // small variance
         float ws = saturate(1.0 - sample_gbuf.w); ws *= ws; // bad block matching
         float weight = exp2(-(wz + wm + wf + ws) * 4.0);
@@ -222,12 +241,12 @@ void PS_Debug(PS_ARGS3)
 
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::CurrFeatureTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6; RenderTarget = DownTexVort6; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5; RenderTarget = DownTexVort5; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4; RenderTarget = DownTexVort4; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3; RenderTarget = DownTexVort3; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2; RenderTarget = DownTexVort2; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1; RenderTarget = DownTexVort1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6; RenderTarget = MotVect::DownTexVort6; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5; RenderTarget = MotVect::DownTexVort5; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4; RenderTarget = MotVect::DownTexVort4; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3; RenderTarget = MotVect::DownTexVort3; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2; RenderTarget = MotVect::DownTexVort2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1; RenderTarget = MotVect::DownTexVort1; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0; RenderTarget = MotVectTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::PrevFeatureTexVort; }
 
