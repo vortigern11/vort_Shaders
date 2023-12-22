@@ -16,7 +16,6 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_LDRTex.fxh"
-#include "Includes/vort_OKColors.fxh"
 
 namespace MotVect {
 
@@ -79,11 +78,11 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     // reduced DX9 compile time and better performance
     uint block_size = mip > MIN_MIP ? 3 : 2;
     uint block_area = block_size * block_size;
-    float2 local_block[9]; // just use max size possible
+    float local_block[9]; // just use max size possible
 
-    float2 moments_local = 0;
-    float2 moments_search = 0;
-    float2 moments_cov = 0;
+    float moments_local = 0;
+    float moments_search = 0;
+    float moments_cov = 0;
 
     //since we only use to sample the blocks now, offset by half a block so we can do it easier inline
     i.uv -= texelsize * (block_size * 0.5);
@@ -91,8 +90,8 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     [unroll]for(uint k = 0; k < block_area; k++)
     {
         float2 tuv = i.uv + float2(k % block_size, k / block_size) * texelsize;
-        float2 t_local = Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).xy;
-        float2 t_search = Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).xy;
+        float t_local = Sample(sCurrFeatureTexVort, saturate(tuv), feature_mip).x;
+        float t_search = Sample(sPrevFeatureTexVort, saturate(tuv + total_motion), feature_mip).x;
 
         local_block[k] = t_local;
 
@@ -102,8 +101,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     }
 
     float variance = dot(sqrt(abs(moments_local * (block_area - 1) * rcp(block_area * block_area))), 1);
-    float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
-    float best_sim = saturate(min(cossim.x, cossim.y));
+    float best_sim = saturate(moments_cov * RSQRT(moments_local * moments_search));
     static const float max_best_sim = 0.999999;
 
     if(variance < exp(-32.0) || best_sim > max_best_sim)
@@ -132,14 +130,13 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             [loop]for(uint k = 0; k < block_area; k++)
             {
                 float2 tuv = search_center + float2(k % block_size, k / block_size) * texelsize;
-                float2 t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).xy;
+                float t = Sample(sPrevFeatureTexVort, saturate(tuv), feature_mip).x;
 
                 moments_search += t * t;
                 moments_cov += t * local_block[k];
             }
 
-            cossim = moments_cov * RSQRT(moments_local * moments_search);
-            float sim = saturate(min(cossim.x, cossim.y));
+            float sim = saturate(moments_cov * RSQRT(moments_local * moments_search));
 
             if(sim > best_sim)
             {
@@ -211,7 +208,7 @@ void PS_WriteFeature(PS_ARGS2)
 {
     float3 color = ApplyLinearCurve(Sample(sLDRTexVort, i.uv, MIN_MIP).rgb);
 
-    o.x = OKColors::RGBToOKLAB(color).x;
+    o.x = dot(color, A_THIRD);
     o.y = GetLinearizedDepth(i.uv);
 }
 
