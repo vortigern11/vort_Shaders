@@ -146,7 +146,6 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float2 rsc; sincos(randseed * HALF_PI, rsc.x, rsc.y);
     float4 rotator = float4(rsc.y, rsc.x, -rsc.x, rsc.y) * PI;
     float center_z = Sample(sCurrFeatureTexVort, i.uv, feature_mip).y;
-    float wm_mult = lerp(2000.0, 1000.0, sqrt(sqrt(center_z)));
 
     // xy = motion, z = weight
     float3 gbuffer = 0;
@@ -160,7 +159,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
         float wz = abs(sample_z - center_z) * RCP(max(center_z, sample_z)) * 3.0; // depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * wm_mult; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0; // long motion
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0)); // small variance
         float ws = saturate(1.0 - sample_gbuf.w); ws *= ws; // bad block matching
         float weight = exp2(-(wz + wm + wf + ws) * 4.0);
@@ -176,9 +175,7 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
 {
     float2 motion = 0;
 
-    if(mip == MAX_MIP)
-        motion = Sample(mot_samp, i.uv).xy * 0.95;
-    else
+    if(mip < MAX_MIP)
         motion = AtrousUpscale(i, mip, mot_samp);
 
     if(mip >= MIN_MIP)
