@@ -64,7 +64,7 @@ namespace MotBlur {
 
 #define CAT_MB "Motion Blur"
 
-UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur.", 0.0, 1.0, 1.0)
+UI_FLOAT(CAT_MB, UI_MB_BlurAmount, "Blur Amount", "Changes the amount of blur.", 0.0, 5.0, 1.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -105,9 +105,11 @@ float3 GetColor(float2 uv)
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
-float Cone(float xy_len, float v_len)
+float SmoothCone(float xy_len, float v_len)
 {
-    return saturate(1.0 - xy_len * RCP(v_len));
+    float w = saturate(1.0 - xy_len * RCP(v_len));
+
+    return w * w;
 }
 
 /*******************************************************************************
@@ -140,11 +142,11 @@ void PS_Blur(PS_ARGS3)
     [loop]for(int m = -1; m <= 1; m += 2)
     [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 sample_uv = saturate(i.uv + motion * m * (j - rand));
+        float2 sample_uv = saturate(i.uv + motion * m * (float(j) - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
-        float weight = Cone(uv_dist, cmpl);
+        float weight = SmoothCone(uv_dist, cmpl);
 
         color += float4(GetColor(sample_uv) * weight, weight);
     }
