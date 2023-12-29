@@ -109,7 +109,7 @@ float SmoothCone(float xy_len, float v_len)
 {
     float w = saturate(1.0 - xy_len * RCP(v_len));
 
-    return w * w * w;
+    return w * w * sqrt(w);
 }
 
 /*******************************************************************************
