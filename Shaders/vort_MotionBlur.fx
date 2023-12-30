@@ -65,7 +65,7 @@ namespace MotBlur {
 #define CAT_MB "Motion Blur"
 
 UI_FLOAT(CAT_MB, UI_MB_Length, "Length", "Lower values reduce the blur length", 0.0, 1.0, 1.0)
-UI_FLOAT(CAT_MB, UI_MB_Weight, "Weight", "Lower values increase the blur amount", 1.0, 5.0, 3.0)
+UI_FLOAT(CAT_MB, UI_MB_Weight, "Weight", "Lower values increase the blur amount", 1.0, 6.0, 2.0)
 
 UI_HELP(
 _vort_MotBlur_Help_,
@@ -115,7 +115,6 @@ float SmoothCone(float xy_len, float v_len)
 {
     float w = saturate(1.0 - xy_len * RCP(v_len));
 
-    // reduce the sample weight, the further it is from center
     return pow(w, UI_MB_Weight);
 }
 
