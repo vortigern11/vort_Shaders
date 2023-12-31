@@ -62,10 +62,6 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define CAT_MB "Motion Blur"
-
-UI_FLOAT(CAT_MB, UI_MB_WeightMod, "Blur Reduction", "Higher values decrease the amount of blur", 1.0, 4.0, 2.5)
-
 UI_HELP(
 _vort_MotBlur_Help_,
 "V_MV_DEBUG - 0 or 1\n"
@@ -140,12 +136,14 @@ void PS_Blur(PS_ARGS3)
     [loop]for(int m = -1; m <= 1; m += 2)
     [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 sample_uv = saturate(i.uv + motion * m * (float(j) - rand));
+        float2 sample_uv = saturate(i.uv + motion * m * (j - rand));
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
-        float weight = pow(Cone(uv_dist, cmpl), UI_MB_WeightMod);
+        float weight = Cone(uv_dist, cmpl);
 
+        // reduce the weight the further the sample is from center
+        weight *= weight;
         color += float4(GetColor(sample_uv) * weight, weight);
     }
 
