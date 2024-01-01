@@ -27,16 +27,12 @@ namespace MotVect {
     #define V_MV_DEBUG 0
 #endif
 
-#ifndef V_MV_EXTRA_QUALITY
-    #define V_MV_EXTRA_QUALITY 0
-#endif
-
 #define MAX_MIP 6
 
 #if BUFFER_HEIGHT >= 2160
-    #define MIN_MIP (2 - V_MV_EXTRA_QUALITY)
+    #define MIN_MIP 2
 #else
-    #define MIN_MIP (1 - V_MV_EXTRA_QUALITY)
+    #define MIN_MIP 1
 #endif
 
 /*******************************************************************************
@@ -149,7 +145,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         randdir *= 0.5;
     }
 
-    float similarity = saturate(1.0 - acos(best_sim) * PI);
+    float similarity = saturate(1.0 - acos(best_sim) / HALF_PI);
 
     return float4(total_motion, variance, similarity);
 }
@@ -174,7 +170,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sCurrFeatureTexVort, sample_uv, feature_mip).y;
 
-        float wz = abs(sample_z - center_z) * RCP(max(center_z, sample_z)) * 3.0; // depth delta
+        float wz = saturate(3.0 * abs(sample_z - center_z) * RCP(max(center_z, sample_z))); // depth delta
         float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1000.0; // long motion
         float wf = saturate(1.0 - (sample_gbuf.z * 128.0)); // small variance
         float ws = saturate(1.0 - sample_gbuf.w); ws *= ws; // bad block matching
