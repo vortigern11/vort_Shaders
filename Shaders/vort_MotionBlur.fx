@@ -98,9 +98,12 @@ float3 GetColor(float2 uv)
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
-float Cone(float xy_len, float v_len)
+float SmoothCone(float xy_len, float v_len)
 {
-    return saturate(1.0 - xy_len * RCP(v_len));
+    float w = saturate(1.0 - xy_len * RCP(v_len));
+
+    // reduce the weight the further the sample is from center
+    return w * w;
 }
 
 /*******************************************************************************
@@ -114,7 +117,7 @@ void PS_Blur(PS_ARGS3)
 
     if(center_info.x < 2.0) discard;
 
-    float samples = min(center_info.x, 16.0);
+    float samples = clamp(center_info.x * 0.5, 2.0, 16.0);
     int half_samples = floor(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float2 rand = GetBlueNoise(i.vpos.xy).xy;
@@ -137,10 +140,8 @@ void PS_Blur(PS_ARGS3)
         float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
         float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
         float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
-        float weight = Cone(uv_dist, cmpl);
+        float weight = SmoothCone(uv_dist, cmpl);
 
-        // reduce the weight the further the sample is from center
-        weight *= weight;
         color += float4(GetColor(sample_uv) * weight, weight);
     }
 
