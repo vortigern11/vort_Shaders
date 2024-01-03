@@ -277,9 +277,9 @@ float3 ApplyPalette(float3 c, float2 vpos)
 
     uint seed = UI_CPS_Seed;
 
-    float hue = Hash(seed);
-    float sat_base = lerp(0.6, 1.0, Hash(seed + 5));
-    float val_base = lerp(0.2, 0.6, Hash(seed + 13));
+    float hue = IntHash(seed);
+    float sat_base = lerp(0.6, 1.0, IntHash(seed + 5));
+    float val_base = lerp(0.2, 0.6, IntHash(seed + 13));
 
     static const float contrast = 0.4;
     static const int max_idx = 7;

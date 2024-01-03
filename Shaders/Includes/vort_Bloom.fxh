@@ -32,7 +32,7 @@
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_UpTex.fxh"
-#include "Includes/vort_NoiseTex.fxh"
+#include "Includes/vort_GaussNoiseTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 

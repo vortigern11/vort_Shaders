@@ -28,6 +28,7 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_LDRTex.fxh"
+#include "Includes/vort_BlueNoise.fxh"
 
 #ifndef V_MB_VECTORS_MODE
     #define V_MB_VECTORS_MODE 0
@@ -66,10 +67,6 @@ UI_HELP(
 _vort_MotBlur_Help_,
 "V_MV_DEBUG - 0 or 1\n"
 "Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
-"\n"
-"V_MV_EXTRA_QUALITY - 0 or 1\n"
-"If set to 1, will sacrifice performance for higher quality vectors.\n"
-"Isn't needed, but if you have RTX 9999 GPU, might as well :).\n"
 "\n"
 "V_MB_VECTORS_MODE - [0 - 3]\n"
 "0 - auto include my motion vectors (highly recommended)\n"
@@ -120,7 +117,7 @@ void PS_Blur(PS_ARGS3)
     float samples = min(center_info.x, 16.0);
     int half_samples = floor(samples * 0.5);
     float3 center_color = GetColor(i.uv);
-    float rand = GetNoise(i.uv) * 0.5;
+    float2 rand = GetBlueNoise(i.vpos.xy).xy;
     float2 motion = Sample(MV_SAMP, i.uv).xy;
     float4 color = 0;
 
