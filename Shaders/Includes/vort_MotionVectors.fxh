@@ -31,8 +31,10 @@ namespace MotVect {
 
 #if BUFFER_HEIGHT >= 2160
     #define MIN_MIP 2
+    #define WORK_MIP 4
 #else
     #define MIN_MIP 1
+    #define WORK_MIP 3
 #endif
 
 #define CAT_MV "Motion Vectors"
@@ -48,13 +50,13 @@ texture2D ColorTexVort : COLOR;
 sampler2D sColorTexVort { Texture = ColorTexVort; };
 
 texture2D FeatureTexVort    { TEX_SIZE(MIN_MIP) TEX_RG8 MipLevels = 1 + MAX_MIP - MIN_MIP; };
-sampler2D sFeatureTexVort { Texture = FeatureTexVort; };
+sampler2D sFeatureTexVort   { Texture = FeatureTexVort; };
 
-texture2D DownDepthTexVort  { TEX_SIZE(MIN_MIP + 2) TEX_RG16 };
+texture2D DownDepthTexVort  { TEX_SIZE(WORK_MIP) TEX_RG16 };
 sampler2D sDownDepthTexVort { Texture = DownDepthTexVort; SAM_POINT };
 
-texture2D MotionTexVortA    { TEX_SIZE(MIN_MIP + 2) TEX_RGBA16 };
-texture2D MotionTexVortB    { TEX_SIZE(MIN_MIP + 2) TEX_RGBA16 };
+texture2D MotionTexVortA    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
+texture2D MotionTexVortB    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
 
 sampler2D sMotionTexVortA   { Texture = MotionTexVortA;   SAM_POINT };
 sampler2D sMotionTexVortB   { Texture = MotionTexVortB;   SAM_POINT };
@@ -165,7 +167,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
 float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
-    if(mip > 0) mip = MIN_MIP + 2;
+    if(mip > 0) mip = WORK_MIP;
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
     float2 blue_noise = GetBlueNoise(i.vpos.xy).xy;
