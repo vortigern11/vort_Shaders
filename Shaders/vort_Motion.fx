@@ -24,32 +24,40 @@
     DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-// Change the 0 to 1 below in order to use this shader
-// Most people won't use it, so no need to delay the shaders compile time
-// and show up in the effects list
-#if 0
+#include "Includes/vort_Defs.fxh"
+#include "Includes/vort_Motion_UI.fxh"
 
-#include "Includes/vort_MotionVectors.fxh"
+#if V_MV_MODE == 0
+    #include "Includes/vort_MotionVectors.fxh"
+#endif
+
+#if V_ENABLE_MOT_BLUR
+    #include "Includes/vort_MotionBlur.fxh"
+#endif
+
+#if V_ENABLE_TAA
+    #include "Includes/vort_TAA.fxh"
+#endif
 
 /*******************************************************************************
     Techniques
 *******************************************************************************/
 
-technique vort_MotionEstimation
-<
-    ui_label = "vort_MotionEstimation (read the tooltip before enabling)";
-    ui_tooltip =
-        "Only needed if you want to use my motion vectors with other than my shaders\n"
-        "or you've disabled the auto inclusion (Ex: V_MB_VECTORS_MODE isn't 0)\n"
-        "\n"
-        "Put them before other shaders which would require motion vectors.";
->
+technique vort_Motion
 {
-    PASS_MV
+    #if V_MV_MODE == 0
+        PASS_MV
 
-    #if V_MV_DEBUG
-        PASS_MV_DEBUG
+        #if V_MV_DEBUG
+            PASS_MV_DEBUG
+        #endif
+    #endif
+
+    #if V_ENABLE_TAA
+        PASS_TAA
+    #endif
+
+    #if V_ENABLE_MOT_BLUR
+        PASS_MOT_BLUR
     #endif
 }
-
-#endif

@@ -25,62 +25,14 @@
     DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
+#pragma once
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_BlueNoise.fxh"
-
-#ifndef V_MB_VECTORS_MODE
-    #define V_MB_VECTORS_MODE 0
-#endif
-
-#if V_MB_VECTORS_MODE <= 1
-    #if V_MB_VECTORS_MODE == 0
-        #include "Includes/vort_MotionVectors.fxh"
-    #else
-        #include "Includes/vort_MotVectTex.fxh"
-    #endif
-
-    #define MV_SAMP sMotVectTexVort
-#elif V_MB_VECTORS_MODE == 2
-    namespace Deferred {
-        texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
-        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
-    }
-
-    #define MV_SAMP Deferred::sMotionVectorsTex
-#else
-    // the names used in qUINT_of, qUINT_motionvectors and other older implementations
-    texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
-
-    #define MV_SAMP sMotionVectorTex
-#endif
+#include "Includes/vort_Motion_UI.fxh"
 
 namespace MotBlur {
-
-/*******************************************************************************
-    Globals
-*******************************************************************************/
-
-UI_HELP(
-_vort_MotBlur_Help_,
-"V_MV_DEBUG - 0 or 1\n"
-"Shows the motion in colors. Gray means there is no motion, other colors show the direction and amount of motion.\n"
-"\n"
-"V_MB_VECTORS_MODE - [0 - 3]\n"
-"0 - auto include my motion vectors (highly recommended)\n"
-"1 - manually use vort_MotionEstimation\n"
-"2 - manually use iMMERSE motion vectors\n"
-"3 - manually use older motion vectors (qUINT_of, qUINT_motionvectors, etc.)\n"
-"\n"
-"V_HAS_DEPTH - 0 or 1\n"
-"Whether the game has depth (2D or 3D)\n"
-"\n"
-"V_USE_HW_LIN - 0 or 1\n"
-"Toggle hardware linearization (better performance).\n"
-"Disable if you have color issues due to some bug (like older REST versions).\n"
-)
 
 /*******************************************************************************
     Textures, Samplers
@@ -92,6 +44,11 @@ sampler2D sInfoTexVort { Texture = InfoTexVort; };
 /*******************************************************************************
     Functions
 *******************************************************************************/
+
+float2 GetMotion(float2 uv)
+{
+    return Sample(MV_SAMP, uv).xy * UI_MB_MotLen;
+}
 
 float3 GetColor(float2 uv)
 {
@@ -121,7 +78,7 @@ void PS_Blur(PS_ARGS3)
     int half_samples = floor(samples * 0.5);
     float3 center_color = GetColor(i.uv);
     float2 rand = GetBlueNoise(i.vpos.xy).xy;
-    float2 motion = Sample(MV_SAMP, i.uv).xy;
+    float2 motion = GetMotion(i.uv);
     float4 color = 0;
 
     // add center color
@@ -150,26 +107,16 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(Sample(MV_SAMP, i.uv).xy * BUFFER_SCREEN_SIZE);
+    o.x = length(GetMotion(i.uv) * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
 
-} // namespace end
-
 /*******************************************************************************
-    Techniques
+    Passes
 *******************************************************************************/
 
-technique vort_MotionBlur
-{
-    #if V_MB_VECTORS_MODE == 0
-        PASS_MV
-    #endif
+#define PASS_MOT_BLUR \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
 
-    #if V_MB_VECTORS_MODE == 0 && V_MV_DEBUG
-        PASS_MV_DEBUG
-    #else
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; }
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
-    #endif
-}
+} // namespace end

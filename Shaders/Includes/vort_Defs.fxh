@@ -125,7 +125,7 @@ uniform uint frame_count < source = "framecount"; >;
 uniform float frame_time < source = "frametime"; >;
 
 #ifndef V_USE_HW_LIN
-    #define V_USE_HW_LIN 1
+    #define V_USE_HW_LIN 0
 #endif
 
 #ifndef V_HAS_DEPTH
@@ -313,8 +313,10 @@ void PostProcessVS(in uint id : SV_VertexID, out float4 position : SV_Position, 
 }
 
 // to be used instead of tex2D and tex2Dlod
-float4 Sample(sampler samp, float2 uv)          { return tex2Dlod(samp, float4(uv, 0, 0)); }
-float4 Sample(sampler samp, float2 uv, int mip) { return tex2Dlod(samp, float4(uv, 0, mip)); }
+float4 Sample(sampler samp, float2 uv)                     { return tex2Dlod(samp, float4(uv, 0, 0)); }
+float4 Sample(sampler samp, float2 uv, int mip)            { return tex2Dlod(samp, float4(uv, 0, mip)); }
+float4 Sample(sampler samp, float2 uv, int2 offs)          { return tex2Dlod(samp, float4(uv, 0, 0), offs); }
+float4 Sample(sampler samp, float2 uv, int mip, int2 offs) { return tex2Dlod(samp, float4(uv, 0, mip), offs); }
 
 // to be used instead of tex2Dfetch
 float4 Fetch(sampler samp, int2 pos)          { return tex2Dfetch(samp, pos); }
@@ -582,4 +584,42 @@ float IntHash(uint n)
 
 // quasirandom showcased in https://www.shadertoy.com/view/mts3zN
 // 0.38196601125 = 1 - (1 / PHI) = 2.0 - PHI
-float QRand(float seed, float idx) { return frac(seed + idx * 0.38196601125); }
+float3 QRand(float3 seed, float idx) { return frac(seed + idx * 0.38196601125); }
+
+// bicubic sampling using fewer taps
+float4 SampleBicubic(sampler2D lin_samp, float2 uv)
+{
+    float2 tex_size = tex2Dsize(lin_samp);
+    float2 inv_tex_size = rcp(tex_size);
+
+    float2 sample_pos = uv * tex_size;
+    float2 center_pos = floor(sample_pos - 0.5) + 0.5;
+    float2 f = sample_pos - center_pos;
+    float2 f2 = f * f;
+    float2 f3 = f2 * f;
+
+    float2 w0 = f2 - 0.5 * (f3 + f);
+    float2 w1 = 1.5 * f3 - 2.5 * f2 + 1.0;
+    float2 w3 = 0.5 * (f3 - f2);
+    float2 w2 = 1 - w0 - w1 - w3;
+    float2 w12 = w1 + w2;
+
+    float2 tc0 = (center_pos - 1.0) * inv_tex_size;
+    float2 tc3 = (center_pos + 2.0) * inv_tex_size;
+    float2 tc12 = (center_pos + w2 / w12) * inv_tex_size;
+
+    float4 center = Sample(lin_samp, float2(tc12.x, tc12.y));
+
+    float3 color = \
+        Sample(lin_samp, float2(tc0.x,  tc0.y)).rgb  * (w0.x  * w0.y) +
+        Sample(lin_samp, float2(tc0.x,  tc12.y)).rgb * (w0.x  * w12.y) +
+        Sample(lin_samp, float2(tc0.x,  tc3.y)).rgb  * (w0.x  * w3.y) +
+        Sample(lin_samp, float2(tc12.x, tc0.y)).rgb  * (w12.x * w0.y) +
+        center.rgb                                   * (w12.x * w12.y) +
+        Sample(lin_samp, float2(tc12.x, tc3.y)).rgb  * (w12.x * w3.y) +
+        Sample(lin_samp, float2(tc3.x,  tc0.y)).rgb  * (w3.x  * w0.y) +
+        Sample(lin_samp, float2(tc3.x,  tc12.y)).rgb * (w3.x  * w12.y) +
+        Sample(lin_samp, float2(tc3.x,  tc3.y)).rgb  * (w3.x  * w3.y);
+
+    return float4(color, center.a);
+}

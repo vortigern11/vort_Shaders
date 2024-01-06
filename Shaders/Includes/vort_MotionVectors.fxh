@@ -14,18 +14,14 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
-#include "Includes/vort_MotVectTex.fxh"
 #include "Includes/vort_BlueNoise.fxh"
+#include "Includes/vort_Motion_UI.fxh"
 
 namespace MotVect {
 
 /*******************************************************************************
     Globals
 *******************************************************************************/
-
-#ifndef V_MV_DEBUG
-    #define V_MV_DEBUG 0
-#endif
 
 #define MAX_MIP 6
 
@@ -36,10 +32,6 @@ namespace MotVect {
     #define MIN_MIP 1
     #define WORK_MIP 3
 #endif
-
-#define CAT_MV "Motion Vectors"
-
-UI_FLOAT(CAT_MV, UI_MV_WMMult, "Long Motion Reduction", "Higher values reduce longer motion", 0.0, 1.0, 0.5)
 
 /*******************************************************************************
     Textures, Samplers
@@ -56,10 +48,10 @@ texture2D DownDepthTexVort  { TEX_SIZE(WORK_MIP) TEX_RG16 };
 sampler2D sDownDepthTexVort { Texture = DownDepthTexVort; SAM_POINT };
 
 texture2D MotionTexVortA    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
-texture2D MotionTexVortB    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
+sampler2D sMotionTexVortA   { Texture = MotionTexVortA; SAM_POINT };
 
-sampler2D sMotionTexVortA   { Texture = MotionTexVortA;   SAM_POINT };
-sampler2D sMotionTexVortB   { Texture = MotionTexVortB;   SAM_POINT };
+texture2D MotionTexVortB    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
+sampler2D sMotionTexVortB   { Texture = MotionTexVortB; SAM_POINT };
 
 /*******************************************************************************
     Functions
@@ -111,7 +103,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     if(local_variance < exp(-16.0) || best_sim > 0.999999)
         return float4(total_motion, 0, 0);
 
-    float randseed = QRand(GetBlueNoise(i.vpos.xy).x, mip);
+    float randseed = QRand(GetBlueNoise(i.vpos.xy), mip).x;
     float2 randdir; sincos(randseed * HALF_PI, randdir.x, randdir.y);
     int searches = mip > 3 ? 4 : 2;
 
@@ -244,7 +236,7 @@ void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
 
 void PS_Debug(PS_ARGS3)
 {
-    float2 motion = Sample(sMotVectTexVort, i.uv).xy;
+    float2 motion = Sample(MV_SAMP, i.uv).xy;
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
 
@@ -273,7 +265,7 @@ void PS_Debug(PS_ARGS3)
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter1;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MotVectTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MV_TEX; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort;   RenderTargetWriteMask = 2; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteDepth;   RenderTarget = MotVect::DownDepthTexVort; RenderTargetWriteMask = 2; }
 
