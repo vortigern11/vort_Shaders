@@ -51,21 +51,6 @@ float3 GetLinColor(float2 uv)
     return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
 }
 
-float Halton(int idx, int base)
-{
-    float f = 1.0;
-    float r = 0.0;
-
-    while(idx > 0)
-    {
-        f /= float(base);
-        r += f * float(idx % base);
-        idx /= base;
-    }
-
-    return r;
-}
-
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
     float3 r = old_c - new_c;
@@ -96,7 +81,7 @@ void PS_Main(PS_ARGS3)
 {
     int seed = frame_count % 8 + 1;
 
-    float2 jitter = float2(Halton(seed, 2), Halton(seed, 3)) - 0.5;;
+    float2 jitter = Halton2(seed) - 0.5;;
     float3 curr = Sample(sFeatureTexVort, saturate(i.uv - jitter * BUFFER_PIXEL_SIZE)).rgb;
     float3 avg_c = curr;
     float3 var_c = curr * curr;

@@ -53,11 +53,12 @@ technique vort_Motion
         #endif
     #endif
 
+    #if V_ENABLE_MOT_BLUR
+        PASS_MOT_BLUR
+    #endif
+
     #if V_ENABLE_TAA
         PASS_TAA
     #endif
 
-    #if V_ENABLE_MOT_BLUR
-        PASS_MOT_BLUR
-    #endif
 }

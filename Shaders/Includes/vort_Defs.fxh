@@ -32,7 +32,7 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-8)
+#define EPSILON (1e-5)
 #define PI (3.1415927)
 #define HALF_PI (1.5707963)
 #define DOUBLE_PI (6.2831853)
@@ -571,6 +571,33 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 float GetWhiteNoise(float2 co)
 {
     return frac(sin(dot(co, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+// interleaved gradiant noise from:
+// http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
+float GetInterGradNoise(float2 pos)
+{
+    return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
+}
+
+float Halton1(int idx, int base)
+{
+    float f = 1.0;
+    float r = 0.0;
+
+    while(idx > 0)
+    {
+        f /= float(base);
+        r += f * float(idx % base);
+        idx /= base;
+    }
+
+    return r;
+}
+
+float2 Halton2(int seed)
+{
+    return float2(Halton1(seed, 2), Halton1(seed, 3));
 }
 
 // integer hash copied from Hugo Elias

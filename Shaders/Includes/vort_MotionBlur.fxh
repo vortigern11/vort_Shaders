@@ -1,6 +1,8 @@
 /*******************************************************************************
     Author: Vortigern
-    Source: "A Reconstruction Filter for Plausible Motion Blur" by McGuire et al.
+    Sources:
+    "A Reconstruction Filter for Plausible Motion Blur" by McGuire et al.
+    Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18
 
     License: MIT, Copyright (c) 2023 Vortigern
 
@@ -29,10 +31,21 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_LDRTex.fxh"
-#include "Includes/vort_BlueNoise.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
 namespace MotBlur {
+
+/*******************************************************************************
+    Globals
+*******************************************************************************/
+
+/* MAX_NEIGHBOUR
+#if BUFFER_HEIGHT >= 2160
+    #define K 60
+#else
+    #define K 30 // scaled to 1080p from 720p
+#endif
+*/
 
 /*******************************************************************************
     Textures, Samplers
@@ -41,27 +54,33 @@ namespace MotBlur {
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
+// tried with max neighbour tiles, but there were issues either
+// due to implementation or imperfect motion vectors
+
+/* MAX_NEIGHBOUR
+texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
+sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
+
+texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
+
+texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
+*/
+
 /*******************************************************************************
     Functions
 *******************************************************************************/
 
-float2 GetMotion(float2 uv)
+float2 SampleMotion(float2 uv)
 {
-    return Sample(MV_SAMP, uv).xy * UI_MB_MotLen;
+    // normalized to 100 fps or 10 frametime
+    float fps_mod = 10.0 / frame_time;
+
+    return Sample(MV_SAMP, uv).xy * fps_mod * UI_MB_MotLen;
 }
 
-float3 GetColor(float2 uv)
-{
-    return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
-}
-
-float SmoothCone(float xy_len, float v_len)
-{
-    float w = saturate(1.0 - xy_len * RCP(v_len));
-
-    // reduce the weight the further the sample is from center
-    return w * w;
-}
+float3 GetColor(float2 uv) { return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb); }
 
 /*******************************************************************************
     Shaders
@@ -69,51 +88,141 @@ float SmoothCone(float xy_len, float v_len)
 
 void PS_Blur(PS_ARGS3)
 {
-    // x = motion pixel length, y = linear depth
+    // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
-    if(center_info.x < 2.0) discard;
+    if(center_info.x < 1.0) discard; // changing to higher can worsen result
 
-    float samples = clamp(center_info.x * 0.5, 2.0, 16.0);
-    int half_samples = floor(samples * 0.5);
-    float3 center_color = GetColor(i.uv);
-    float2 rand = GetBlueNoise(i.vpos.xy).xy;
-    float2 motion = GetMotion(i.uv);
+    int half_samples = clamp(floor(center_info.x * 0.25), 4, 16); // for perf reasons
+    float inv_half_samples = rcp(float(half_samples));
+    static const float depth_scale = 1000.0;
+
+    float2 motion = SampleMotion(i.uv);
+    float rand = GetInterGradNoise(i.vpos.xy) * 0.5; // changing to higher can worsen result
     float4 color = 0;
 
-    // add center color
-    color.w = RCP(center_info.x);
-    color.rgb = center_color * color.w;
-
-    // faster than dividing `j` inside the loop
-    motion *= rcp(samples);
-
-    // circular movement looks bad anyways
-    // might as well blur in both directions
-    [loop]for(int m = -1; m <= 1; m += 2)
     [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 sample_uv = saturate(i.uv + motion * m * (j - rand));
-        float2 sample_info = Sample(sInfoTexVort, sample_uv).xy;
-        float uv_dist = length((sample_uv - i.uv) * BUFFER_SCREEN_SIZE);
-        float cmpl = center_info.y < sample_info.y ? center_info.x : sample_info.x;
-        float weight = SmoothCone(uv_dist, cmpl);
+        float2 offs = motion * (float(j) - rand) * inv_half_samples;
+        float offs_len = length(offs * BUFFER_SCREEN_SIZE);
 
-        color += float4(GetColor(sample_uv) * weight, weight);
+        float2 sample_uv1 = saturate(i.uv + offs);
+        float2 sample_uv2 = saturate(i.uv - offs);
+
+        float2 sample_info1 = Sample(sInfoTexVort, sample_uv1).xy;
+        float2 sample_info2 = Sample(sInfoTexVort, sample_uv2).xy;
+
+        float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.y - center_info.y));
+        float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.y - center_info.y));
+
+        offs_len = max(0.0, offs_len - 1.0); // modify for spreadcmp
+        float2 spreadcmp1 = saturate(float2(center_info.x, sample_info1.x) - offs_len);
+        float2 spreadcmp2 = saturate(float2(center_info.x, sample_info2.x) - offs_len);
+
+        float weight1 = dot(depthcmp1, spreadcmp1);
+        float weight2 = dot(depthcmp2, spreadcmp2);
+
+        // mirror filter
+        bool2 mirror = bool2(sample_info1.y > sample_info2.y, sample_info2.x > sample_info1.x);
+        weight1 = all(mirror) ? weight2 : weight1;
+        weight2 = any(mirror) ? weight2 : weight1;
+
+        color += weight1 * float4(GetColor(sample_uv1), 1.0);
+        color += weight2 * float4(GetColor(sample_uv2), 1.0);
     }
 
-    o = ApplyGammaCurve(color.rgb * rcp(color.w));
+    color *= inv_half_samples * 0.5;
+    color.rgb += (1.0 - color.w) * GetColor(i.uv);
+
+    o = ApplyGammaCurve(color.rgb);
 }
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(GetMotion(i.uv) * BUFFER_SCREEN_SIZE);
+    /* MAX_NEIGHBOUR o.x = min(mot_len, float(K)); */
+
+    o.x = length(SampleMotion(i.uv) * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
+
+// tried with max neighbour tiles, but there were issues
+// either due to the issues mentioned in the 2013 paper, my implementation or imperfect motion vectors
+/* MAX_NEIGHBOUR
+void PS_TileDownHor(PS_ARGS2)
+{
+    float3 max_motion = 0;
+    float3 avg_motion = 0;
+
+    [loop]for(uint x = 0; x < K; x++)
+    {
+        int2 pos = int2(floor(i.vpos.x) * K + x, i.vpos.y);
+        float2 motion = FetchMotion(pos).xy;
+
+        // limit the motion like in the paper
+        float mot_len = length(motion * BUFFER_SCREEN_SIZE);
+        motion *= min(mot_len, float(K)) * RCP(mot_len);
+
+        float sq_len = dot(motion, motion);
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+        avg_motion += float3(motion * sq_len, sq_len);
+    }
+
+    avg_motion.xy *= RCP(avg_motion.z);
+
+    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
+
+    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
+}
+
+void PS_TileDownVert(PS_ARGS2)
+{
+    float3 max_motion = 0;
+    float3 avg_motion = 0;
+
+    [loop]for(uint y = 0; y < K; y++)
+    {
+        int2 pos = int2(i.vpos.x, floor(i.vpos.y) * K + y);
+        float2 motion = Fetch(sTileFstTexVort, pos).xy;
+
+        float sq_len = dot(motion, motion);
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+        avg_motion += float3(motion * sq_len, sq_len);
+    }
+
+    avg_motion.xy *= RCP(avg_motion.z);
+
+    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
+
+    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
+}
+
+void PS_NeighbourMax(PS_ARGS2)
+{
+    float3 max_motion = 0;
+
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
+    {
+        float2 motion = Fetch(sTileSndTexVort, i.uv + int2(x, y)).xy;
+
+        float sq_len = dot(motion, motion);
+        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
+    }
+
+    o = max_motion.xy;
+}
+*/
 
 /*******************************************************************************
     Passes
 *******************************************************************************/
+
+/* MAX_NEIGHBOUR
+#define PASS_MOT_BLUR_MAX_NEIGH \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
+*/
 
 #define PASS_MOT_BLUR \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; } \

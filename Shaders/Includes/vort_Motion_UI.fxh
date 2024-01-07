@@ -69,12 +69,12 @@
 #endif
 
 #if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Ratio", "How much to blend with previous color", 0.0, 1.0, 0.2)
-    UI_FLOAT(CAT_MOT, UI_TAA_MotLen, "TAA Motion Length", "Changes the motion vectors length for TAA", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Ratio", "How much to blend with previous color", 0.0, 1.0, 0.5)
+    UI_FLOAT(CAT_MOT, UI_TAA_MotLen, "TAA Motion Vector Length", "For TAA only. Change if the motion vectors you use give bad results.", 0.0, 5.0, 1.0)
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_MotLen, "MB Motion Length", "Changes the motion vectors length for Motion Blur", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_MOT, UI_MB_MotLen, "MB Motion Vector Length", "For Motion Blur only. Change if the motion vectors you use give bad results.", 0.0, 5.0, 1.0)
 #endif
 
 UI_HELP(
