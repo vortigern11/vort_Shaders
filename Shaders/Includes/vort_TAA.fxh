@@ -29,8 +29,15 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
+#include "Includes/vort_BlueNoise.fxh"
 
 namespace TAA {
+
+/*******************************************************************************
+    Globals
+*******************************************************************************/
+
+static const int2 CROSS_OFFS[4] = { int2(1, 0), int2(0, -1), int2(0, 1), int2(-1, 0) };
 
 /*******************************************************************************
     Textures, Samplers
@@ -45,11 +52,6 @@ sampler sPrevFeatureTexVort { Texture = PrevFeatureTexVort; };
 /*******************************************************************************
     Functions
 *******************************************************************************/
-
-float3 GetLinColor(float2 uv)
-{
-    return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb);
-}
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
@@ -73,32 +75,31 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
     Shaders
 *******************************************************************************/
 
-void PS_WriteFeature(PS_ARGS3) { o = RGBToYCoCg(GetLinColor(i.uv)); }
+void PS_WriteFeature(PS_ARGS3) { o = RGBToYCoCg(SampleLinColor(i.uv)); }
 
-void PS_CopyColor(PS_ARGS3) { o = GetLinColor(i.uv); }
+void PS_CopyColor(PS_ARGS3) { o = SampleLinColor(i.uv); }
 
 void PS_Main(PS_ARGS3)
 {
     int seed = frame_count % 8 + 1;
 
-    float2 jitter = Halton2(seed) - 0.5;;
+    float2 jitter = Halton2(seed) - 0.5;
     float3 curr = Sample(sFeatureTexVort, saturate(i.uv - jitter * BUFFER_PIXEL_SIZE)).rgb;
     float3 avg_c = curr;
     float3 var_c = curr * curr;
 
-    static const float fifth = 1.0 / 5.0;
-    static const int2 offs[4] = { int2(1, 0), int2(0, -1), int2(0, 1), int2(-1, 0) };
+    static const float w = 1.0 / 5.0;
 
     [unroll]for(int j = 0; j < 4; j++)
     {
-        float3 sample_c = Fetch(sFeatureTexVort, i.vpos.xy + offs[j]).rgb;
+        float3 sample_c = Fetch(sFeatureTexVort, i.vpos.xy + CROSS_OFFS[j]).rgb;
 
         avg_c += sample_c;
         var_c += sample_c * sample_c;
     }
 
-    avg_c *= fifth;
-    var_c *= fifth;
+    avg_c *= w;
+    var_c *= w;
 
     float3 sigma = sqrt(max(0.0, var_c - avg_c * avg_c));
     float3 min_c = avg_c - sigma;
@@ -106,7 +107,7 @@ void PS_Main(PS_ARGS3)
 
     float2 min_mot = BUFFER_PIXEL_SIZE * 0.5;
     float2 small_noise = lerp(-min_mot, min_mot, QRand(GetBlueNoise(i.vpos.xy), seed).xy);
-    float2 motion = Sample(MV_SAMP, i.uv).xy * UI_TAA_MotLen + small_noise;
+    float2 motion = SampleMotion(i.uv) + small_noise;
     float3 hist = SampleBicubic(sPrevFeatureTexVort, i.uv + motion).rgb;
 
     hist = RGBToYCoCg(hist);

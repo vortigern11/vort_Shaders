@@ -60,6 +60,8 @@
 
 #define CAT_MOT "Motion Effects"
 
+UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of the motion vectors.", 0.0, 5.0, 1.0)
+
 #if V_MV_MODE == 0
     #ifndef V_MV_DEBUG
         #define V_MV_DEBUG 0
@@ -70,11 +72,6 @@
 
 #if V_ENABLE_TAA
     UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Ratio", "How much to blend with previous color", 0.0, 1.0, 0.5)
-    UI_FLOAT(CAT_MOT, UI_TAA_MotLen, "TAA Motion Vector Length", "For TAA only. Change if the motion vectors you use give bad results.", 0.0, 5.0, 1.0)
-#endif
-
-#if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_MotLen, "MB Motion Vector Length", "For Motion Blur only. Change if the motion vectors you use give bad results.", 0.0, 5.0, 1.0)
 #endif
 
 UI_HELP(
@@ -102,3 +99,9 @@ _vort_MotionEffects_Help_,
 "Toggle hardware linearization (better performance).\n"
 "Disable if you have color issues due to some bug (like older REST versions).\n"
 )
+
+float2 SampleMotion(float2 uv)            { return Sample(MV_SAMP, uv).xy * UI_MV_Length; }
+float2 SampleMotion(float2 uv, float mod) { return Sample(MV_SAMP, uv).xy * UI_MV_Length * mod; }
+
+float2 FetchMotion(int2 pos)            { return Fetch(MV_SAMP, pos).xy * UI_MV_Length; }
+float2 FetchMotion(int2 pos, float mod) { return Fetch(MV_SAMP, pos).xy * UI_MV_Length * mod; }

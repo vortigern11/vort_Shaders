@@ -60,5 +60,4 @@ technique vort_Motion
     #if V_ENABLE_TAA
         PASS_TAA
     #endif
-
 }

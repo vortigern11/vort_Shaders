@@ -39,13 +39,7 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-/* MAX_NEIGHBOUR
-#if BUFFER_HEIGHT >= 2160
-    #define K 60
-#else
-    #define K 30 // scaled to 1080p from 720p
-#endif
-*/
+#define MB_MOT_MOD 0.75
 
 /*******************************************************************************
     Textures, Samplers
@@ -56,31 +50,6 @@ sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
 // tried with max neighbour tiles, but there were issues either
 // due to implementation or imperfect motion vectors
-
-/* MAX_NEIGHBOUR
-texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
-sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
-
-texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
-sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
-
-texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
-sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
-*/
-
-/*******************************************************************************
-    Functions
-*******************************************************************************/
-
-float2 SampleMotion(float2 uv)
-{
-    // normalized to 100 fps or 10 frametime
-    float fps_mod = 10.0 / frame_time;
-
-    return Sample(MV_SAMP, uv).xy * fps_mod * UI_MB_MotLen;
-}
-
-float3 GetColor(float2 uv) { return ApplyLinearCurve(Sample(sLDRTexVort, uv).rgb); }
 
 /*******************************************************************************
     Shaders
@@ -93,12 +62,12 @@ void PS_Blur(PS_ARGS3)
 
     if(center_info.x < 1.0) discard; // changing to higher can worsen result
 
-    int half_samples = clamp(floor(center_info.x * 0.25), 4, 16); // for perf reasons
+    int half_samples = clamp(floor(center_info.x * 0.25), 2, 16); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
-    float2 motion = SampleMotion(i.uv);
-    float rand = GetInterGradNoise(i.vpos.xy) * 0.5; // changing to higher can worsen result
+    float2 motion = SampleMotion(i.uv, MB_MOT_MOD);
+    float2 rand = GetInterGradNoise(i.vpos.xy + frame_count % 8) * 0.5; // changing to higher can worsen result
     float4 color = 0;
 
     [loop]for(int j = 1; j <= half_samples; j++)
@@ -127,102 +96,25 @@ void PS_Blur(PS_ARGS3)
         weight1 = all(mirror) ? weight2 : weight1;
         weight2 = any(mirror) ? weight2 : weight1;
 
-        color += weight1 * float4(GetColor(sample_uv1), 1.0);
-        color += weight2 * float4(GetColor(sample_uv2), 1.0);
+        color += weight1 * float4(SampleLinColor(sample_uv1), 1.0);
+        color += weight2 * float4(SampleLinColor(sample_uv2), 1.0);
     }
 
     color *= inv_half_samples * 0.5;
-    color.rgb += (1.0 - color.w) * GetColor(i.uv);
+    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
 
     o = ApplyGammaCurve(color.rgb);
 }
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    /* MAX_NEIGHBOUR o.x = min(mot_len, float(K)); */
-
-    o.x = length(SampleMotion(i.uv) * BUFFER_SCREEN_SIZE);
+    o.x = length(SampleMotion(i.uv, MB_MOT_MOD) * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
-
-// tried with max neighbour tiles, but there were issues
-// either due to the issues mentioned in the 2013 paper, my implementation or imperfect motion vectors
-/* MAX_NEIGHBOUR
-void PS_TileDownHor(PS_ARGS2)
-{
-    float3 max_motion = 0;
-    float3 avg_motion = 0;
-
-    [loop]for(uint x = 0; x < K; x++)
-    {
-        int2 pos = int2(floor(i.vpos.x) * K + x, i.vpos.y);
-        float2 motion = FetchMotion(pos).xy;
-
-        // limit the motion like in the paper
-        float mot_len = length(motion * BUFFER_SCREEN_SIZE);
-        motion *= min(mot_len, float(K)) * RCP(mot_len);
-
-        float sq_len = dot(motion, motion);
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-        avg_motion += float3(motion * sq_len, sq_len);
-    }
-
-    avg_motion.xy *= RCP(avg_motion.z);
-
-    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
-
-    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
-}
-
-void PS_TileDownVert(PS_ARGS2)
-{
-    float3 max_motion = 0;
-    float3 avg_motion = 0;
-
-    [loop]for(uint y = 0; y < K; y++)
-    {
-        int2 pos = int2(i.vpos.x, floor(i.vpos.y) * K + y);
-        float2 motion = Fetch(sTileFstTexVort, pos).xy;
-
-        float sq_len = dot(motion, motion);
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-        avg_motion += float3(motion * sq_len, sq_len);
-    }
-
-    avg_motion.xy *= RCP(avg_motion.z);
-
-    float cos_angle = dot(NORMALIZE(avg_motion.xy), NORMALIZE(max_motion.xy));
-
-    o = lerp(avg_motion.xy, max_motion.xy, saturate(1.0 - cos_angle * 10.0));
-}
-
-void PS_NeighbourMax(PS_ARGS2)
-{
-    float3 max_motion = 0;
-
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
-    {
-        float2 motion = Fetch(sTileSndTexVort, i.uv + int2(x, y)).xy;
-
-        float sq_len = dot(motion, motion);
-        max_motion = sq_len > max_motion.z ? float3(motion, sq_len) : max_motion;
-    }
-
-    o = max_motion.xy;
-}
-*/
 
 /*******************************************************************************
     Passes
 *******************************************************************************/
-
-/* MAX_NEIGHBOUR
-#define PASS_MOT_BLUR_MAX_NEIGH \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
-*/
 
 #define PASS_MOT_BLUR \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; } \
