@@ -1,6 +1,9 @@
 /*******************************************************************************
     Author: Vortigern
-    Adapted from: https://www.shadertoy.com/view/DsfGWX and various other places
+    Sources:
+    https://www.shadertoy.com/view/DsfGWX
+    https://alextardif.com/TAA.html
+    and various other places
 
     License: MIT, Copyright (c) 2023 Vortigern
 
@@ -45,7 +48,7 @@ texture CurrColorTexVort { TEX_SIZE(0) TEX_RGBA16 };
 sampler sCurrColorTexVort { Texture = CurrColorTexVort; };
 
 texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA8 };
-sampler sPrevColorTexVort { Texture = PrevColorTexVort; };
+sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
 /*******************************************************************************
     Functions
@@ -110,20 +113,12 @@ float MitchellFilter(float x)
 
 void PS_Main(PS_ARGS3)
 {
-    // motion and prev uv is sampled without the jitter
-    float2 motion = SampleMotion(i.uv).xy;
-    float2 prev_uv = i.uv + motion.xy;
-
-    bool is_first = Sample(sPrevColorTexVort, i.uv).a < 0.1;
-    bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
-
-    // no prev color yet or motion leads to outside of screen coords
-    if(is_first || is_outside_screen) discard;
-
     float2 new_uv = saturate(i.uv + GetUVJitter());
     float2 new_vpos = new_uv * BUFFER_SCREEN_SIZE;
 
-    float3 curr_c = Sample(sCurrColorTexVort, new_uv).rgb;
+    float4 curr_info = Sample(sCurrColorTexVort, new_uv);
+    float3 curr_c = curr_info.rgb;
+    float curr_z = curr_info.a;
 
     // use mitchell filter on the center color
     static const float init_w = MitchellFilter(0);
@@ -131,6 +126,7 @@ void PS_Main(PS_ARGS3)
     float4 sum_c = float4(curr_c * init_w, init_w);
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
+    float3 closest = float3(0, 0, curr_z);
 
     static const float inv_samples = 1.0 / 9.0;
     static const float2 offs[8] = {
@@ -141,15 +137,30 @@ void PS_Main(PS_ARGS3)
 
     [loop]for(int j = 0; j < 8; j++)
     {
-        float2 sample_uv = saturate(new_uv + offs[j] * BUFFER_PIXEL_SIZE);
-        float3 sample_c = Sample(sCurrColorTexVort, sample_uv).rgb;
+        float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
+        float2 sample_uv = saturate(new_uv + uv_offs);
+        float4 sample_info = Sample(sCurrColorTexVort, sample_uv);
+        float3 sample_c = sample_info.rgb;
+        float sample_z = sample_info.z;
         float sample_w = MitchellFilter(length(offs[j]));
 
         sum_c += float4(sample_c * sample_w, sample_w);
 
         avg_c += sample_c;
         var_c += sample_c * sample_c;
+
+        if(sample_z < closest.z) closest = float3(uv_offs, sample_z);
     }
+
+    // motion and prev are sampled without the jitter
+    float2 motion = SampleMotion(i.uv + closest.xy).xy;
+    float2 prev_uv = i.uv + motion.xy;
+
+    bool is_first = Sample(sPrevColorTexVort, i.uv).a < 1.0;
+    bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
+
+    // no prev color yet or motion leads to outside of screen coords
+    if(is_first || is_outside_screen) discard;
 
     // try to reduce jittering
     curr_c = sum_c.rgb * RCP(sum_c.w);
@@ -168,8 +179,7 @@ void PS_Main(PS_ARGS3)
     prev_c = ClipToAABB(prev_c, clamp(avg_c, min_c, max_c), avg_c, sigma);
     curr_c = lerp(prev_c, curr_c, 0.1);
 
-    curr_c = YCoCgToRGB(curr_c);
-    curr_c = ApplyGammaCurve(curr_c);
+    curr_c = ApplyGammaCurve(YCoCgToRGB(curr_c));
 
     o = curr_c;
 }
@@ -178,18 +188,16 @@ void PS_WriteCurrColor(PS_ARGS4)
 {
     float3 c = Sample(sLDRTexVort, i.uv).rgb;
 
-    c = ApplyLinearCurve(c);
-    c = RGBToYCoCg(c);
+    c = RGBToYCoCg(ApplyLinearCurve(c));
 
-    o = float4(c, 1.0);
+    o = float4(c, GetLinearizedDepth(i.uv));
 }
 
 void PS_WritePrevColor(PS_ARGS4)
 {
     float3 c = Sample(sCurrColorTexVort, i.uv).rgb;
 
-    c = YCoCgToRGB(c);
-    c = ApplyGammaCurve(c);
+    c = ApplyGammaCurve(YCoCgToRGB(c));
 
     o = float4(c, 1.0);
 }
