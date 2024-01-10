@@ -41,9 +41,11 @@ namespace MotVect {
 texture2D ColorTexVort : COLOR;
 sampler2D sColorTexVort { Texture = ColorTexVort; };
 
+// .x = curr lumi .y = prev lumi
 texture2D FeatureTexVort    { TEX_SIZE(MIN_MIP) TEX_RG8 MipLevels = 1 + MAX_MIP - MIN_MIP; };
 sampler2D sFeatureTexVort   { Texture = FeatureTexVort; };
 
+// .x = curr depth .y = prev depth
 texture2D DownDepthTexVort  { TEX_SIZE(WORK_MIP) TEX_RG16 };
 sampler2D sDownDepthTexVort { Texture = DownDepthTexVort; SAM_POINT };
 

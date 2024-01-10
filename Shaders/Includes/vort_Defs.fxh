@@ -274,7 +274,7 @@ struct CSIN {
     uint3 id : SV_DispatchThreadID;
     uint3 gtid : SV_GroupThreadID;
     uint3 gid : SV_GroupID;
-    uint gIndex : SV_GroupIndex;
+    uint gidx : SV_GroupIndex;
 };
 
 #define PS_ARGS1 in VSOUT i, out float  o : SV_Target0
@@ -617,7 +617,7 @@ float3 QRand(float3 seed, float idx) { return frac(seed + idx * 0.38196601125); 
 float4 SampleBicubic(sampler2D lin_samp, float2 uv)
 {
     float2 tex_size = tex2Dsize(lin_samp);
-    float2 inv_tex_size = rcp(tex_size);
+    float2 pix_size = rcp(tex_size);
 
     float2 sample_pos = uv * tex_size;
     float2 center_pos = floor(sample_pos - 0.5) + 0.5;
@@ -631,22 +631,19 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
     float2 w2 = 1 - w0 - w1 - w3;
     float2 w12 = w1 + w2;
 
-    float2 tc0 = (center_pos - 1.0) * inv_tex_size;
-    float2 tc3 = (center_pos + 2.0) * inv_tex_size;
-    float2 tc12 = (center_pos + w2 / w12) * inv_tex_size;
+    float2 tc0 = (center_pos - 1.0) * pix_size;
+    float2 tc3 = (center_pos + 2.0) * pix_size;
+    float2 tc12 = (center_pos + w2 / w12) * pix_size;
 
-    float4 center = Sample(lin_samp, float2(tc12.x, tc12.y));
+    float4 A = Sample(lin_samp, float2(tc12.x, tc0.y));
+    float4 B = Sample(lin_samp, float2(tc0.x, tc12.y));
+    float4 C = Sample(lin_samp, float2(tc12.x,  tc12.y));
+    float4 D = Sample(lin_samp, float2(tc3.x, tc12.y));
+    float4 E = Sample(lin_samp, float2(tc12.x, tc3.y));
 
-    float3 color = \
-        Sample(lin_samp, float2(tc0.x,  tc0.y)).rgb  * (w0.x  * w0.y) +
-        Sample(lin_samp, float2(tc0.x,  tc12.y)).rgb * (w0.x  * w12.y) +
-        Sample(lin_samp, float2(tc0.x,  tc3.y)).rgb  * (w0.x  * w3.y) +
-        Sample(lin_samp, float2(tc12.x, tc0.y)).rgb  * (w12.x * w0.y) +
-        center.rgb                                   * (w12.x * w12.y) +
-        Sample(lin_samp, float2(tc12.x, tc3.y)).rgb  * (w12.x * w3.y) +
-        Sample(lin_samp, float2(tc3.x,  tc0.y)).rgb  * (w3.x  * w0.y) +
-        Sample(lin_samp, float2(tc3.x,  tc12.y)).rgb * (w3.x  * w12.y) +
-        Sample(lin_samp, float2(tc3.x,  tc3.y)).rgb  * (w3.x  * w3.y);
+    float4 color = (0.5 * (A + B) * w0.x + A * w12.x + 0.5 * (A + B) * w3.x) * w0.y +
+                   (B * w0.x + C * w12.x + D * w3.x) * w12.y +
+                   (0.5 * (B + E) * w0.x + E * w12.x + 0.5 * (D + E) * w3.x) * w3.y;
 
-    return float4(color, center.a);
+    return color;
 }

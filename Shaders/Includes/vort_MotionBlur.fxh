@@ -36,12 +36,6 @@
 namespace MotBlur {
 
 /*******************************************************************************
-    Globals
-*******************************************************************************/
-
-#define MB_MOT_MOD 0.75
-
-/*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
 
@@ -66,8 +60,8 @@ void PS_Blur(PS_ARGS3)
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
-    float2 motion = SampleMotion(i.uv, MB_MOT_MOD);
-    float2 rand = GetInterGradNoise(i.vpos.xy + frame_count % 8) * 0.5; // changing to higher can worsen result
+    float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
+    float rand = GetInterGradNoise(i.vpos.xy + frame_count % 16) * 0.5; // don't touch
     float4 color = 0;
 
     [loop]for(int j = 1; j <= half_samples; j++)
@@ -91,7 +85,7 @@ void PS_Blur(PS_ARGS3)
         float weight1 = dot(depthcmp1, spreadcmp1);
         float weight2 = dot(depthcmp2, spreadcmp2);
 
-        // mirror filter
+        // mirror filter to better guess the background
         bool2 mirror = bool2(sample_info1.y > sample_info2.y, sample_info2.x > sample_info1.x);
         weight1 = all(mirror) ? weight2 : weight1;
         weight2 = any(mirror) ? weight2 : weight1;
@@ -108,7 +102,7 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    o.x = length(SampleMotion(i.uv, MB_MOT_MOD) * BUFFER_SCREEN_SIZE);
+    o.x = length(SampleMotion(i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
     o.y = GetLinearizedDepth(i.uv);
 }
 

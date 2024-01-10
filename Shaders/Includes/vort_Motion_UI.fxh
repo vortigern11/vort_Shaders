@@ -25,29 +25,14 @@
 *******************************************************************************/
 
 #pragma once
+#include "Includes/vort_Defs.fxh"
+
+/*******************************************************************************
+    Globals
+*******************************************************************************/
 
 #ifndef V_MV_MODE
     #define V_MV_MODE 0
-#endif
-
-#if V_MV_MODE == 0
-    texture2D MotVectTexVort { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotVectTexVort { Texture = MotVectTexVort; };
-
-    #define MV_TEX MotVectTexVort
-    #define MV_SAMP sMotVectTexVort
-#elif V_MV_MODE == 1
-    namespace Deferred {
-        texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
-        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
-    }
-
-    #define MV_SAMP Deferred::sMotionVectorsTex
-#else
-    texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
-
-    #define MV_SAMP sMotionVectorTex
 #endif
 
 #ifndef V_ENABLE_MOT_BLUR
@@ -70,8 +55,8 @@ UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of
     UI_FLOAT(CAT_MOT, UI_MV_WMMult, "Long Motion Reduction", "Higher values reduce longer motion", 0.0, 1.0, 0.5)
 #endif
 
-#if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Ratio", "How much to blend with previous color", 0.0, 1.0, 0.5)
+#if V_ENABLE_MOT_BLUR
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 are wrong, but can be used for test cases", 0.0, 2.0, 0.75)
 #endif
 
 UI_HELP(
@@ -100,8 +85,36 @@ _vort_MotionEffects_Help_,
 "Disable if you have color issues due to some bug (like older REST versions).\n"
 )
 
-float2 SampleMotion(float2 uv)            { return Sample(MV_SAMP, uv).xy * UI_MV_Length; }
-float2 SampleMotion(float2 uv, float mod) { return Sample(MV_SAMP, uv).xy * UI_MV_Length * mod; }
+/*******************************************************************************
+    Textures, Samplers
+*******************************************************************************/
 
-float2 FetchMotion(int2 pos)            { return Fetch(MV_SAMP, pos).xy * UI_MV_Length; }
-float2 FetchMotion(int2 pos, float mod) { return Fetch(MV_SAMP, pos).xy * UI_MV_Length * mod; }
+#if V_MV_MODE == 0
+    texture2D MotVectTexVort { TEX_SIZE(0) TEX_RG16 };
+    sampler2D sMotVectTexVort { Texture = MotVectTexVort; };
+
+    #define MV_TEX MotVectTexVort
+    #define MV_SAMP sMotVectTexVort
+#elif V_MV_MODE == 1
+    namespace Deferred {
+        texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
+        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
+    }
+
+    #define MV_TEX Deferred::MotionVectorsTex
+    #define MV_SAMP Deferred::sMotionVectorsTex
+#else
+    texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
+    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
+
+    #define MV_TEX texMotionVectors
+    #define MV_SAMP sMotionVectorTex
+#endif
+
+/*******************************************************************************
+    Functions
+*******************************************************************************/
+
+float2 SampleMotion(float2 uv) { return Sample(MV_SAMP, uv).xy * UI_MV_Length; }
+
+float2 FetchMotion(int2 pos) { return Fetch(MV_SAMP, pos).xy * UI_MV_Length; }
