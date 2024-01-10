@@ -51,8 +51,6 @@ UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of
     #ifndef V_MV_DEBUG
         #define V_MV_DEBUG 0
     #endif
-
-    UI_FLOAT(CAT_MOT, UI_MV_WMMult, "Long Motion Reduction", "Higher values reduce longer motion", 0.0, 1.0, 0.5)
 #endif
 
 #if V_ENABLE_MOT_BLUR
