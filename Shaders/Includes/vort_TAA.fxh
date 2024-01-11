@@ -191,14 +191,7 @@ void PS_Main(PS_ARGS3)
 
     prev_c = ClipToAABB(prev_c, clamp(avg_c, min_c, max_c), avg_c, sigma);
 
-    // reduce flicker
-    float curr_a =       (UI_TAA_Alpha) * rcp(1.0 + curr_c.x);
-    float prev_a = (1.0 - UI_TAA_Alpha) * rcp(1.0 + prev_c.x);
-
-    curr_c = (curr_c * curr_a + prev_c * prev_a) * RCP(curr_a + prev_a);
-
-    // TODO: Remove the above 3 lines and change to this if there are issues
-    /* curr_c = lerp(prev_c, curr_c, UI_TAA_Alpha); */
+    curr_c = lerp(prev_c, curr_c, UI_TAA_Alpha);
 
     curr_c = ApplyGammaCurve(YCoCgToRGB(curr_c));
 
