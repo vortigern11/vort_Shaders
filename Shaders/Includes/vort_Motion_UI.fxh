@@ -58,7 +58,7 @@ UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of
 #endif
 
 #if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Jitter Amount", "More jitter can be more noticible, but leads to beter AA", 0.25, 1.0, 0.5)
+    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Jitter Amount", "More jitter can be more noticible, but leads to beter AA", 0.5, 1.0, 0.5)
 #endif
 
 UI_HELP(
