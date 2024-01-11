@@ -57,6 +57,10 @@ UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of
     UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 are wrong, but can be used for test cases", 0.0, 2.0, 0.75)
 #endif
 
+#if V_ENABLE_TAA
+    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Jitter Amount", "More jitter can be more noticible, but leads to beter AA", 0.25, 1.0, 0.5)
+#endif
+
 UI_HELP(
 _vort_MotionEffects_Help_,
 "V_MV_MODE - [0 - 3]\n"

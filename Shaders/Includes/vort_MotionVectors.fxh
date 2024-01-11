@@ -104,7 +104,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     if(local_variance < exp(-16.0) || best_sim > 0.999999)
         return float4(total_motion, 0, 0);
 
-    float randseed = QRand(GetBlueNoise(i.vpos.xy), mip).x;
+    float randseed = GetR1(GetBlueNoise(i.vpos.xy).x, mip).x;
     float2 randdir; sincos(randseed * HALF_PI, randdir.x, randdir.y);
     int searches = mip > 3 ? 4 : 2;
 

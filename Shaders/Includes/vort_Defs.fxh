@@ -580,22 +580,22 @@ float GetInterGradNoise(float2 pos)
     return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
 }
 
-float Halton1(int idx, int base)
+float Halton1(uint i, uint b)
 {
     float f = 1.0;
     float r = 0.0;
 
-    while(idx > 0)
+    while(i > 0)
     {
-        f /= float(base);
-        r += f * float(idx % base);
-        idx /= base;
+        f /= float(b);
+        r += f * float(i % b);
+        i = uint(floor(float(i) / float(b)));
     }
 
     return r;
 }
 
-float2 Halton2(int seed)
+float2 Halton2(uint seed)
 {
     return float2(Halton1(seed, 2), Halton1(seed, 3));
 }
@@ -611,7 +611,8 @@ float IntHash(uint n)
 
 // quasirandom showcased in https://www.shadertoy.com/view/mts3zN
 // 0.38196601125 = 1 - (1 / PHI) = 2.0 - PHI
-float3 QRand(float3 seed, float idx) { return frac(seed + idx * 0.38196601125); }
+float GetR1(float seed, float idx) { return frac(seed + float(idx) * 0.38196601125); }
+float2 GetR2(float2 seed, float idx) { return frac(seed + float(idx) * float2(0.245122333753, 0.430159709002)); }
 
 // bicubic sampling using fewer taps
 float4 SampleBicubic(sampler2D lin_samp, float2 uv)
