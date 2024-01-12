@@ -41,6 +41,9 @@ namespace TAA {
     Globals
 *******************************************************************************/
 
+#define MIN_ALPHA 0.05
+#define MAX_ALPHA 0.5
+
 /*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
@@ -55,24 +58,24 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
     Functions
 *******************************************************************************/
 
+// this is absolutely not the correct way but there is no projection matrix in reshade
+// so some kind of small jitter applied to the uv is better than no jitter at all
 float4 GetUVJitter()
 {
-    /* static const float2 offs[4] = { */
-    /*     float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5) */
-    /* }; */
+    static const float2 offs[4] = {
+        float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
+    };
 
     float4 jitter = 0;
 
     if(frame_count > 0)
     {
-        // doesn't move the image if only history is sampled, but maybe that isn't needed?
-        /* jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]); */
-
-        jitter = float4(Halton2(frame_count % 16 + 1), Halton2((frame_count - 1) % 16 + 1)) * 2.0 - 1.0;
+        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]);
         jitter = float4(jitter.xy * BUFFER_PIXEL_SIZE, jitter.zw * BUFFER_PIXEL_SIZE);
     }
 
-    return jitter * UI_TAA_Jitter;
+    // reduce jitter to make it unnoticable and to have sharper result
+    return jitter * A_THIRD;
 }
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
@@ -122,7 +125,7 @@ float MitchellFilter(float x)
     Shaders
 *******************************************************************************/
 
-void PS_Main(PS_ARGS3)
+void PS_Main(PS_ARGS4)
 {
     // .xy is curr offset, .zw is prev offset
     float4 jitter = GetUVJitter();
@@ -169,18 +172,18 @@ void PS_Main(PS_ARGS3)
     float2 motion = SampleMotion(i.uv + prev_offset + closest.xy).xy;
     float2 prev_uv = new_uv + motion.xy;
 
-    bool is_first = Sample(sPrevColorTexVort, new_uv).a < 1.0;
+    bool is_first = Sample(sPrevColorTexVort, new_uv).a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
 
     // no prev color yet or motion leads to outside of screen coords
     if(is_first || is_outside_screen) discard;
 
+    float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
+    float3 prev_c = RGBToYCoCg(ApplyLinearCurve(prev_info.rgb));
+    float prev_a = prev_info.a;
+
     // try to reduce judder
     curr_c = sum_c.rgb * RCP(sum_c.w);
-
-    float3 prev_c = SampleBicubic(sPrevColorTexVort, prev_uv).rgb;
-
-    prev_c = RGBToYCoCg(ApplyLinearCurve(prev_c));
 
     avg_c *= inv_samples;
     var_c *= inv_samples;
@@ -191,11 +194,17 @@ void PS_Main(PS_ARGS3)
 
     prev_c = ClipToAABB(prev_c, clamp(avg_c, min_c, max_c), avg_c, sigma);
 
-    curr_c = lerp(prev_c, curr_c, UI_TAA_Alpha);
+    float alpha = lerp(MIN_ALPHA, MAX_ALPHA, UI_TAA_Alpha);
+
+    alpha = lerp(alpha * frame_time * 0.06, MAX_ALPHA, prev_a * UI_TAA_Alpha);
+
+    curr_c = lerp(prev_c, curr_c, alpha);
+
+    float next_alpha = (length(curr_c - prev_c) + prev_a) * 0.5;
 
     curr_c = ApplyGammaCurve(YCoCgToRGB(curr_c));
 
-    o = curr_c;
+    o = float4(curr_c, next_alpha);
 }
 
 void PS_WriteCurrColor(PS_ARGS4)
@@ -209,9 +218,11 @@ void PS_WriteCurrColor(PS_ARGS4)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float3 c = Sample(sLDRTexVort, i.uv).rgb;
+    float4 info = Sample(sLDRTexVort, i.uv);
+    float3 c = info.rgb;
+    float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 
-    o = float4(c, 1.0);
+    o = float4(c, a);
 }
 
 /*******************************************************************************
