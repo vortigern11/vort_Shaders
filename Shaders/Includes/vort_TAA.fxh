@@ -75,7 +75,7 @@ float4 GetUVJitter()
     }
 
     // reduce jitter to make it unnoticable and to have sharper result
-    return jitter * A_THIRD;
+    return jitter * UI_TAA_Jitter;
 }
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
@@ -127,13 +127,11 @@ float MitchellFilter(float x)
 
 void PS_Main(PS_ARGS4)
 {
-    // .xy is curr offset, .zw is prev offset
-    float4 jitter = GetUVJitter();
-    float2 new_uv = saturate(i.uv + jitter.xy);
-
-    float4 curr_info = Sample(sCurrColorTexVort, new_uv);
+    float4 curr_info = Sample(sCurrColorTexVort, i.uv);
     float3 curr_c = curr_info.rgb;
     float curr_z = curr_info.a;
+
+    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
 
     // use mitchell filter on the center color
     static const float init_w = MitchellFilter(0);
@@ -141,7 +139,7 @@ void PS_Main(PS_ARGS4)
     float4 sum_c = float4(curr_c * init_w, init_w);
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
-    float3 closest = float3(0, 0, curr_z);
+    float3 closest = float3(prev_uv, curr_z);
 
     static const float inv_samples = 1.0 / 9.0;
     static const float2 offs[8] = {
@@ -153,10 +151,10 @@ void PS_Main(PS_ARGS4)
     [loop]for(int j = 0; j < 8; j++)
     {
         float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
-        float2 sample_uv = saturate(new_uv + uv_offs);
-        float4 sample_info = Sample(sCurrColorTexVort, sample_uv);
-        float3 sample_c = sample_info.rgb;
-        float sample_z = sample_info.z;
+        float2 sample_curr_uv = saturate(i.uv + uv_offs);
+        float2 sample_prev_uv = saturate(prev_uv + uv_offs);
+        float3 sample_c = Sample(sCurrColorTexVort, sample_curr_uv).rgb;
+        float sample_z = Sample(sCurrColorTexVort, sample_prev_uv).a;
         float sample_w = MitchellFilter(length(offs[j]));
 
         sum_c += float4(sample_c * sample_w, sample_w);
@@ -164,15 +162,12 @@ void PS_Main(PS_ARGS4)
         avg_c += sample_c;
         var_c += sample_c * sample_c;
 
-        if(sample_z < closest.z) closest = float3(uv_offs, sample_z);
+        if(sample_z < closest.z) closest = float3(sample_prev_uv, sample_z);
     }
 
-    // motion is sampled without the jitter
-    float2 prev_offset = jitter.zw - jitter.xy;
-    float2 motion = SampleMotion(i.uv + prev_offset + closest.xy).xy;
-    float2 prev_uv = new_uv + motion.xy;
+    prev_uv += SampleMotion(closest.xy).xy;
 
-    bool is_first = Sample(sPrevColorTexVort, new_uv).a < MIN_ALPHA;
+    bool is_first = Sample(sPrevColorTexVort, prev_uv).a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
 
     // no prev color yet or motion leads to outside of screen coords
@@ -218,7 +213,9 @@ void PS_WriteCurrColor(PS_ARGS4)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float4 info = Sample(sLDRTexVort, i.uv);
+    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
+
+    float4 info = Sample(sLDRTexVort, new_uv);
     float3 c = info.rgb;
     float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 
