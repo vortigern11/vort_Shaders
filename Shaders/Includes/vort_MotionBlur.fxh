@@ -56,7 +56,7 @@ void PS_Blur(PS_ARGS3)
 
     if(center_info.x < 1.0) discard; // changing to higher can worsen result
 
-    int half_samples = clamp(floor(center_info.x * 0.25), 2, 16); // for perf reasons
+    int half_samples = clamp(floor(center_info.x * 0.5), 4, 16); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
