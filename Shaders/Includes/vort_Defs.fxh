@@ -600,15 +600,6 @@ float2 Halton2(uint seed)
     return float2(Halton1(seed, 2), Halton1(seed, 3));
 }
 
-// integer hash copied from Hugo Elias
-float IntHash(uint n)
-{
-    n = (n << 13) ^ n;
-    n = n * (n * n * 15731U + 0x789221U) + 0x1376312589U;
-
-    return float(n & uint(0x7fffffffU)) / float(0x7fffffff);
-}
-
 // quasirandom showcased in https://www.shadertoy.com/view/mts3zN
 // 0.38196601125 = 1 - (1 / PHI) = 2.0 - PHI
 float GetR1(float seed, float idx) { return frac(seed + float(idx) * 0.38196601125); }

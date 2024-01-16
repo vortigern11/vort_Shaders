@@ -39,7 +39,7 @@
 #endif
 
 #ifndef V_ENABLE_PALETTE
-    #define V_ENABLE_PALETTE 0
+    #define V_ENABLE_PALETTE 1
 #endif
 
 #if __RESHADE__ > 50902
@@ -113,7 +113,7 @@
     #define CAT_CPS "Color Palette Swap"
 
     UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
-    UI_INT(CAT_CPS, UI_CPS_Seed, "Generation Seed", "The seed used for the palette generation", 1, 1000000000, 1)
+    UI_FLOAT3(CAT_CPS, UI_CPS_HSV, "Base HSV", "The base hue, saturation and value", 0.0, 1.0, 0.5)
     UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
     UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 2.0, 1.0)
 #endif

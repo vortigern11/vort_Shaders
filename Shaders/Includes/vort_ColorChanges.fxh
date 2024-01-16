@@ -275,11 +275,9 @@ float3 ApplyPalette(float3 c, float2 vpos)
     // OKHSV color space info
     // https://bottosson.github.io/posts/colorpicker
 
-    uint seed = UI_CPS_Seed;
-
-    float hue = IntHash(seed);
-    float sat_base = lerp(0.6, 1.0, IntHash(seed + 5));
-    float val_base = lerp(0.2, 0.6, IntHash(seed + 13));
+    float hue = UI_CPS_HSV.x;
+    float sat_base = lerp(0.6, 1.0, UI_CPS_HSV.y);
+    float val_base = lerp(0.2, 0.6, UI_CPS_HSV.z);
 
     static const float contrast = 0.4;
     static const int max_idx = 7;
@@ -294,7 +292,7 @@ float3 ApplyPalette(float3 c, float2 vpos)
     if(UI_CPS_Harmony == 1) { hue_switch = mid_idx; hue_offset = 0.5; }
 
     // generate the palette
-    [loop]for(int j = 0; j <= max_idx; j++)
+    [unroll]for(int j = 0; j <= max_idx; j++)
     {
         float j_mult = float(j) / float(max_idx);
 
