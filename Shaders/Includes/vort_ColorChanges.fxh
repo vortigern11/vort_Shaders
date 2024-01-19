@@ -169,7 +169,7 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 
     // apply sharpening and unsharpening
     c += sharp;
-    if(depth > UI_CC_SharpenSwitchPoint) c = lerp(c, blurred, UI_CC_UnsharpenStrength);
+    if(depth > UI_CC_SharpenSwitchPoint) c = lerp(c, blurred, lerp(0.5, 1.0, depth) * UI_CC_UnsharpenStrength);
 
     return c;
 }
