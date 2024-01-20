@@ -163,13 +163,12 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
     float depth = GetLinearizedDepth(uv);
     float limit = abs(dot(sharp, A_THIRD));
 
-    sharp = sharp * UI_CC_SharpenStrength * (1 - depth) * (limit < UI_CC_SharpenLimit);
+    sharp = sharp * UI_CC_SharpenStrength * (1.0 - depth) * (limit < UI_CC_SharpenLimit);
 
     if (UI_CC_ShowSharpening) return sharp;
 
-    // apply sharpening and unsharpening
-    c += sharp;
-    if(depth > UI_CC_SharpenSwitchPoint) c = lerp(c, blurred, lerp(0.5, 1.0, depth) * UI_CC_UnsharpenStrength);
+    // apply sharpening and blur
+    c = lerp(c + sharp, blurred, depth + UI_CC_UnsharpenStrength);
 
     return c;
 }
