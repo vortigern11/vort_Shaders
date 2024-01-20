@@ -185,7 +185,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
         // too costly to sample depth again at mip 0
 
-        float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 64.0; // curr depth delta
+        float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 100.0; // curr depth delta
         float wz_p = abs(center_z - sample_z_p) * RCP(max(center_z, sample_z_p)); wz_p *= wz_p; // prev depth delta
         float wm = dot(sample_gbuf.xy * 0.5, sample_gbuf.xy * BUFFER_SCREEN_SIZE); // long motion
         float ws = sample_gbuf.w; // similarity
