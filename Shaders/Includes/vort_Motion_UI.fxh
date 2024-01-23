@@ -45,8 +45,6 @@
 
 #define CAT_MOT "Motion Effects"
 
-UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of the motion vectors.", 0.0, 5.0, 1.0)
-
 #if V_MV_MODE == 0
     #ifndef V_MV_DEBUG
         #define V_MV_DEBUG 0
@@ -54,12 +52,12 @@ UI_FLOAT(CAT_MOT, UI_MV_Length, "Motion Vectors Length", "Modifies the length of
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 are wrong, but can be used for test cases", 0.0, 2.0, 0.75)
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 0.5)
 #endif
 
 #if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Static AA", "How much to shift every pixel position each frame", 0.0, 1.0, 0.25)
-    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.0, 1.0, 0.5)
+    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Static AA", "How much to shift every pixel position each frame", 0.0, 1.0, 0.2)
+    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.0, 1.0, 0.8)
 #endif
 
 UI_HELP(
@@ -118,6 +116,6 @@ _vort_MotionEffects_Help_,
     Functions
 *******************************************************************************/
 
-float2 SampleMotion(float2 uv) { return Sample(MV_SAMP, uv).xy * UI_MV_Length; }
+float2 SampleMotion(float2 uv) { return Sample(MV_SAMP, uv).xy; }
 
-float2 FetchMotion(int2 pos) { return Fetch(MV_SAMP, pos).xy * UI_MV_Length; }
+float2 FetchMotion(int2 pos) { return Fetch(MV_SAMP, pos).xy; }

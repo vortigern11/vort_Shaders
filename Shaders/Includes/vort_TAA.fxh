@@ -33,7 +33,6 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
-#include "Includes/vort_Depth.fxh"
 
 namespace TAA {
 
@@ -60,22 +59,13 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
 // this is absolutely not the correct way but there is no projection matrix in reshade
 // so some kind of small jitter applied to the uv is better than no jitter at all
-float4 GetUVJitter()
+float2 GetUVJitter()
 {
     static const float2 offs[4] = {
         float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
     };
 
-    float4 jitter = 0;
-
-    if(frame_count > 0)
-    {
-        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]);
-        jitter = float4(jitter.xy * BUFFER_PIXEL_SIZE, jitter.zw * BUFFER_PIXEL_SIZE);
-    }
-
-    // reduce jitter to make it unnoticable and to have sharper result
-    return jitter * UI_TAA_Jitter;
+    return offs[frame_count % 4] * BUFFER_PIXEL_SIZE * UI_TAA_Jitter;
 }
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
@@ -85,13 +75,8 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
     float3 n = (avg - sigma) - new_c;
     static const float eps = 1e-4;
 
-    if (r.x > m.x + eps) r *= (m.x / r.x);
-    if (r.y > m.y + eps) r *= (m.y / r.y);
-    if (r.z > m.z + eps) r *= (m.z / r.z);
-
-    if (r.x < n.x - eps) r *= (n.x / r.x);
-    if (r.y < n.y - eps) r *= (n.y / r.y);
-    if (r.z < n.z - eps) r *= (n.z / r.z);
+    r *= (r > m + eps) ? (m / r) : 1.0;
+    r *= (r < n - eps) ? (n / r) : 1.0;
 
     return new_c + r;
 }
@@ -127,11 +112,7 @@ float MitchellFilter(float x)
 
 void PS_Main(PS_ARGS4)
 {
-    float4 curr_info = Sample(sCurrColorTexVort, i.uv);
-    float3 curr_c = curr_info.rgb;
-    float curr_z = curr_info.a;
-
-    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
+    float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
 
     // use mitchell filter on the center color
     static const float init_w = MitchellFilter(0);
@@ -139,33 +120,24 @@ void PS_Main(PS_ARGS4)
     float4 sum_c = float4(curr_c * init_w, init_w);
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
-    float3 closest = float3(prev_uv, curr_z);
 
-    static const float inv_samples = 1.0 / 9.0;
-    static const float2 offs[8] = {
-        float2(-1,  1), float2(0,  1), float2(1,  1),
-        float2(-1,  0),                float2(1,  0),
-        float2(-1, -1), float2(0, -1), float2(1, -1)
-    };
+    static const float inv_samples = 1.0 / 5.0;
+    static const float2 offs[4] = { float2(0, 1), float2(-1, 0), float2(1, 0), float2(0, -1) };
 
-    [loop]for(int j = 0; j < 8; j++)
+    [loop]for(int j = 0; j < 4; j++)
     {
         float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
         float2 sample_curr_uv = saturate(i.uv + uv_offs);
-        float2 sample_prev_uv = saturate(prev_uv + uv_offs);
-        float3 sample_c = Sample(sCurrColorTexVort, sample_curr_uv).rgb;
-        float sample_z = Sample(sCurrColorTexVort, sample_prev_uv).a;
+        float3 sample_c = RGBToYCoCg(SampleLinColor(sample_curr_uv));
         float sample_w = MitchellFilter(length(offs[j]));
 
         sum_c += float4(sample_c * sample_w, sample_w);
 
         avg_c += sample_c;
         var_c += sample_c * sample_c;
-
-        if(sample_z < closest.z) closest = float3(sample_prev_uv, sample_z);
     }
 
-    prev_uv += SampleMotion(closest.xy).xy;
+    float2 prev_uv = i.uv + SampleMotion(i.uv).xy;
 
     bool is_first = Sample(sPrevColorTexVort, prev_uv).a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
@@ -202,18 +174,9 @@ void PS_Main(PS_ARGS4)
     o = float4(curr_c, next_alpha);
 }
 
-void PS_WriteCurrColor(PS_ARGS4)
-{
-    float3 c = Sample(sLDRTexVort, i.uv).rgb;
-
-    c = RGBToYCoCg(ApplyLinearCurve(c));
-
-    o = float4(c, GetLinearizedDepth(i.uv));
-}
-
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
+    float2 new_uv = saturate(i.uv + GetUVJitter());
 
     float4 info = Sample(sLDRTexVort, new_uv);
     float3 c = info.rgb;
@@ -227,7 +190,6 @@ void PS_WritePrevColor(PS_ARGS4)
 *******************************************************************************/
 
 #define PASS_TAA \
-    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteCurrColor; RenderTarget = TAA::CurrColorTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; SRGB_WRITE_ENABLE } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; SRGB_WRITE_ENABLE }
 
