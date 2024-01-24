@@ -42,7 +42,7 @@
     #define V_ENABLE_PALETTE 0
 #endif
 
-#if __RESHADE__ > 50902
+#if __RESHADE__ > 50902 && IS_SRGB
     #ifndef V_ENABLE_LUT
         #define V_ENABLE_LUT 0
     #endif
@@ -73,19 +73,11 @@
     #endif
 #endif
 
-#if IS_SRGB
-    #define CAT_TONEMAP "Tonemapping"
-
-    UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "Which tonemapper to use", "Lottes\0ACES Narkowicz\0", 1)
-    UI_FLOAT(CAT_TONEMAP, UI_CC_ManualExp, "Manual Exposure", "Changes the exposure of the scene", -5.0, 5.0, 0.0)
-#endif
-
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.08)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.02)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_DitherStrength, "Dither Strength", "How much noise to add.", 0.0, 1.0, 0.05)
 #endif
 
 #if V_ENABLE_SHARPEN
@@ -94,7 +86,7 @@
     UI_BOOL(CAT_SHARP, UI_CC_ShowSharpening, "Show only Sharpening", "", false)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenLimit, "Sharpen Limit", "Control which pixel to be sharpened", 0.0, 0.1, 0.02)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 0.75)
-    UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 1.0, 0.25)
+    UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 1.0, 0.05)
 #endif
 
 #if V_ENABLE_LUT

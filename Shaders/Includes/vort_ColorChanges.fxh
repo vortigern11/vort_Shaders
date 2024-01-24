@@ -55,6 +55,7 @@
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
+#include "Includes/vort_BlueNoise.fxh"
 
 namespace ColorChanges {
 
@@ -168,7 +169,7 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
     if (UI_CC_ShowSharpening) return sharp;
 
     // apply sharpening and blur
-    c = lerp(c + sharp, blurred, depth + UI_CC_UnsharpenStrength);
+    c = lerp(c + sharp, blurred, saturate(depth + UI_CC_UnsharpenStrength));
 
     return c;
 }
@@ -362,9 +363,7 @@ float3 ApplyLUT(float3 c)
 {
     float3 orig_c = c;
 
-#if HW_LIN_IS_USED
     c = LinToSRGB(c);
-#endif
 
     // remap the color depending on the LUT size
     c = (c - 0.5) * ((V_LUT_SIZE - 1.0) / V_LUT_SIZE) + 0.5;
@@ -417,9 +416,7 @@ float3 ApplyLUT(float3 c)
     }
 #endif
 
-#if HW_LIN_IS_USED
     c = SRGBToLin(c);
-#endif
 
     float3 factor = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
     orig_c = OKColors::RGBToOKLAB(orig_c); c = OKColors::RGBToOKLAB(c);
@@ -436,11 +433,15 @@ float3 ApplyLUT(float3 c)
 void PS_Start(PS_ARGS4) {
     float3 c = Sample(sLDRTexVort, i.uv).rgb;
 
-#if V_ENABLE_LUT
-    c = ApplyLUT(c); // input must be sRGB
-#endif
-
     c = ApplyLinearCurve(c);
+
+    // dither to avoid banding from effects
+    float3 noise = GetR3(GetBlueNoise(i.vpos.xy), frame_count % 128) - 0.5;
+    c += noise * 1 / (exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
+
+#if V_ENABLE_LUT
+    c = ApplyLUT(c);
+#endif
 
 #if V_ENABLE_PALETTE
     c = ApplyPalette(c, i.vpos.xy);
@@ -448,11 +449,7 @@ void PS_Start(PS_ARGS4) {
 
 #if IS_SRGB
     c = saturate(c);
-
-    if(UI_CC_Tonemapper == 0)
-        c = InverseLottes(c);
-    else
-        c = InverseACESNarkowicz(c);
+    c = InverseLottes(c);
 #endif
 
     o = float4(c, 1);
@@ -471,17 +468,10 @@ void PS_End(PS_ARGS3)
 #endif
 
 #if IS_SRGB
-    // exposure before tonemap
-    c = c >= 0 ? c * exp2(UI_CC_ManualExp) : c;
-
     // clamp before tonemapping
     c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
-    if(UI_CC_Tonemapper == 0)
-        c = ApplyLottes(c);
-    else
-        c = ApplyACESNarkowicz(c);
-
+    c = ApplyLottes(c);
     c = saturate(c);
 #endif
 

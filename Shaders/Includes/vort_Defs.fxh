@@ -568,11 +568,6 @@ float2 Min3(float2 a, float2 b, float2 c) { return min(a, min(b, c)); }
 float3 Min3(float3 a, float3 b, float3 c) { return min(a, min(b, c)); }
 float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 
-float GetWhiteNoise(float2 co)
-{
-    return frac(sin(dot(co, float2(12.9898, 78.233))) * 43758.5453);
-}
-
 // interleaved gradiant noise from:
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
 float GetInterGradNoise(float2 pos)
@@ -602,8 +597,9 @@ float2 Halton2(uint seed)
 
 // quasirandom showcased in https://www.shadertoy.com/view/mts3zN
 // 0.38196601125 = 1 - (1 / PHI) = 2.0 - PHI
-float GetR1(float seed, float idx) { return frac(seed + float(idx) * 0.38196601125); }
+float  GetR1(float seed,  float idx) { return frac(seed + float(idx) * 0.38196601125); }
 float2 GetR2(float2 seed, float idx) { return frac(seed + float(idx) * float2(0.245122333753, 0.430159709002)); }
+float3 GetR3(float3 seed, float idx) { return frac(seed + float(idx) * float3(0.180827486604, 0.328956393296, 0.450299522098)); }
 
 // bicubic sampling using fewer taps
 float4 SampleBicubic(sampler2D lin_samp, float2 uv)

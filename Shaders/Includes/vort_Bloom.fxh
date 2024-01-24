@@ -32,7 +32,6 @@
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_UpTex.fxh"
-#include "Includes/vort_GaussNoiseTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 
@@ -72,13 +71,8 @@ void PS_Debug(PS_ARGS4)
     static const int off = 20;
     static const int2 f = int2(BUFFER_SCREEN_SIZE.x * 0.2, BUFFER_SCREEN_SIZE.y * 0.5);
     float2 vpos = i.vpos.xy;
-    float3 max_c = 1.0;
+    float3 max_c = InverseLottes(1.0);
     float3 c = 0.0;
-
-    if(UI_CC_Tonemapper == 0)
-        max_c = InverseLottes(max_c);
-    else
-        max_c = InverseACESNarkowicz(max_c);
 
     float3 colors[4] = {
         float3(max_c.r, 0, 0),
@@ -129,14 +123,6 @@ void PS_UpAndComb1(PS_ARGS4) { o = UpsampleAndCombine(i, sUpTexVort2, sDownTexVo
 void PS_UpAndComb0(PS_ARGS4)
 {
     o = UpsampleAndCombine(i, sUpTexVort1, BLOOM_IN_SAMP, 0);
-
-    float2 tuv = BUFFER_SCREEN_SIZE / 512.0;
-    float3 noise = Sample(sGaussNoiseTexVort, i.uv * tuv).rgb;
-
-    // apply dithering
-    o.rgb += frac(noise + INV_PHI * (frame_count % 16)) * PI * (0.01 * UI_Bloom_DitherStrength);
-
-    // final result
     o.rgb = lerp(Sample(BLOOM_IN_SAMP, i.uv).rgb, o.rgb, UI_Bloom_Intensity);
 }
 
