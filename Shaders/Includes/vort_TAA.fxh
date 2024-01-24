@@ -137,7 +137,7 @@ void PS_Main(PS_ARGS4)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = i.uv + SampleMotion(i.uv).xy;
+    float2 prev_uv = i.uv + SampleMotion(i.uv).xy + GetUVJitter();
 
     bool is_first = Sample(sPrevColorTexVort, prev_uv).a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
@@ -176,9 +176,7 @@ void PS_Main(PS_ARGS4)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float2 new_uv = saturate(i.uv + GetUVJitter());
-
-    float4 info = Sample(sLDRTexVort, new_uv);
+    float4 info = Sample(sLDRTexVort, i.uv);
     float3 c = info.rgb;
     float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 
