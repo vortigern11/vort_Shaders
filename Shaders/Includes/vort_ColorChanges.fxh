@@ -73,7 +73,7 @@ namespace ColorChanges {
 #endif
 
 #if IS_SRGB
-    #define LINEAR_MIN FLOAT_MIN
+    #define LINEAR_MIN 0.0
     #define LINEAR_MAX FLOAT_MAX
 #elif IS_SCRGB
     #define LINEAR_MIN -0.5
@@ -311,7 +311,7 @@ void PS_Start(PS_ARGS4) {
     c = ApplyLinearCurve(c);
 
     // dither to avoid banding from effects
-    float3 noise = GetR3(GetBlueNoise(i.vpos.xy), frame_count % 128) * 0.5;
+    float noise = GetR1(GetBlueNoise(i.vpos.xy).x, frame_count % 128) - 0.5;
     c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
 
 #if V_ENABLE_LUT
