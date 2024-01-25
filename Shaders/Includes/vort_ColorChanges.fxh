@@ -436,8 +436,8 @@ void PS_Start(PS_ARGS4) {
     c = ApplyLinearCurve(c);
 
     // dither to avoid banding from effects
-    float3 noise = GetR3(GetBlueNoise(i.vpos.xy), frame_count % 128) - 0.5;
-    c += noise * 1 / (exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
+    float3 noise = GetR3(GetBlueNoise(i.vpos.xy), frame_count % 128) * 0.5;
+    c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
 
 #if V_ENABLE_LUT
     c = ApplyLUT(c);
