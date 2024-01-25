@@ -57,19 +57,11 @@
 
 #if V_ENABLE_LUT
     #ifndef V_LUT_FILE
-        #define V_LUT_FILE 1
+        #define V_LUT_FILE 61
     #endif
 
     #ifndef V_LUT_SIZE
         #define V_LUT_SIZE 33
-    #endif
-
-    #if IS_DX9
-        #define V_LOAD_ALL_LUTS 0
-    #else
-        #ifndef V_LOAD_ALL_LUTS
-            #define V_LOAD_ALL_LUTS 0
-        #endif
     #endif
 #endif
 
@@ -85,16 +77,12 @@
 
     UI_BOOL(CAT_SHARP, UI_CC_ShowSharpening, "Show only Sharpening", "", false)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenLimit, "Sharpen Limit", "Control which pixel to be sharpened", 0.0, 0.1, 0.02)
-    UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 0.75)
+    UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 0.5)
     UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 5.0, 0.0)
 #endif
 
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
-
-    #if V_LOAD_ALL_LUTS
-        UI_INT(CAT_LUT, UI_CC_LUTName, "LUT Name", "Chooses which LUT filename to use", 1, 50, 1)
-    #endif
 
     UI_FLOAT(CAT_LUT, UI_CC_LUTChroma, "LUT Chroma", "Changes the chroma intensity of the LUT", 0.0, 1.0, 1.0)
     UI_FLOAT(CAT_LUT, UI_CC_LUTLuma, "LUT Luma", "Changes the luma intensity of the LUT", 0.0, 1.0, 1.0)
@@ -149,10 +137,6 @@ _vort_HDR_Help_,
 "\n"
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
-"\n"
-"V_LOAD_ALL_LUTS - 0, 1 or 2\n"
-"If shown and set to 1, loads the first 50 LUTs for you to look at by using the UI\n"
-"If shown and set to 2, loads the last 50 LUTs\n"
 "\n"
 "V_HAS_DEPTH - 0 or 1\n"
 "Whether the game has depth (2D or 3D game)\n"
