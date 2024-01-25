@@ -57,7 +57,7 @@
 
 #if V_ENABLE_LUT
     #ifndef V_LUT_FILE
-        #define V_LUT_FILE 15
+        #define V_LUT_FILE 1
     #endif
 
     #ifndef V_LUT_SIZE
@@ -93,7 +93,7 @@
     #define CAT_LUT "LUT Settings"
 
     #if V_LOAD_ALL_LUTS
-        UI_INT(CAT_LUT, UI_CC_LUTName, "LUT Name", "Chooses which LUT filename to use", 1, 40, 1)
+        UI_INT(CAT_LUT, UI_CC_LUTName, "LUT Name", "Chooses which LUT filename to use", 1, 50, 1)
     #endif
 
     UI_FLOAT(CAT_LUT, UI_CC_LUTChroma, "LUT Chroma", "Changes the chroma intensity of the LUT", 0.0, 1.0, 1.0)
@@ -150,8 +150,9 @@ _vort_HDR_Help_,
 "V_BLOOM_DEBUG - 0 or 1\n"
 "Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
 "\n"
-"V_LOAD_ALL_LUTS - 0 or 1\n"
-"If shown and set to 1, loads all LUTs for you to look at by using the UI\n"
+"V_LOAD_ALL_LUTS - 0, 1 or 2\n"
+"If shown and set to 1, loads the first 50 LUTs for you to look at by using the UI\n"
+"If shown and set to 2, loads the last 50 LUTs\n"
 "\n"
 "V_HAS_DEPTH - 0 or 1\n"
 "Whether the game has depth (2D or 3D game)\n"

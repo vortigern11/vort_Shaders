@@ -56,6 +56,7 @@
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
 #include "Includes/vort_BlueNoise.fxh"
+#include "Includes/vort_LUTs.fxh"
 
 namespace ColorChanges {
 
@@ -93,64 +94,6 @@ namespace ColorChanges {
 #define GET_LUMI(_x) ACESToLumi(_x)
 #define LINEAR_MID_GRAY 0.18
 #define LOG_MID_GRAY ACES_LOG_MID_GRAY
-
-/*******************************************************************************
-    Textures, Samplers
-*******************************************************************************/
-
-#if V_ENABLE_LUT
-    #if !V_LOAD_ALL_LUTS
-        texture3D CubeTexVort < source = TO_STR(V_LUT_FILE) ".cube"; >
-        { Width = V_LUT_SIZE; Height = V_LUT_SIZE; Depth = V_LUT_SIZE; TEX_RGBA32 };
-        sampler3D sCubeTexVort { Texture = CubeTexVort; };
-    #else
-        #define MAKE_LUT_TS(x) \
-            texture3D CubeTexVort##x < source = TO_STR(x) ".cube"; > \
-            { Width = V_LUT_SIZE; Height = V_LUT_SIZE; Depth = V_LUT_SIZE; TEX_RGBA32 }; \
-            sampler3D sCubeTexVort##x { Texture = CubeTexVort##x; };
-
-        MAKE_LUT_TS(1)
-        MAKE_LUT_TS(2)
-        MAKE_LUT_TS(3)
-        MAKE_LUT_TS(4)
-        MAKE_LUT_TS(5)
-        MAKE_LUT_TS(6)
-        MAKE_LUT_TS(7)
-        MAKE_LUT_TS(8)
-        MAKE_LUT_TS(9)
-        MAKE_LUT_TS(10)
-        MAKE_LUT_TS(11)
-        MAKE_LUT_TS(12)
-        MAKE_LUT_TS(13)
-        MAKE_LUT_TS(14)
-        MAKE_LUT_TS(15)
-        MAKE_LUT_TS(16)
-        MAKE_LUT_TS(17)
-        MAKE_LUT_TS(18)
-        MAKE_LUT_TS(19)
-        MAKE_LUT_TS(20)
-        MAKE_LUT_TS(21)
-        MAKE_LUT_TS(22)
-        MAKE_LUT_TS(23)
-        MAKE_LUT_TS(24)
-        MAKE_LUT_TS(25)
-        MAKE_LUT_TS(26)
-        MAKE_LUT_TS(27)
-        MAKE_LUT_TS(28)
-        MAKE_LUT_TS(29)
-        MAKE_LUT_TS(30)
-        MAKE_LUT_TS(31)
-        MAKE_LUT_TS(32)
-        MAKE_LUT_TS(33)
-        MAKE_LUT_TS(34)
-        MAKE_LUT_TS(35)
-        MAKE_LUT_TS(36)
-        MAKE_LUT_TS(37)
-        MAKE_LUT_TS(38)
-        MAKE_LUT_TS(39)
-        MAKE_LUT_TS(40)
-    #endif
-#endif
 
 /*******************************************************************************
     Functions
@@ -353,74 +296,6 @@ float3 ApplyPalette(float3 c, float2 vpos)
         c_lab.yz = lerp(c_lab.yz, new_c_lab.yz, UI_CPS_Blend);
         c = OKColors::OKLABToRGB(c_lab);
     }
-
-    return c;
-}
-#endif
-
-#if V_ENABLE_LUT
-float3 ApplyLUT(float3 c)
-{
-    float3 orig_c = c;
-
-    c = LinToSRGB(c);
-
-    // remap the color depending on the LUT size
-    c = (c - 0.5) * ((V_LUT_SIZE - 1.0) / V_LUT_SIZE) + 0.5;
-
-#if !V_LOAD_ALL_LUTS
-    c = tex3D(sCubeTexVort, c).rgb;
-#else
-    switch(UI_CC_LUTName)
-    {
-        case  1: c = tex3D(sCubeTexVort1,  c).rgb; break;
-        case  2: c = tex3D(sCubeTexVort2,  c).rgb; break;
-        case  3: c = tex3D(sCubeTexVort3,  c).rgb; break;
-        case  4: c = tex3D(sCubeTexVort4,  c).rgb; break;
-        case  5: c = tex3D(sCubeTexVort5,  c).rgb; break;
-        case  6: c = tex3D(sCubeTexVort6,  c).rgb; break;
-        case  7: c = tex3D(sCubeTexVort7,  c).rgb; break;
-        case  8: c = tex3D(sCubeTexVort8,  c).rgb; break;
-        case  9: c = tex3D(sCubeTexVort9,  c).rgb; break;
-        case 10: c = tex3D(sCubeTexVort10, c).rgb; break;
-        case 11: c = tex3D(sCubeTexVort11, c).rgb; break;
-        case 12: c = tex3D(sCubeTexVort12, c).rgb; break;
-        case 13: c = tex3D(sCubeTexVort13, c).rgb; break;
-        case 14: c = tex3D(sCubeTexVort14, c).rgb; break;
-        case 15: c = tex3D(sCubeTexVort15, c).rgb; break;
-        case 16: c = tex3D(sCubeTexVort16, c).rgb; break;
-        case 17: c = tex3D(sCubeTexVort17, c).rgb; break;
-        case 18: c = tex3D(sCubeTexVort18, c).rgb; break;
-        case 19: c = tex3D(sCubeTexVort19, c).rgb; break;
-        case 20: c = tex3D(sCubeTexVort20, c).rgb; break;
-        case 21: c = tex3D(sCubeTexVort21, c).rgb; break;
-        case 22: c = tex3D(sCubeTexVort22, c).rgb; break;
-        case 23: c = tex3D(sCubeTexVort23, c).rgb; break;
-        case 24: c = tex3D(sCubeTexVort24, c).rgb; break;
-        case 25: c = tex3D(sCubeTexVort25, c).rgb; break;
-        case 26: c = tex3D(sCubeTexVort26, c).rgb; break;
-        case 27: c = tex3D(sCubeTexVort27, c).rgb; break;
-        case 28: c = tex3D(sCubeTexVort28, c).rgb; break;
-        case 29: c = tex3D(sCubeTexVort29, c).rgb; break;
-        case 30: c = tex3D(sCubeTexVort30, c).rgb; break;
-        case 31: c = tex3D(sCubeTexVort31, c).rgb; break;
-        case 32: c = tex3D(sCubeTexVort32, c).rgb; break;
-        case 33: c = tex3D(sCubeTexVort33, c).rgb; break;
-        case 34: c = tex3D(sCubeTexVort34, c).rgb; break;
-        case 35: c = tex3D(sCubeTexVort35, c).rgb; break;
-        case 36: c = tex3D(sCubeTexVort36, c).rgb; break;
-        case 37: c = tex3D(sCubeTexVort37, c).rgb; break;
-        case 38: c = tex3D(sCubeTexVort38, c).rgb; break;
-        case 39: c = tex3D(sCubeTexVort39, c).rgb; break;
-        case 40: c = tex3D(sCubeTexVort40, c).rgb; break;
-    }
-#endif
-
-    c = SRGBToLin(c);
-
-    float3 factor = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
-    orig_c = OKColors::RGBToOKLAB(orig_c); c = OKColors::RGBToOKLAB(c);
-    c = OKColors::OKLABToRGB(lerp(orig_c, c, factor));
 
     return c;
 }
