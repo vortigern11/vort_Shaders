@@ -57,7 +57,7 @@
 
 #if V_ENABLE_LUT
     #ifndef V_LUT_FILE
-        #define V_LUT_FILE 61
+        #define V_LUT_FILE 0
     #endif
 
     #ifndef V_LUT_SIZE
