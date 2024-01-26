@@ -24,12 +24,13 @@
     DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-/* TODO:
+/*
+
+- MLUT .png and settings generated with: https://github.com/etra0/lutdinho
+
 - add more tonemappers:
     Agx -> https://github.com/MrLixm/AgXc/tree/main/reshade
     Tony McMapface -> https://github.com/h3r2tic/tony-mc-mapface/tree/main
-
-- Move the inverse tonemap, tonemap and color grading to a LUT
 
 - Useful links for applying LUTs:
     https://www.lightillusion.com/what_are_luts.html
@@ -43,6 +44,7 @@
     https://opencolorio.readthedocs.io/en/latest/guides/using_ocio/using_ocio.html
     https://opencolorio.readthedocs.io/en/latest/tutorials/baking_luts.html
     https://help.maxon.net/c4d/en-us/Content/_REDSHIFT_/html/Compositing+with+ACES.html
+
 */
 
 #pragma once
@@ -56,7 +58,6 @@
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
 #include "Includes/vort_BlueNoise.fxh"
-#include "Includes/vort_LUTs.fxh"
 
 namespace ColorChanges {
 
@@ -94,6 +95,20 @@ namespace ColorChanges {
 #define GET_LUMI(_x) ACESToLumi(_x)
 #define LINEAR_MID_GRAY 0.18
 #define LOG_MID_GRAY ACES_LOG_MID_GRAY
+
+#define MLUT_TileSizeXY 33
+#define MLUT_TileAmount 33
+#define MLUT_LutAmount 99
+
+/*******************************************************************************
+    Textures, Samplers
+*******************************************************************************/
+
+#if V_ENABLE_LUT
+    texture MLUTTexVort <source = "vort_MLUT.png";>
+    { Width = MLUT_TileSizeXY * MLUT_TileAmount; Height = MLUT_TileSizeXY * MLUT_LutAmount; TEX_RGBA8 };
+    sampler sMLUTTexVort { Texture = MLUTTexVort; };
+#endif
 
 /*******************************************************************************
     Functions
@@ -213,6 +228,40 @@ float3 ApplyColorGrading(float3 c)
 }
 #endif
 
+#if V_ENABLE_LUT
+float3 ApplyLUT(float3 c)
+{
+    float3 orig_c = c;
+
+    c = LinToSRGB(c);
+
+    float2 lut_ps = rcp(float2(MLUT_TileSizeXY * MLUT_TileAmount, MLUT_TileSizeXY));
+    float3 lut_uv = c * (MLUT_TileSizeXY - 1.0);
+    float lerpfact = frac(lut_uv.z);
+
+    lut_uv.xy = (lut_uv.xy + 0.5) * lut_ps;
+    lut_uv.x = lut_uv.x + (lut_uv.z - lerpfact) * lut_ps.y;
+    lut_uv.y = (lut_uv.y / MLUT_LutAmount) + (float(UI_CC_LUTNum) / MLUT_LutAmount);
+
+    c = lerp(
+        Sample(sMLUTTexVort, lut_uv.xy).rgb,
+        Sample(sMLUTTexVort, float2(lut_uv.x + lut_ps.y, lut_uv.y)).rgb,
+        lerpfact
+    );
+
+    c = SRGBToLin(c);
+
+    float3 factor = float3(UI_CC_LUTLuma, UI_CC_LUTChroma, UI_CC_LUTChroma);
+
+    orig_c = OKColors::RGBToOKLAB(orig_c);
+    c = OKColors::RGBToOKLAB(c);
+
+    c = OKColors::OKLABToRGB(lerp(orig_c, c, factor));
+
+    return c;
+}
+#endif
+
 #if V_ENABLE_PALETTE
 float3 ApplyPalette(float3 c, float2 vpos)
 {
@@ -311,7 +360,7 @@ void PS_Start(PS_ARGS4) {
     c = ApplyLinearCurve(c);
 
     // dither to avoid banding from effects
-    float noise = GetR1(GetBlueNoise(i.vpos.xy).x, frame_count % 128) - 0.5;
+    float noise = GetR1(GetBlueNoise(i.vpos.xy).x, frame_count % 128) * 0.5 - 0.25;
     c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
 
 #if V_ENABLE_LUT

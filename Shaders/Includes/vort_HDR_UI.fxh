@@ -55,22 +55,29 @@
     #define V_BLOOM_DEBUG 0
 #endif
 
-#if V_ENABLE_LUT
-    #ifndef V_LUT_FILE
-        #define V_LUT_FILE 0
-    #endif
-
-    #ifndef V_LUT_SIZE
-        #define V_LUT_SIZE 33
-    #endif
-#endif
-
 /* #if IS_SRGB */
 /*     #define CAT_TONEMAP "Tonemapping" */
 
 /*     UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "Which tonemapper to use", "Lottes\0ACES\0", 1) */
 /*     UI_FLOAT(CAT_TONEMAP, UI_CC_Exposure, "Exposure", "Used instead of inverse tonemapper is some cases", 0.0, 8.0, 4.0) */
 /* #endif */
+
+#if V_ENABLE_LUT
+    #define CAT_LUT "LUT Settings"
+
+    UI_LIST(CAT_LUT, UI_CC_LUTNum, "LUT Name", "Which LUT to use", " Agfa_Precisa_100\0 Agfa_Ultra_Color_100\0 Agfa_Vista_200\0 Creative_Anime\0 Creative_BleachBypass1\0 Creative_BleachBypass2\0 Creative_BleachBypass3\0 Creative_BleachBypass4\0 Creative_CandleLight\0 Creative_ColorNegative\0 Creative_CrispWarm\0 Creative_CrispWinter\0 Creative_DropBlues\0 Creative_EdgyEmber\0 Creative_FallColors\0 Creative_FoggyNight\0 Creative_FuturisticBleak1\0 Creative_FuturisticBleak2\0 Creative_FuturisticBleak3\0 Creative_FuturisticBleak4\0 Creative_HorrorBlue\0 Creative_LateSunset\0 Creative_Moonlight\0 Creative_NightFromDay\0 Creative_RedBlueYellow\0 Creative_Smokey\0 Creative_SoftWarming\0 Creative_TealMagentaGold\0 Creative_TealOrange\0 Creative_TealOrange1\0 Creative_TealOrange2\0 Creative_TealOrange3\0 Creative_TensionGreen1\0 Creative_TensionGreen2\0 Creative_TensionGreen3\0 Creative_TensionGreen4\0 Fuji_160C\0 Fuji_400H\0 Fuji_800Z\0 Fuji_Astia_100F\0 Fuji_Astia_100_Generic\0 Fuji_FP-100c\0 Fuji_FP-100c_Cool\0 Fuji_FP-100c_Negative\0 Fuji_Provia_100F\0 Fuji_Provia_100_Generic\0 Fuji_Provia_400F\0 Fuji_Provia_400X\0 Fuji_Sensia_100\0 Fuji_Superia_100\0 Fuji_Superia_1600\0 Fuji_Superia_200\0 Fuji_Superia_200_XPRO\0 Fuji_Superia_400\0 Fuji_Superia_800\0 Fuji_Superia_HG_1600\0 Fuji_Superia_Reala_100\0 Fuji_Superia_X-Tra_800\0 Fuji_Velvia_100_Generic\0 Fuji_Velvia_50\0 Kodak_E-100_GX_Ektachrome_100\0 Kodak_Ektachrome_100_VS\0 Kodak_Ektachrome_100_VS_Generic\0 Kodak_Ektar_100\0 Kodak_Elite_100_XPRO\0 Kodak_Elite_Chrome_200\0 Kodak_Elite_Chrome_400\0 Kodak_Elite_Color_200\0 Kodak_Elite_Color_400\0 Kodak_Elite_ExtraColor_100\0 Kodak_Kodachrome_200\0 Kodak_Kodachrome_25\0 Kodak_Kodachrome_64\0 Kodak_Kodachrome_64_Generic\0 Kodak_Portra_160\0 Kodak_Portra_160_NC\0 Kodak_Portra_160_VC\0 Kodak_Portra_400\0 Kodak_Portra_400_NC\0 Kodak_Portra_400_UC\0 Kodak_Portra_400_VC\0 Kodak_Portra_800\0 Kodak_Portra_800_HC\0 Lomography_Redscale_100\0 Lomography_X-Pro_Slide_200\0 Polaroid_669\0 Polaroid_669_Cold\0 Polaroid_690\0 Polaroid_690_Cold\0 Polaroid_690_Warm\0 Polaroid_Polachrome\0 Polaroid_PX-100UV+_Cold\0 Polaroid_PX-100UV+_Warm\0 Polaroid_PX-680\0 Polaroid_PX-680_Cold\0 Polaroid_PX-680_Warm\0 Polaroid_PX-70\0 Polaroid_PX-70_Cold\0 Polaroid_PX-70_Warm\0", 0)
+    UI_FLOAT(CAT_LUT, UI_CC_LUTChroma, "LUT Chroma", "Changes the chroma intensity of the LUT", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_LUT, UI_CC_LUTLuma, "LUT Luma", "Changes the luma intensity of the LUT", 0.0, 1.0, 1.0)
+#endif
+
+#if V_ENABLE_PALETTE
+    #define CAT_CPS "Color Palette Swap"
+
+    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
+    UI_FLOAT3(CAT_CPS, UI_CPS_HSV, "Base HSV", "The base hue, saturation and value", 0.0, 1.0, 0.5)
+    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
+    UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 2.0, 1.0)
+#endif
 
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
@@ -86,22 +93,6 @@
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenLimit, "Sharpen Limit", "Control which pixel to be sharpened", 0.0, 0.1, 0.02)
     UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 0.5)
     UI_FLOAT(CAT_SHARP, UI_CC_UnsharpenStrength, "Far Blur Strength", "Controls the far blur strength.", 0.0, 5.0, 0.0)
-#endif
-
-#if V_ENABLE_LUT
-    #define CAT_LUT "LUT Settings"
-
-    UI_FLOAT(CAT_LUT, UI_CC_LUTChroma, "LUT Chroma", "Changes the chroma intensity of the LUT", 0.0, 1.0, 1.0)
-    UI_FLOAT(CAT_LUT, UI_CC_LUTLuma, "LUT Luma", "Changes the luma intensity of the LUT", 0.0, 1.0, 1.0)
-#endif
-
-#if V_ENABLE_PALETTE
-    #define CAT_CPS "Color Palette Swap"
-
-    UI_BOOL(CAT_CPS, UI_CPS_ShowPalette, "Show Palette", "Shows the color at the top left corner", false)
-    UI_FLOAT3(CAT_CPS, UI_CPS_HSV, "Base HSV", "The base hue, saturation and value", 0.0, 1.0, 0.5)
-    UI_LIST(CAT_CPS, UI_CPS_Harmony, "Color Harmony", "Which harmony to use", "Analogous\0Complementary\0", 1)
-    UI_FLOAT(CAT_CPS, UI_CPS_Blend, "Blend Amount", "How much to blend the palette with the image", 0.0, 2.0, 1.0)
 #endif
 
 #if V_ENABLE_COLOR_GRADING
@@ -134,7 +125,7 @@ _vort_HDR_Help_,
 "Toggle the sharpening and far blur.\n"
 "\n"
 "V_ENABLE_LUT - 0 or 1\n"
-"Toggle use of 3D .cube LUT\n"
+"Toggle use of LUTs\n"
 "\n"
 "V_ENABLE_PALETTE - 0 or 1\n"
 "Toggle color palette generation\n"
