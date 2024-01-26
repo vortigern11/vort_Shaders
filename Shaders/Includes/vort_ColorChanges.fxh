@@ -73,7 +73,7 @@ namespace ColorChanges {
 #endif
 
 #if IS_SRGB
-    #define LINEAR_MIN 0.0
+    #define LINEAR_MIN FLOAT_MIN
     #define LINEAR_MAX FLOAT_MAX
 #elif IS_SCRGB
     #define LINEAR_MIN -0.5
@@ -325,6 +325,9 @@ void PS_Start(PS_ARGS4) {
 #if IS_SRGB
     c = saturate(c);
     c = InverseLottes(c);
+
+    // alternative for inverse tonemaping
+    /* c = RGBToACEScg(c * exp2(UI_CC_Exposure)); */
 #endif
 
     o = float4(c, 1);

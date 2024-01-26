@@ -65,6 +65,13 @@
     #endif
 #endif
 
+/* #if IS_SRGB */
+/*     #define CAT_TONEMAP "Tonemapping" */
+
+/*     UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "Which tonemapper to use", "Lottes\0ACES\0", 1) */
+/*     UI_FLOAT(CAT_TONEMAP, UI_CC_Exposure, "Exposure", "Used instead of inverse tonemapper is some cases", 0.0, 8.0, 4.0) */
+/* #endif */
+
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
