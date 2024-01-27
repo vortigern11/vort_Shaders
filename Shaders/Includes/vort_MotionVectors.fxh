@@ -74,19 +74,16 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         float2(0, -1), float2(0, 1), float2(-1, 0), float2(1, 0),
         float2(0, -2), float2(0, 2), float2(-2, 0), float2(2, 0)
     };
-    float local_block[9];
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float moments_cov = 0;
 
-    [unroll]for(uint k = 0; k < block_area; k++)
+    [loop]for(uint k = 0; k < block_area; k++)
     {
         float2 tuv = i.uv + block_offs[k] * texelsize;
         float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
         float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion), feature_mip).y;
-
-        local_block[k] = t_local;
 
         moments_local += float2(t_local, t_local * t_local);
         moments_search += float2(t_search, t_search * t_search);
@@ -120,18 +117,18 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             randdir = float2(randdir.y, -randdir.x);
 
             float2 search_offset = randdir * texelsize;
-            float2 search_center = i.uv + total_motion + search_offset;
 
             moments_search = 0;
             moments_cov = 0;
 
             [loop]for(uint k = 0; k < block_area; k++)
             {
-                float2 tuv = search_center + block_offs[k] * texelsize;
-                float t = Sample(sFeatureTexVort, saturate(tuv), feature_mip).y;
+                float2 tuv = i.uv + block_offs[k] * texelsize;
+                float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
+                float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion + search_offset), feature_mip).y;
 
-                moments_search += float2(t, t * t);
-                moments_cov += t * local_block[k];
+                moments_search += float2(t_search, t_search * t_search);
+                moments_cov += t_search * t_local;
             }
 
             moments_search *= inv_block_area;
