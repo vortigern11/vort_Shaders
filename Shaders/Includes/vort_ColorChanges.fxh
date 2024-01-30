@@ -126,10 +126,7 @@ float3 ApplySharpen(float3 c, sampler samp, float2 uv)
 
     if (UI_CC_ShowSharpening) return sharp;
 
-    // apply sharpening and blur
-    c = lerp(c + sharp, blurred, depth * UI_CC_UnsharpenStrength);
-
-    return c;
+    return c + sharp;
 }
 #endif
 
