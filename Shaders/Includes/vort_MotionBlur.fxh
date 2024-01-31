@@ -32,6 +32,7 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_LDRTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
+#include "Includes/vort_Tonemap.fxh"
 
 namespace MotBlur {
 
@@ -44,6 +45,30 @@ sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
 // tried with max neighbour tiles, but there were issues either
 // due to implementation or imperfect motion vectors
+
+/*******************************************************************************
+    Functions
+*******************************************************************************/
+
+float3 GetColor(float2 uv)
+{
+    float3 c = SampleLinColor(uv);
+
+#if IS_SRGB
+    c = InverseLottes(c);
+#endif
+
+    return c;
+}
+
+float3 PutColor(float3 c)
+{
+#if IS_SRGB
+    c = ApplyLottes(c);
+#endif
+
+    return ApplyGammaCurve(c);
+}
 
 /*******************************************************************************
     Shaders
@@ -90,14 +115,14 @@ void PS_Blur(PS_ARGS3)
         weight1 = all(mirror) ? weight2 : weight1;
         weight2 = any(mirror) ? weight2 : weight1;
 
-        color += weight1 * float4(SampleLinColor(sample_uv1), 1.0);
-        color += weight2 * float4(SampleLinColor(sample_uv2), 1.0);
+        color += weight1 * float4(GetColor(sample_uv1), 1.0);
+        color += weight2 * float4(GetColor(sample_uv2), 1.0);
     }
 
     color *= inv_half_samples * 0.5;
-    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
+    color.rgb += (1.0 - color.w) * GetColor(i.uv);
 
-    o = ApplyGammaCurve(color.rgb);
+    o = PutColor(color.rgb);
 }
 
 void PS_WriteInfo(PS_ARGS2)
