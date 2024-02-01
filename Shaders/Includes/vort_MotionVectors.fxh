@@ -162,7 +162,6 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
     float2 blue_noise = GetBlueNoise(i.vpos.xy).xy;
-    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 1000.0;
     float center_z = 0;
 
     if (mip == 0)
@@ -185,7 +184,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
         float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 100.0; // curr depth delta
         float wz_p = abs(center_z - sample_z_p) * RCP(max(center_z, sample_z_p)); wz_p *= wz_p; // prev depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * wm_mult; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 200.0; // long motion
         float ws = sample_gbuf.w; // similarity
         float weight = exp2(-(wz_c + wz_p + wm + ws) * 4.0) + 0.001;
 
