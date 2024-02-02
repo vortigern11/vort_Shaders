@@ -86,7 +86,7 @@ void PS_Blur(PS_ARGS3)
     static const float depth_scale = 1000.0;
 
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
-    float rand = GetInterGradNoise(i.vpos.xy + frame_count % 16) * 0.5; // don't touch
+    float rand = GetInterGradNoise(i.vpos.xy + frame_count % 128);
     float4 color = 0;
 
     [loop]for(int j = 1; j <= half_samples; j++)
