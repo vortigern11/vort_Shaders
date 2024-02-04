@@ -52,7 +52,7 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 0.5)
 #endif
 
 #if V_ENABLE_TAA

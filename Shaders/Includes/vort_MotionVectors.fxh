@@ -169,7 +169,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     else
         center_z = Sample(sDownDepthTexVort, i.uv).x;
 
-    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 1000.0;
+    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 250.0;
     float wsum = 0.001;
     float4 gbuffer = 0;
 
