@@ -59,13 +59,22 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
 // this is absolutely not the correct way but there is no projection matrix in reshade
 // so some kind of small jitter applied to the uv is better than no jitter at all
-float2 GetUVJitter()
+float4 GetUVJitter()
 {
     static const float2 offs[4] = {
         float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
     };
 
-    return offs[frame_count % 4] * BUFFER_PIXEL_SIZE * UI_TAA_Jitter;
+    float4 jitter = 0;
+
+    if(frame_count > 0)
+    {
+        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]);
+        jitter = float4(jitter.xy * BUFFER_PIXEL_SIZE, jitter.zw * BUFFER_PIXEL_SIZE);
+    }
+
+    // reduce jitter to make it unnoticable and to have sharper result
+    return jitter * UI_TAA_Jitter;
 }
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
@@ -137,7 +146,9 @@ void PS_Main(PS_ARGS4)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = i.uv + SampleMotion(i.uv).xy + GetUVJitter();
+    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
+
+    prev_uv += SampleMotion(prev_uv).xy;
 
     bool is_first = Sample(sPrevColorTexVort, prev_uv).a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
@@ -176,7 +187,9 @@ void PS_Main(PS_ARGS4)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float4 info = Sample(sLDRTexVort, i.uv);
+    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
+
+    float4 info = Sample(sLDRTexVort, new_uv);
     float3 c = info.rgb;
     float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 
