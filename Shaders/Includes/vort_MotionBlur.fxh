@@ -78,7 +78,7 @@ float3 GetColor(float2 uv)
     float3 c = SampleLinColor(uv);
 
 #if IS_SRGB
-    c = InverseStanard(c);
+    c = InverseReinhard(c);
 #endif
 
     return c;
@@ -87,7 +87,7 @@ float3 GetColor(float2 uv)
 float3 PutColor(float3 c)
 {
 #if IS_SRGB
-    c = ApplyStanard(c);
+    c = ApplyReinhard(c);
 #endif
 
     return ApplyGammaCurve(c);
