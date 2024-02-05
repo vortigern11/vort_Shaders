@@ -57,7 +57,6 @@
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
-#include "Includes/vort_BlueNoise.fxh"
 
 namespace ColorChanges {
 
@@ -90,11 +89,11 @@ namespace ColorChanges {
     #define LINEAR_MAX 1.0
 #endif
 
-#define TO_LOG_CS(_x) ACEScgToACEScct(_x)
-#define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
-#define GET_LUMI(_x) ACESToLumi(_x)
+#define TO_LOG_CS(_x) LOG2(_x)
+#define TO_LINEAR_CS(_x) exp2(_x)
+#define GET_LUMI(_x) RGBToYCbCrLumi(_x)
 #define LINEAR_MID_GRAY 0.18
-#define LOG_MID_GRAY ACES_LOG_MID_GRAY
+#define LOG_MID_GRAY 0.18
 
 #define MLUT_TileSizeXY 33
 #define MLUT_TileAmount 33
@@ -356,10 +355,6 @@ void PS_Start(PS_ARGS4) {
 
     c = ApplyLinearCurve(c);
 
-    // dither to avoid banding from effects
-    float noise = GetR1(GetBlueNoise(i.vpos.xy).x, frame_count % 128) * 0.5 - 0.25;
-    c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
-
 #if V_ENABLE_LUT
     c = ApplyLUT(c);
 #endif
@@ -371,9 +366,6 @@ void PS_Start(PS_ARGS4) {
 #if IS_SRGB
     c = saturate(c);
     c = InverseLottes(c);
-
-    // alternative for inverse tonemaping
-    /* c = RGBToACEScg(c * exp2(UI_CC_Exposure)); */
 #endif
 
     o = float4(c, 1);

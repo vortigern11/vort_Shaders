@@ -109,11 +109,12 @@ void PS_Blur(PS_ARGS3)
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
     if(center_info.x < 1.0) discard; // changing to higher can worsen result
+
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
 
     int half_samples = clamp(floor(center_info.x * 0.5), 2, 16); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
-    float rand = GetInterGradNoise(i.vpos.xy + frame_count % 16);
+    float rand = GetInterGradNoise(i.vpos.xy);
     float4 color = 0;
 
     static const float depth_scale = 1000.0;
@@ -144,11 +145,6 @@ void PS_Blur(PS_ARGS3)
         color += float4(GetColor(sample_uv2) * weight2, weight2);
     }
 
-    // new sample contribution (better background blur)
-    /* color *= inv_half_samples * 0.5; */
-    /* color.rgb += (1.0 - color.w) * GetColor(i.uv); */
-
-    // old sample contribution (better foreground blur)
     color += float4(GetColor(i.uv), 1.0) * RCP(center_info.x);
     color.rgb *= RCP(color.w);
 

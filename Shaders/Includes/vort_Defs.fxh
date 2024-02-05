@@ -575,6 +575,11 @@ float GetInterGradNoise(float2 pos)
     return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
 }
 
+// https://www.shadertoy.com/view/ltB3zD
+float GetGoldNoise(float2 vpos, float seed){
+   return frac(tan(distance(vpos * PHI, vpos) * seed) * vpos.x);
+}
+
 float Halton1(uint i, uint b)
 {
     float f = 1.0;
