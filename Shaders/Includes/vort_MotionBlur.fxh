@@ -78,7 +78,7 @@ float3 GetColor(float2 uv)
     float3 c = SampleLinColor(uv);
 
 #if IS_SRGB
-    c = InverseLottes(c);
+    c = InverseStanard(c);
 #endif
 
     return c;
@@ -87,7 +87,7 @@ float3 GetColor(float2 uv)
 float3 PutColor(float3 c)
 {
 #if IS_SRGB
-    c = ApplyLottes(c);
+    c = ApplyStanard(c);
 #endif
 
     return ApplyGammaCurve(c);
@@ -114,7 +114,7 @@ void PS_Blur(PS_ARGS3)
 
     int half_samples = clamp(floor(center_info.x * 0.5), 2, 16); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
-    float rand = GetInterGradNoise(i.vpos.xy);
+    float rand = GetGoldNoise(i.vpos.xy, frame_count % 8 + 1);
     float4 color = 0;
 
     static const float depth_scale = 1000.0;
