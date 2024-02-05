@@ -112,7 +112,7 @@ void PS_Blur(PS_ARGS3)
 
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
 
-    int half_samples = clamp(floor(center_info.x * 0.5), 2, 16); // for perf reasons
+    int half_samples = clamp(floor(center_info.x * 0.5), 2, 12); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
     float rand = GetGoldNoise(i.vpos.xy, frame_count % 8 + 1);
     float4 color = 0;

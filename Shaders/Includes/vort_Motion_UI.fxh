@@ -52,7 +52,7 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 0.5)
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 1.0)
 #endif
 
 #if V_ENABLE_TAA
@@ -121,7 +121,7 @@ float2 SampleMotion(float2 uv)
     float2 motion = Sample(MV_SAMP, uv).xy;
 
     // negate the random noise
-    return motion * (length(motion * BUFFER_SCREEN_SIZE) > 2.0);
+    return motion * (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
 }
 
 float2 FetchMotion(int2 pos)
@@ -129,5 +129,5 @@ float2 FetchMotion(int2 pos)
     float2 motion = Fetch(MV_SAMP, pos).xy;
 
     // negate the random noise
-    return motion * (length(motion * BUFFER_SCREEN_SIZE) > 2.0);
+    return motion * (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
 }
