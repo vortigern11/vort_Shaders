@@ -114,7 +114,7 @@ void PS_Blur(PS_ARGS3)
 
     int half_samples = clamp(floor(center_info.x * 0.5), 2, 20); // for perf reasons
     float inv_half_samples = rcp(float(half_samples));
-    float rand = GetGoldNoise(i.vpos.xy, frame_count % 8 + 1);
+    float rand = GetGoldNoise(i.vpos.xy);
     float4 color = 0;
 
     static const float depth_scale = 1000.0;
@@ -135,11 +135,6 @@ void PS_Blur(PS_ARGS3)
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.y - center_info.y));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.y - center_info.y));
 
-        // for new sample contribution
-        /* float2 spreadcmp1 = saturate(1.0 - offs_len + float2(center_info.x, sample_info1.x)); */
-        /* float2 spreadcmp2 = saturate(1.0 - offs_len + float2(center_info.x, sample_info2.x)); */
-
-        // for old sample contribution
         float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(center_info.x, sample_info1.x)));
         float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(center_info.x, sample_info2.x)));
 
@@ -150,11 +145,6 @@ void PS_Blur(PS_ARGS3)
         color += float4(GetColor(sample_uv2) * weight2, weight2);
     }
 
-    // new sample contribution
-    /* color *= inv_half_samples * 0.5; */
-    /* color.rgb += (1.0 - color.w) * GetColor(i.uv); */
-
-    // old sample contribution
     color += float4(GetColor(i.uv), 1.0) * RCP(center_info.x);
     color.rgb *= RCP(color.w);
 

@@ -123,6 +123,7 @@ static const float A_THIRD = 1.0 / 3.0;
 
 uniform uint frame_count < source = "framecount"; >;
 uniform float frame_time < source = "frametime"; >;
+uniform float timer < source = "timer"; >;
 
 #ifndef V_USE_HW_LIN
     #define V_USE_HW_LIN 0
@@ -576,8 +577,12 @@ float GetInterGradNoise(float2 pos)
 }
 
 // https://www.shadertoy.com/view/ltB3zD
-float GetGoldNoise(float2 vpos, float seed){
-   return frac(tan(distance(vpos * PHI, vpos) * seed) * vpos.x);
+float GetGoldNoise(float2 vpos)
+{
+    float seed = timer * 0.001;
+    float n = frac(tan(length(vpos) * INV_PHI * seed) * vpos.x);
+
+    return isnan(n) ? 0.0 : n;
 }
 
 float Halton1(uint i, uint b)
