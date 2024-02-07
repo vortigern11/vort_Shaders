@@ -645,3 +645,10 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
 
     return color;
 }
+
+float Dither(float2 vpos, float scale)
+{
+    float2 s = float2(int2(vpos) % 2) * 2.0 - 1.0;
+
+    return scale * s.x * s.y;
+}

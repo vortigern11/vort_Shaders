@@ -70,30 +70,6 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 */
 
 /*******************************************************************************
-    Functions
-*******************************************************************************/
-
-float3 GetColor(float2 uv)
-{
-    float3 c = SampleLinColor(uv);
-
-#if IS_SRGB
-    c = InverseReinhard(c);
-#endif
-
-    return c;
-}
-
-float3 PutColor(float3 c)
-{
-#if IS_SRGB
-    c = ApplyReinhard(c);
-#endif
-
-    return ApplyGammaCurve(c);
-}
-
-/*******************************************************************************
     Shaders
 *******************************************************************************/
 
@@ -108,13 +84,13 @@ void PS_Blur(PS_ARGS3)
     // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
 
-    if(center_info.x < 1.0) discard; // changing to higher can worsen result
+    if(center_info.x < 1.0) discard;
 
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
 
-    int half_samples = clamp(floor(center_info.x * 0.5), 2, 20); // for perf reasons
+    int half_samples = clamp(floor(center_info.x * 0.5), 2, 16);
     float inv_half_samples = rcp(float(half_samples));
-    float rand = GetGoldNoise(i.vpos.xy);
+    float rand = Dither(i.vpos.xy, 0.25);
     float4 color = 0;
 
     static const float depth_scale = 1000.0;
@@ -141,14 +117,22 @@ void PS_Blur(PS_ARGS3)
         float weight1 = dot(depthcmp1, spreadcmp1);
         float weight2 = dot(depthcmp2, spreadcmp2);
 
-        color += float4(GetColor(sample_uv1) * weight1, weight1);
-        color += float4(GetColor(sample_uv2) * weight2, weight2);
+        color += float4(SampleLinColor(sample_uv1) * weight1, weight1);
+        color += float4(SampleLinColor(sample_uv2) * weight2, weight2);
     }
 
-    color += float4(GetColor(i.uv), 1.0) * RCP(center_info.x);
+    // Converting the samples to HDR and back yields worse results.
+    // Bright colors overshadow others and the result seems fake.
+
+    // The sampling contribution in CoD: AW has more background visibility
+    // but it introduces annoying artifacts due to the guessing of background
+    // in certain cases. Instead I use the solution in McGuire's paper which
+    // doesn't have this issue. The spread comparison above is changed accordingly.
+
+    color += float4(SampleLinColor(i.uv), 1.0) * RCP(center_info.x);
     color.rgb *= RCP(color.w);
 
-    o = PutColor(color.rgb);
+    o = ApplyGammaCurve(color.rgb);
 }
 
 void PS_WriteInfo(PS_ARGS2)
