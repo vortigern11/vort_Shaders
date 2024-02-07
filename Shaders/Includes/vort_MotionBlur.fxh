@@ -32,7 +32,6 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
-#include "Includes/vort_Tonemap.fxh"
 
 namespace MotBlur {
 

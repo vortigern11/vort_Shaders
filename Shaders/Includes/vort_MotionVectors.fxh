@@ -217,9 +217,13 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
 void PS_WriteFeature(PS_ARGS2)
 {
     float3 c = Sample(sColorTexVort, i.uv).rgb;
+
+#if !IS_SRGB
     float2 range = GetHDRRange();
 
-    c = clamp(c, 0.0, range.y);
+    c = clamp(c, 0.0, range.y) / range.y;
+#endif
+
     o.xy = dot(c, float3(0.299, 0.587, 0.114)).xx;
 }
 
