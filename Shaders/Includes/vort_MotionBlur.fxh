@@ -39,16 +39,21 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-// tried with max neighbour tiles, but there were issues either
-// due to implementation or imperfect motion vectors
+// Tried with max neighbour tiles, but there were issues
+// either due to implementation or imperfect motion vectors
 
-/* MAX_NEIGHBOUR
-#if BUFFER_HEIGHT >= 2160
-    #define K 60
-#else
-    #define K 30 // scaled to 1080p from 720p
+#define MB_USE_MAX_NEIGH 0 // don't touch
+
+#if MB_USE_MAX_NEIGH
+    #if BUFFER_HEIGHT >= 2160
+        #define K 60
+    #else
+        #define K 30 // scaled to 1080p from 720p
+    #endif
 #endif
-*/
+
+// Converting the samples to HDR and back yields worse results.
+// Bright colors overshadow others and the result seems fake.
 
 /*******************************************************************************
     Textures, Samplers
@@ -57,7 +62,7 @@ namespace MotBlur {
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; };
 
-/* MAX_NEIGHBOUR
+#if MB_USE_MAX_NEIGH
 texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
 sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
 
@@ -66,7 +71,7 @@ sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
 
 texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
-*/
+#endif
 
 /*******************************************************************************
     Shaders
@@ -74,21 +79,20 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 
 void PS_Blur(PS_ARGS3)
 {
-    /* MAX_NEIGHBOUR
+#if MB_USE_MAX_NEIGH
     float2 motion = Sample(sNeighMaxTexVort, i.uv).xy;
+#else
+    float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
+#endif
 
-    if(length(motion * BUFFER_SCREEN_SIZE) < 1.0) discard;
-    */
+    // min 3 pixels motion (1 for each side and 1 for center)
+    if(length(motion * BUFFER_SCREEN_SIZE) < 3.0) discard;
 
     // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
-
-    if(center_info.x < 1.0) discard;
-
-    float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
-
-    int half_samples = clamp(floor(center_info.x * 0.5), 2, 16);
-    float inv_half_samples = rcp(float(half_samples));
+    int half_samples = clamp(floor((center_info.x - 1.0) * 0.5), 2, 16);
+    float inv_total_samples = rcp(float(half_samples) * 2.0 + 1.0);
+    float2 motion_per_sample = motion * inv_total_samples;
     float rand = Dither(i.vpos.xy, 0.25);
     float4 color = 0;
 
@@ -96,10 +100,9 @@ void PS_Blur(PS_ARGS3)
 
     [loop]for(int j = 1; j <= half_samples; j++)
     {
-        float2 offs = motion * (float(j) - rand) * inv_half_samples;
-
         // remove artifacts by ensuring offs is min 1 pixel
-        float offs_len = max(1.0, length(offs * BUFFER_SCREEN_SIZE));
+        float2 offs = motion_per_sample * max(1.0, float(j) - rand);
+        float offs_len = length(offs * BUFFER_SCREEN_SIZE);
 
         float2 sample_uv1 = saturate(i.uv + offs);
         float2 sample_uv2 = saturate(i.uv - offs);
@@ -120,9 +123,6 @@ void PS_Blur(PS_ARGS3)
         color += float4(SampleLinColor(sample_uv2) * weight2, weight2);
     }
 
-    // Converting the samples to HDR and back yields worse results.
-    // Bright colors overshadow others and the result seems fake.
-
     // The sampling contribution in CoD: AW has more background visibility
     // but it introduces annoying artifacts due to the guessing of background
     // in certain cases. Instead I use the solution in McGuire's paper which
@@ -138,12 +138,15 @@ void PS_WriteInfo(PS_ARGS2)
 {
     float mot_len = length(SampleMotion(i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
 
-    /* MAX_NEIGHBOUR o.x = min(mot_len, float(K)); */
+#if MB_USE_MAX_NEIGH
+    mot_len = min(mot_len, float(K));
+#endif
+
     o.x = mot_len;
     o.y = GetLinearizedDepth(i.uv);
 }
 
-/* MAX_NEIGHBOUR
+#if MB_USE_MAX_NEIGH
 void PS_TileDownHor(PS_ARGS2)
 {
     float3 max_motion = 0;
@@ -207,20 +210,23 @@ void PS_NeighbourMax(PS_ARGS2)
 
     o = max_motion.xy;
 }
-*/
+#endif // MB_USE_MAX_NEIGH
 
 /*******************************************************************************
     Passes
 *******************************************************************************/
 
-/* MAX_NEIGHBOUR
-#define PASS_MOT_BLUR_MAX_NEIGH \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
-*/
+#if MB_USE_MAX_NEIGH
+    #define PASS_MOT_BLUR_MAX_NEIGH \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
+#else
+    #define PASS_MOT_BLUR_MAX_NEIGH
+#endif
 
 #define PASS_MOT_BLUR \
+    PASS_MOT_BLUR_MAX_NEIGH \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WriteInfo; RenderTarget = MotBlur::InfoTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; SRGB_WRITE_ENABLE }
 
