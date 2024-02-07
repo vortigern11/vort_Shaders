@@ -169,7 +169,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     else
         center_z = Sample(sDownDepthTexVort, i.uv).x;
 
-    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 500.0;
+    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 400.0;
     float wsum = 0.001;
     float4 gbuffer = 0;
 
@@ -183,7 +183,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
         // too costly to sample depth again at mip 0
 
-        float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 100.0; // curr depth delta
+        float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 72.0; // curr depth delta
         float wz_p = abs(center_z - sample_z_p) * RCP(max(center_z, sample_z_p)); wz_p *= wz_p; // prev depth delta
         float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * wm_mult; // long motion
         float ws = sample_gbuf.w; // similarity
