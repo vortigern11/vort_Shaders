@@ -214,7 +214,15 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
     Shaders
 *******************************************************************************/
 
-void PS_WriteFeature(PS_ARGS2) { o.xy = dot(float3(0.299, 0.587, 0.114), Sample(sColorTexVort, i.uv).rgb); }
+void PS_WriteFeature(PS_ARGS2)
+{
+    float3 c = Sample(sColorTexVort, i.uv).rgb;
+    float2 range = GetHDRRange();
+
+    c = clamp(c, 0.0, range.y);
+    o.xy = dot(c, float3(0.299, 0.587, 0.114)).xx;
+}
+
 void PS_WriteDepth(PS_ARGS2) { o.xy = GetLinearizedDepth(i.uv); }
 
 void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sMotionTexVortB); }

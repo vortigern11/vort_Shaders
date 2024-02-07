@@ -31,7 +31,7 @@
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
-#include "Includes/vort_LDRTex.fxh"
+#include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
 namespace TAA {
@@ -189,7 +189,7 @@ void PS_WritePrevColor(PS_ARGS4)
 {
     float2 new_uv = saturate(i.uv + GetUVJitter().xy);
 
-    float4 info = Sample(sLDRTexVort, new_uv);
+    float4 info = Sample(sColorTexVort, new_uv);
     float3 c = info.rgb;
     float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 

@@ -652,3 +652,18 @@ float Dither(float2 vpos, float scale)
 
     return scale * s.x * s.y;
 }
+
+float2 GetHDRRange()
+{
+#if IS_SRGB
+    return float2(0.0, 50.0);
+#elif IS_SCRGB
+    return float2(-0.5, 10000.0 / V_HDR_WHITE_LVL);
+#elif IS_HDR_PQ
+    return float2(0.0, 10000.0 / V_HDR_WHITE_LVL);
+#elif IS_HDR_HLG
+    return float2(0.0, 1000.0 / V_HDR_WHITE_LVL);
+#else
+    return float2(0.0, 1.0);
+#endif
+}

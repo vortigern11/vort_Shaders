@@ -51,8 +51,10 @@
     #define V_ENABLE_LUT 0
 #endif
 
-#ifndef V_BLOOM_DEBUG
-    #define V_BLOOM_DEBUG 0
+#if V_ENABLE_BLOOM
+    #ifndef V_BLOOM_DEBUG
+        #define V_BLOOM_DEBUG 0
+    #endif
 #endif
 
 /* #if IS_SRGB */

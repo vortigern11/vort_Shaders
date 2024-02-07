@@ -52,7 +52,7 @@
 #include "Includes/vort_HDR_UI.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_Filters.fxh"
-#include "Includes/vort_LDRTex.fxh"
+#include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
@@ -70,23 +70,6 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortB
 #else
     #define CC_IN_SAMP sHDRTexVortA
-#endif
-
-#if IS_SRGB
-    #define LINEAR_MIN 0
-    #define LINEAR_MAX FLOAT_MAX
-#elif IS_SCRGB
-    #define LINEAR_MIN -0.5
-    #define LINEAR_MAX (1e4 / V_HDR_WHITE_LVL)
-#elif IS_HDR_PQ
-    #define LINEAR_MIN 0.0
-    #define LINEAR_MAX (1e4 / V_HDR_WHITE_LVL)
-#elif IS_HDR_HLG
-    #define LINEAR_MIN 0.0
-    #define LINEAR_MAX (1e3 / V_HDR_WHITE_LVL)
-#else
-    #define LINEAR_MIN 0.0
-    #define LINEAR_MAX 1.0
 #endif
 
 #define TO_LOG_CS(_x) LOG2(_x)
@@ -351,9 +334,7 @@ float3 ApplyPalette(float3 c, float2 vpos)
 *******************************************************************************/
 
 void PS_Start(PS_ARGS4) {
-    float3 c = Sample(sLDRTexVort, i.uv).rgb;
-
-    c = ApplyLinearCurve(c);
+    float3 c = SampleLinColor(i.uv);
 
     // dither to avoid banding from effects
     float noise = GetGoldNoise(i.vpos.xy) - 0.5;
@@ -368,7 +349,6 @@ void PS_Start(PS_ARGS4) {
 #endif
 
 #if IS_SRGB
-    c = saturate(c);
     c = InverseLottes(c);
 #endif
 
@@ -378,24 +358,24 @@ void PS_Start(PS_ARGS4) {
 void PS_End(PS_ARGS3)
 {
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
+    float2 range = GetHDRRange();
 
-    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
+    c = clamp(c, range.x, range.y);
 
 #if V_ENABLE_SHARPEN && V_HAS_DEPTH
     c = ApplySharpen(c, CC_IN_SAMP, i.uv);
 #endif
 
-    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
+    c = clamp(c, range.x, range.y);
 
 #if V_ENABLE_COLOR_GRADING
     c = ApplyColorGrading(c);
 #endif
 
-    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
+    c = clamp(c, range.x, range.y);
 
 #if IS_SRGB
     c = ApplyLottes(c);
-    c = saturate(c);
 #endif
 
     o = ApplyGammaCurve(c);

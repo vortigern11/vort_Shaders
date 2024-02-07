@@ -547,33 +547,47 @@ float3 InverseACESNarkowicz(float3 x)
 
 float3 ApplyLottes(float3 c)
 {
-    return (1.02 * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
+    c = (1.02 * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
+    c = saturate(c);
+
+    return c;
 }
 
 float3 InverseLottes(float3 c)
 {
-    return c * RCP(1.02 - Max3(c.r, c.g, c.b));
+    c = saturate(c);
+    c = c * RCP(1.02 - Max3(c.r, c.g, c.b));
+
+    return c;
 }
 
 // https://www.desmos.com/calculator/mpslmho5wp
 float3 ApplyReinhard(float3 c)
 {
-    return c * RCP(1.0 + RGBToYCbCrLumi(c));
+    c = (1.02 * c) * RCP(1.0 + RGBToYCbCrLumi(c));
+    c = saturate(c);
+
+    return c;
 }
 
 // https://www.desmos.com/calculator/mpslmho5wp
 float3 InverseReinhard(float3 c)
 {
-    return c * RCP(1.0 - RGBToYCbCrLumi(c));
+    c = saturate(c);
+    c = c * RCP(1.02 - RGBToYCbCrLumi(c));
+
+    return c;
 }
 
 // https://www.desmos.com/calculator/mpslmho5wp
 float3 ApplyStanard(float3 c)
 {
-    static const float k = 2.0 * rsqrt(27.0);
+    static const float k = sqrt(4.0 / 27.0);
 
+    c = min(50.0, c);
     c = c * sqrt(c);
     c = c * RCP(k + RGBToYCbCrLumi(c));
+    c = saturate(c);
 
     return c;
 }
@@ -581,11 +595,13 @@ float3 ApplyStanard(float3 c)
 // https://www.desmos.com/calculator/mpslmho5wp
 float3 InverseStanard(float3 c)
 {
-    static const float k = 2.0 * rsqrt(27.0);
+    static const float k = sqrt(4.0 / 27.0);
     static const float tt = 2.0 / 3.0;
 
+    c = saturate(c);
     c = (k * c) * RCP(1.0 - RGBToYCbCrLumi(c));
     c = POW(c, tt);
+    c = min(50.0, c);
 
     return c;
 }
