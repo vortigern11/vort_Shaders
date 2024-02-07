@@ -73,7 +73,7 @@ namespace ColorChanges {
 #endif
 
 #if IS_SRGB
-    #define LINEAR_MIN FLOAT_MIN
+    #define LINEAR_MIN 0
     #define LINEAR_MAX FLOAT_MAX
 #elif IS_SCRGB
     #define LINEAR_MIN -0.5
@@ -355,6 +355,10 @@ void PS_Start(PS_ARGS4) {
 
     c = ApplyLinearCurve(c);
 
+    // dither to avoid banding from effects
+    float noise = GetGoldNoise(i.vpos.xy) - 0.5;
+    c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
+
 #if V_ENABLE_LUT
     c = ApplyLUT(c);
 #endif
@@ -375,18 +379,21 @@ void PS_End(PS_ARGS3)
 {
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
 
+    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
+
 #if V_ENABLE_SHARPEN && V_HAS_DEPTH
     c = ApplySharpen(c, CC_IN_SAMP, i.uv);
 #endif
+
+    c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
 #if V_ENABLE_COLOR_GRADING
     c = ApplyColorGrading(c);
 #endif
 
-#if IS_SRGB
-    // clamp before tonemapping
     c = clamp(c, LINEAR_MIN, LINEAR_MAX);
 
+#if IS_SRGB
     c = ApplyLottes(c);
     c = saturate(c);
 #endif
