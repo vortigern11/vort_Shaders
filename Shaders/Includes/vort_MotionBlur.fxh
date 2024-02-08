@@ -90,7 +90,7 @@ void PS_Blur(PS_ARGS3)
 
     // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
-    int half_samples = clamp(floor((center_info.x - 1.0) * 0.5), 2, 16);
+    int half_samples = clamp(floor((center_info.x - 1.0) * 0.5), 2, 8);
     float inv_total_samples = rcp(float(half_samples) * 2.0 + 1.0);
     float2 motion_per_sample = motion * inv_total_samples;
     float rand = Dither(i.vpos.xy, 0.25);
