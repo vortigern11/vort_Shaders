@@ -39,10 +39,11 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define MB_USE_MAX_NEIGH 0
+#define MB_USE_MAX_NEIGH 1
 
 #if MB_USE_MAX_NEIGH
-    #define K ((BUFFER_HEIGHT / 720) * 20)
+    // scale the tile number
+    #define K (BUFFER_HEIGHT / 36)
 #endif
 
 // Converting the samples to HDR and back yields worse results.
