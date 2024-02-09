@@ -571,7 +571,7 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 
 // interleaved gradiant noise from:
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
-float GetInterGradNoise(float2 pos)
+float GetGradNoise(float2 pos)
 {
     return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
 }

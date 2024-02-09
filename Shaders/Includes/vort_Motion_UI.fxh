@@ -52,7 +52,7 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 1.0)
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 0.75)
 #endif
 
 #if V_ENABLE_TAA
@@ -92,21 +92,21 @@ _vort_MotionEffects_Help_,
 
 #if V_MV_MODE == 0
     texture2D MotVectTexVort { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotVectTexVort { Texture = MotVectTexVort; };
+    sampler2D sMotVectTexVort { Texture = MotVectTexVort; SAM_POINT };
 
     #define MV_TEX MotVectTexVort
     #define MV_SAMP sMotVectTexVort
 #elif V_MV_MODE == 1
     namespace Deferred {
         texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
-        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
+        sampler sMotionVectorsTex { Texture = MotionVectorsTex; SAM_POINT };
     }
 
     #define MV_TEX Deferred::MotionVectorsTex
     #define MV_SAMP Deferred::sMotionVectorsTex
 #else
     texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
+    sampler2D sMotionVectorTex { Texture = texMotionVectors; SAM_POINT };
 
     #define MV_TEX texMotionVectors
     #define MV_SAMP sMotionVectorTex
