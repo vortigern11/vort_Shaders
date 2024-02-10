@@ -43,8 +43,6 @@
     #define V_ENABLE_TAA 0
 #endif
 
-#define CAT_MOT "Motion Effects"
-
 #if V_MV_MODE == 0
     #ifndef V_MV_DEBUG
         #define V_MV_DEBUG 0
@@ -52,7 +50,15 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 0.75)
+    #ifndef V_USE_NEW_MB
+        #define V_USE_NEW_MB 1
+    #endif
+#endif
+
+#define CAT_MOT "Motion Effects"
+
+#if V_ENABLE_MOT_BLUR
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Values above 1.0 can be used for testing", 0.0, 1.0, 1.0)
 #endif
 
 #if V_ENABLE_TAA
@@ -77,6 +83,10 @@ _vort_MotionEffects_Help_,
 "Toggle TAA off or on\n"
 "Make sure some type of AA is enabled (like FXAA, SMAA, CMAA, etc.)\n"
 "You could use Marty's iMMERSE_SMAA or LoL's CMAA_2\n"
+"\n"
+"V_USE_NEW_MB - 0 or 1\n"
+"When enabled uses the Jimenez motion blur changes\n"
+"Can cause artifacts around character in certain cases\n"
 "\n"
 "V_HAS_DEPTH - 0 or 1\n"
 "Whether the game has depth (2D or 3D)\n"

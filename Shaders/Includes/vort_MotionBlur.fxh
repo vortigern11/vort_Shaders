@@ -39,6 +39,7 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
+// Toggles the neight max motion gathering logic
 #define MB_USE_MAX_NEIGH 1
 
 #if MB_USE_MAX_NEIGH
@@ -51,8 +52,7 @@ namespace MotBlur {
 
 // The sampling contribution in CoD: AW has more background visibility
 // but it can introduce artifacts due to the guessing of background.
-
-#define MB_USE_NEW_METHOD 0
+// Enabled with V_USE_NEW_MB
 
 /*******************************************************************************
     Textures, Samplers
@@ -87,55 +87,43 @@ void PS_Blur(PS_ARGS3)
     motion = (abs(motion.x) < abs(motion.y)) ? neigh_motion.xy : neigh_motion.zw;
 #endif
 
-    float mpl = length(motion * BUFFER_SCREEN_SIZE);
+    float motion_pix_len = length(motion * BUFFER_SCREEN_SIZE);
 
-    // min 2 pixels motion (1 for each side besides the center)
-    if(mpl < 2.0) discard;
+    // 1 for each side besides the center
+    if(motion_pix_len < 2.0) discard;
+
+    static const int half_samples = 8;
+    static const float inv_samples = rcp(float(half_samples) * 2.0);
+    static const float depth_scale = 1000.0;
 
     // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
-    int half_samples = clamp(floor(center_info.x * 0.5), 1, 10);
-    float inv_half_samples = rcp(float(half_samples));
-    float2 motion_per_sample = motion * inv_half_samples;
-    float rand = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
+    float2 motion_per_sample = motion * inv_samples;
+    float sample_units_scale = float(half_samples) * RCP(motion_pix_len);
+    float sample_dither = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
     float4 color = 0;
-
-    static const float depth_scale = RESHADE_DEPTH_LINEARIZATION_FAR_PLANE;
-
-#if MB_USE_NEW_METHOD
-    float px_to_su_scale = float(half_samples) * RCP(mpl);
-#endif
 
     [loop]for(int j = 0; j < half_samples; j++)
     {
-        float step = float(j) + 0.5 + rand;
+        float step = float(j) + 0.5 + sample_dither;
         float2 offs = motion_per_sample * step;
-
-        // remove artifacts by ensuring offs is min 1 pixel
-        offs.x = offs.x > 0.0 ? max(offs.x, BUFFER_PIXEL_SIZE.x) : min(offs.x, -BUFFER_PIXEL_SIZE.x);
-        offs.y = offs.y > 0.0 ? max(offs.y, BUFFER_PIXEL_SIZE.y) : min(offs.y, -BUFFER_PIXEL_SIZE.y);
 
         float2 sample_uv1 = saturate(i.uv + offs);
         float2 sample_uv2 = saturate(i.uv - offs);
 
+        // x = motion pixel length, y = depth
         float2 sample_info1 = Sample(sInfoTexVort, sample_uv1).xy;
         float2 sample_info2 = Sample(sInfoTexVort, sample_uv2).xy;
 
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.y - center_info.y));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.y - center_info.y));
 
-    #if MB_USE_NEW_METHOD
-        // I have no idea which is the correct approach.
-        // Both don't make sense to me, because I'm 99.9% they would always be 1.0
-
-        float2 spreadcmp1 = saturate((px_to_su_scale * float2(center_info.x, sample_info1.x) - step + 1.0);
-        float2 spreadcmp2 = saturate((px_to_su_scale * float2(center_info.x, sample_info2.x) - step + 1.0);
-
-        /* float offs_len = (step * inv_half_samples) * mpl; */
-        /* float2 spreadcmp1 = saturate(1.0 - offs_len + float2(center_info.x, sample_info1.x)); */
-        /* float2 spreadcmp2 = saturate(1.0 - offs_len + float2(center_info.x, sample_info2.x)); */
+    #if V_USE_NEW_MB
+        step = max(0.0, float(j) - 1.0);
+        float2 spreadcmp1 = saturate(sample_units_scale * float2(center_info.x, sample_info1.x) - step);
+        float2 spreadcmp2 = saturate(sample_units_scale * float2(center_info.x, sample_info2.x) - step);
     #else
-        float offs_len = (step * inv_half_samples) * mpl;
+        float offs_len = max(1.0, step / sample_units_scale);
         float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(center_info.x, sample_info1.x)));
         float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(center_info.x, sample_info2.x)));
     #endif
@@ -143,7 +131,7 @@ void PS_Blur(PS_ARGS3)
         float weight1 = dot(depthcmp1, spreadcmp1);
         float weight2 = dot(depthcmp2, spreadcmp2);
 
-    #if MB_USE_NEW_METHOD
+    #if V_USE_NEW_MB
         // mirror filter to better guess the background
         bool2 mirror = bool2(sample_info1.y > sample_info2.y, sample_info2.x > sample_info1.x);
         weight1 = all(mirror) ? weight2 : weight1;
@@ -154,8 +142,8 @@ void PS_Blur(PS_ARGS3)
         color += float4(SampleLinColor(sample_uv2) * weight2, weight2);
     }
 
-#if MB_USE_NEW_METHOD
-    color *= inv_half_samples * 0.5;
+#if V_USE_NEW_MB
+    color *= inv_samples;
     color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
 #else
     color += float4(SampleLinColor(i.uv), 1.0) * RCP(center_info.x);
