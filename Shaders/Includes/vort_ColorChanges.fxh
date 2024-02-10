@@ -56,8 +56,11 @@
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
-#include "Includes/vort_ACES.fxh"
 #include "Includes/vort_OKColors.fxh"
+
+#if IS_SRGB && V_USE_ACES
+    #include "Includes/vort_ACES.fxh"
+#endif
 
 namespace ColorChanges {
 
