@@ -56,7 +56,7 @@
 #endif
 
 #if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Static AA", "How much to shift every pixel position each frame", 0.0, 1.0, 0.25)
+    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Jitter Amount", "How much to shift every pixel position each frame", 0.0, 1.0, 0.5)
     UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.0, 1.0, 0.5)
 #endif
 

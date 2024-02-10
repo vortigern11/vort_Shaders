@@ -47,9 +47,6 @@ namespace TAA {
     Textures, Samplers
 *******************************************************************************/
 
-texture CurrColorTexVort { TEX_SIZE(0) TEX_RGBA16 };
-sampler sCurrColorTexVort { Texture = CurrColorTexVort; };
-
 texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA8 };
 sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
@@ -90,31 +87,6 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
     return new_c + r;
 }
 
-float MitchellFilter(float x)
-{
-    static const float b = A_THIRD;
-
-    float y = 0.0;
-    float x2 = x * x;
-    float x3 = x * x * x;
-
-    if(x < 1.0)
-    {
-        y = (12.0 - 9.0 * b - 6.0 * b) * x3 +
-            (-18.0 + 12.0 * b + 6.0 * b) * x2 +
-            (6.0 - 2.0 * b);
-    }
-    else if(x <= 2.0)
-    {
-        y = (-b - 6.0 * b) * x3 +
-            (6.0 * b + 30.0 * b) * x2 +
-            (-12.0 * b - 48.0 * b) * x +
-            (8.0 * b + 24.0 * b);
-    }
-
-    return y / 6.0;
-}
-
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -123,10 +95,6 @@ void PS_Main(PS_ARGS4)
 {
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
 
-    // use mitchell filter on the center color
-    static const float init_w = MitchellFilter(0);
-
-    float4 sum_c = float4(curr_c * init_w, init_w);
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
 
@@ -136,11 +104,8 @@ void PS_Main(PS_ARGS4)
     [loop]for(int j = 0; j < 4; j++)
     {
         float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
-        float2 sample_curr_uv = saturate(i.uv + uv_offs);
-        float3 sample_c = RGBToYCoCg(SampleLinColor(sample_curr_uv));
-        float sample_w = MitchellFilter(length(offs[j]));
-
-        sum_c += float4(sample_c * sample_w, sample_w);
+        float2 sample_uv = saturate(i.uv + uv_offs);
+        float3 sample_c = RGBToYCoCg(SampleLinColor(sample_uv));
 
         avg_c += sample_c;
         var_c += sample_c * sample_c;
@@ -150,21 +115,22 @@ void PS_Main(PS_ARGS4)
 
     prev_uv += SampleMotion(prev_uv).xy;
 
-    bool is_first = Sample(sPrevColorTexVort, prev_uv).a < MIN_ALPHA;
+    float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
+
+    bool is_first = prev_info.a < MIN_ALPHA;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
 
     // no prev color yet or motion leads to outside of screen coords
     if(is_first || is_outside_screen) discard;
 
-    float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
     float3 prev_c = RGBToYCoCg(ApplyLinearCurve(prev_info.rgb));
     float prev_a = prev_info.a;
 
-    // try to reduce judder
-    curr_c = sum_c.rgb * RCP(sum_c.w);
-
     avg_c *= inv_samples;
     var_c *= inv_samples;
+
+    // sharpen
+    curr_c += curr_c - avg_c;
 
     float3 sigma = sqrt(abs(var_c - avg_c * avg_c));
     float3 min_c = avg_c - sigma;
@@ -188,7 +154,6 @@ void PS_Main(PS_ARGS4)
 void PS_WritePrevColor(PS_ARGS4)
 {
     float2 new_uv = saturate(i.uv + GetUVJitter().xy);
-
     float4 info = Sample(sColorTexVort, new_uv);
     float3 c = info.rgb;
     float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
