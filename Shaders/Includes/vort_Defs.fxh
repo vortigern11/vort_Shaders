@@ -133,6 +133,10 @@ uniform float timer < source = "timer"; >;
     #define V_HAS_DEPTH 1
 #endif
 
+#ifndef V_USE_ACES
+    #define V_USE_ACES 0
+#endif
+
 #if !IS_SRGB
     #ifndef V_HDR_WHITE_LVL
         #define V_HDR_WHITE_LVL 203
@@ -648,15 +652,17 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
 
 float Dither(float2 vpos, float scale)
 {
-    float2 s = float2(int2(vpos) % 2) * 2.0 - 1.0;
+    float2 s = float2(uint2(vpos) % 2) * 2.0 - 1.0;
 
     return scale * s.x * s.y;
 }
 
 float2 GetHDRRange()
 {
-#if IS_SRGB
-    return float2(0.0, 50.0);
+#if IS_SRGB && V_USE_ACES
+    return float2(FLOAT_MIN, FLOAT_MAX);
+#elif IS_SRGB
+    return float2(0.0, FLOAT_MAX);
 #elif IS_SCRGB
     return float2(-0.5, 10000.0 / V_HDR_WHITE_LVL);
 #elif IS_HDR_PQ

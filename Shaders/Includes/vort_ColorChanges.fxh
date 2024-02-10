@@ -56,6 +56,7 @@
 #include "Includes/vort_HDRTexA.fxh"
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
+#include "Includes/vort_ACES.fxh"
 #include "Includes/vort_OKColors.fxh"
 
 namespace ColorChanges {
@@ -72,11 +73,19 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-#define TO_LOG_CS(_x) LOG2(_x)
-#define TO_LINEAR_CS(_x) exp2(_x)
-#define GET_LUMI(_x) RGBToYCbCrLumi(_x)
-#define LINEAR_MID_GRAY 0.18
-#define LOG_MID_GRAY 0.18
+#if IS_SRGB && V_USE_ACES
+    #define TO_LOG_CS(_x) ACEScgToACEScct(_x)
+    #define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
+    #define GET_LUMI(_x) ACESToLumi(_x)
+    #define LINEAR_MID_GRAY 0.18
+    #define LOG_MID_GRAY ACES_LOG_MID_GRAY
+#else
+    #define TO_LOG_CS(_x) LOG2(_x)
+    #define TO_LINEAR_CS(_x) exp2(_x)
+    #define GET_LUMI(_x) RGBToYCbCrLumi(_x)
+    #define LINEAR_MID_GRAY 0.18
+    #define LOG_MID_GRAY 0.18
+#endif
 
 #define MLUT_TileSizeXY 33
 #define MLUT_TileAmount 33
@@ -174,7 +183,10 @@ float3 ApplyColorGrading(float3 c)
     float contrast = UI_CC_Contrast + 1.0;
     c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
 
-    // Shadows,Midtones,Highlights,Offset in log space
+    // end grading in log space
+    c = TO_LINEAR_CS(c);
+
+    // Shadows,Midtones,Highlights,Offset in linear space
     // My calculations were done in desmos: https://www.desmos.com/calculator/vvur0dzia9
 
     // affect the color and luminance seperately
@@ -199,9 +211,6 @@ float3 ApplyColorGrading(float3 c)
     c = (c >= 0) ? (c * highlights) : c;
     c = c + offset;
     c = (c >= 0 && c <= 1.0) ? POW(c, midtones) : c;
-
-    // end grading in log space
-    c = TO_LINEAR_CS(c);
 
     return c;
 }
@@ -336,10 +345,6 @@ float3 ApplyPalette(float3 c, float2 vpos)
 void PS_Start(PS_ARGS4) {
     float3 c = SampleLinColor(i.uv);
 
-    // dither to avoid banding from effects
-    float noise = GetGoldNoise(i.vpos.xy) - 0.5;
-    c += noise * rcp(exp2(BUFFER_COLOR_BIT_DEPTH) - 1.0);
-
 #if V_ENABLE_LUT
     c = ApplyLUT(c);
 #endif
@@ -348,7 +353,9 @@ void PS_Start(PS_ARGS4) {
     c = ApplyPalette(c, i.vpos.xy);
 #endif
 
-#if IS_SRGB
+#if IS_SRGB && V_USE_ACES
+    c = InverseACESFull(c);
+#elif IS_SRGB
     c = InverseLottes(c);
 #endif
 
@@ -364,17 +371,17 @@ void PS_End(PS_ARGS3)
 
 #if V_ENABLE_SHARPEN && V_HAS_DEPTH
     c = ApplySharpen(c, CC_IN_SAMP, i.uv);
-#endif
-
     c = clamp(c, range.x, range.y);
+#endif
 
 #if V_ENABLE_COLOR_GRADING
     c = ApplyColorGrading(c);
+    c = clamp(c, range.x, range.y);
 #endif
 
-    c = clamp(c, range.x, range.y);
-
-#if IS_SRGB
+#if IS_SRGB && V_USE_ACES
+    c = ApplyACESFull(c);
+#elif IS_SRGB
     c = ApplyLottes(c);
 #endif
 
