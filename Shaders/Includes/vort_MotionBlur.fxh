@@ -62,23 +62,14 @@ texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; SAM_POINT };
 
 #if MB_USE_MAX_NEIGH
-texture2D LeftTileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RGBA16 };
-sampler2D sLeftTileFstTexVort { Texture = LeftTileFstTexVort; SAM_POINT };
+texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RGBA16 };
+sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
 
-texture2D LeftTileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
-sampler2D sLeftTileSndTexVort { Texture = LeftTileSndTexVort; SAM_POINT };
+texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
+sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
 
-texture2D LeftNeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
-sampler2D sLeftNeighMaxTexVort { Texture = LeftNeighMaxTexVort; SAM_POINT };
-
-texture2D RightTileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RGBA16 };
-sampler2D sRightTileFstTexVort { Texture = RightTileFstTexVort; SAM_POINT };
-
-texture2D RightTileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
-sampler2D sRightTileSndTexVort { Texture = RightTileSndTexVort; SAM_POINT };
-
-texture2D RightNeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
-sampler2D sRightNeighMaxTexVort { Texture = RightNeighMaxTexVort; SAM_POINT };
+texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RGBA16 };
+sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 #endif
 
 /*******************************************************************************
@@ -90,18 +81,10 @@ void PS_Blur(PS_ARGS3)
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
 
 #if MB_USE_MAX_NEIGH
-    bool2 signs = bool2(motion.x > 0, motion.y > 0);
+    // .xy is max in "sand clock" direction, .zw is max in "fallen sand clock" direction
+    float4 neigh_motion = Sample(sNeighMaxTexVort, i.uv);
 
-    if (!signs.x)
-    {
-        float4 neigh_motion_l = Sample(sLeftNeighMaxTexVort, i.uv);
-        motion = signs.y ? neigh_motion_l.xy : neigh_motion_l.zw;
-    }
-    else
-    {
-        float4 neigh_motion_r = Sample(sRightNeighMaxTexVort, i.uv);
-        motion = signs.y ? neigh_motion_r.xy : neigh_motion_r.zw;
-    }
+    motion = (abs(motion.x) < abs(motion.y)) ? neigh_motion.xy : neigh_motion.zw;
 #endif
 
     float mpl = length(motion * BUFFER_SCREEN_SIZE);
@@ -195,12 +178,10 @@ void PS_WriteInfo(PS_ARGS2)
 }
 
 #if MB_USE_MAX_NEIGH
-void PS_TileDownHor(in VSOUT i, out PSOUT2 o)
+void PS_TileDownHor(PS_ARGS4)
 {
-    float3 max_motion_tl = 0;
-    float3 max_motion_bl = 0;
-    float3 max_motion_tr = 0;
-    float3 max_motion_br = 0;
+    float3 max_motion_1 = 0;
+    float3 max_motion_2 = 0;
 
     [loop]for(uint x = 0; x < K; x++)
     {
@@ -211,74 +192,56 @@ void PS_TileDownHor(in VSOUT i, out PSOUT2 o)
         float mot_len = length(motion * BUFFER_SCREEN_SIZE);
         motion *= min(mot_len, float(K)) * RCP(mot_len);
 
+        // if there was a circle with it's center at (0, 0),
+        // this check is whether the motion direction is pointing
+        // from 325deg to 45deg or from 225deg to 135deg
+        bool is_sand_clock = abs(motion.x) < abs(motion.y);
         float sq_len = dot(motion, motion);
-        bool2 signs = bool2(motion.x > 0, motion.y > 0);
 
-        if (!signs.x &&  signs.y && sq_len > max_motion_tl.z) max_motion_tl = float3(motion, sq_len);
-        if (!signs.x && !signs.y && sq_len > max_motion_bl.z) max_motion_bl = float3(motion, sq_len);
-        if ( signs.x &&  signs.y && sq_len > max_motion_tr.z) max_motion_tr = float3(motion, sq_len);
-        if ( signs.x && !signs.y && sq_len > max_motion_br.z) max_motion_br = float3(motion, sq_len);
+        if ( is_sand_clock && sq_len > max_motion_1.z) max_motion_1 = float3(motion, sq_len);
+        if (!is_sand_clock && sq_len > max_motion_2.z) max_motion_2 = float3(motion, sq_len);
     }
 
-    o.t0 = float4(max_motion_tl.xy, max_motion_bl.xy);
-    o.t1 = float4(max_motion_tr.xy, max_motion_br.xy);
+    o = float4(max_motion_1.xy, max_motion_2.xy);
 }
 
-void PS_TileDownVert(in VSOUT i, out PSOUT2 o)
+void PS_TileDownVert(PS_ARGS4)
 {
-    float3 max_motion_tl = 0;
-    float3 max_motion_bl = 0;
-    float3 max_motion_tr = 0;
-    float3 max_motion_br = 0;
+    float3 max_motion_1 = 0;
+    float3 max_motion_2 = 0;
 
     [loop]for(uint y = 0; y < K; y++)
     {
         int2 pos = int2(i.vpos.x, floor(i.vpos.y) * K + y);
-        float4 motion_l = Fetch(sLeftTileFstTexVort, pos);
-        float4 motion_r = Fetch(sRightTileFstTexVort, pos);
+        float4 motion_12 = Fetch(sTileFstTexVort, pos);
+        float sq_len_1 = dot(motion_12.xy, motion_12.xy);
+        float sq_len_2 = dot(motion_12.zw, motion_12.zw);
 
-        float sq_len_tl = dot(motion_l.xy, motion_l.xy);
-        float sq_len_bl = dot(motion_l.zw, motion_l.zw);
-        float sq_len_tr = dot(motion_r.xy, motion_r.xy);
-        float sq_len_br = dot(motion_r.zw, motion_r.zw);
-
-        if (sq_len_tl > max_motion_tl.z) max_motion_tl = float3(motion_l.xy, sq_len_tl);
-        if (sq_len_bl > max_motion_bl.z) max_motion_bl = float3(motion_l.zw, sq_len_bl);
-        if (sq_len_tr > max_motion_tr.z) max_motion_tr = float3(motion_r.xy, sq_len_tr);
-        if (sq_len_br > max_motion_br.z) max_motion_br = float3(motion_r.zw, sq_len_br);
+        if (sq_len_1 > max_motion_1.z) max_motion_1 = float3(motion_12.xy, sq_len_1);
+        if (sq_len_2 > max_motion_2.z) max_motion_2 = float3(motion_12.zw, sq_len_2);
     }
 
-    o.t0 = float4(max_motion_tl.xy, max_motion_bl.xy);
-    o.t1 = float4(max_motion_tr.xy, max_motion_br.xy);
+    o = float4(max_motion_1.xy, max_motion_2.xy);
 }
 
-void PS_NeighbourMax(in VSOUT i, out PSOUT2 o)
+void PS_NeighbourMax(PS_ARGS4)
 {
-    float3 max_motion_tl = 0;
-    float3 max_motion_bl = 0;
-    float3 max_motion_tr = 0;
-    float3 max_motion_br = 0;
+    float3 max_motion_1 = 0;
+    float3 max_motion_2 = 0;
 
     [loop]for(int x = -1; x <= 1; x++)
     [loop]for(int y = -1; y <= 1; y++)
     {
         int2 pos = int2(i.vpos.xy) + int2(x, y);
-        float4 motion_l = Fetch(sLeftTileSndTexVort, pos);
-        float4 motion_r = Fetch(sRightTileSndTexVort, pos);
+        float4 motion_12 = Fetch(sTileSndTexVort, pos);
+        float sq_len_1 = dot(motion_12.xy, motion_12.xy);
+        float sq_len_2 = dot(motion_12.zw, motion_12.zw);
 
-        float sq_len_tl = dot(motion_l.xy, motion_l.xy);
-        float sq_len_bl = dot(motion_l.zw, motion_l.zw);
-        float sq_len_tr = dot(motion_r.xy, motion_r.xy);
-        float sq_len_br = dot(motion_r.zw, motion_r.zw);
-
-        if (sq_len_tl > max_motion_tl.z) max_motion_tl = float3(motion_l.xy, sq_len_tl);
-        if (sq_len_bl > max_motion_bl.z) max_motion_bl = float3(motion_l.zw, sq_len_bl);
-        if (sq_len_tr > max_motion_tr.z) max_motion_tr = float3(motion_r.xy, sq_len_tr);
-        if (sq_len_br > max_motion_br.z) max_motion_br = float3(motion_r.zw, sq_len_br);
+        if (sq_len_1 > max_motion_1.z) max_motion_1 = float3(motion_12.xy, sq_len_1);
+        if (sq_len_2 > max_motion_2.z) max_motion_2 = float3(motion_12.zw, sq_len_2);
     }
 
-    o.t0 = float4(max_motion_tl.xy, max_motion_bl.xy);
-    o.t1 = float4(max_motion_tr.xy, max_motion_br.xy);
+    o = float4(max_motion_1.xy, max_motion_2.xy);
 }
 #endif // MB_USE_MAX_NEIGH
 
@@ -288,9 +251,9 @@ void PS_NeighbourMax(in VSOUT i, out PSOUT2 o)
 
 #if MB_USE_MAX_NEIGH
     #define PASS_MOT_BLUR_MAX_NEIGH \
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor;  RenderTarget0 = MotBlur::LeftTileFstTexVort;  RenderTarget1 = MotBlur::RightTileFstTexVort; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget0 = MotBlur::LeftTileSndTexVort;  RenderTarget1 = MotBlur::RightTileSndTexVort; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget0 = MotBlur::LeftNeighMaxTexVort; RenderTarget1 = MotBlur::RightNeighMaxTexVort; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor;  RenderTarget = MotBlur::TileFstTexVort;  } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort;  } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; }
 #else
     #define PASS_MOT_BLUR_MAX_NEIGH
 #endif
