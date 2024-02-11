@@ -39,20 +39,19 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-// Toggles the neight max motion gathering logic
+// Whether to use the new motion blur implementation by Jimenez
+#define MB_USE_NEW_METHOD 1
+
+// Toggles the neigh max motion gathering logic
 #define MB_USE_MAX_NEIGH 1
 
 #if MB_USE_MAX_NEIGH
-    // scale the tile number
-    #define K (BUFFER_HEIGHT / 36)
+    // scale the tile number (20px at 1080p)
+    #define K (BUFFER_HEIGHT / 54)
 #endif
 
 // Converting the samples to HDR and back yields worse results.
 // Bright colors overshadow others and the result seems fake.
-
-// The sampling contribution in CoD: AW has more background visibility
-// but it can introduce artifacts due to the guessing of background.
-// Enabled with V_USE_NEW_MB
 
 /*******************************************************************************
     Textures, Samplers
@@ -79,28 +78,38 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 void PS_Blur(PS_ARGS3)
 {
     float2 motion = SampleMotion(i.uv).xy * UI_MB_Amount;
+    float sample_dither = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
 
 #if MB_USE_MAX_NEIGH
+    // randomize max neighbour lookup near borders to reduce tile visibility
+    float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
+    float2 tile_border_dist = abs(frac(i.vpos.xy * tiles_inv_size) - 0.5) * 2.0;
+
+    // don't randomize dioganally
+    tile_border_dist *= sample_dither < 0.0 ? float2(1.0, 0.0) : float2(0.0, 1.0);
+
+    float rand = GetGoldNoise(i.vpos.xy) - 0.5;
+    float2 tile_uv_offs = (tile_border_dist * tiles_inv_size) * rand;
+
     // .xy is max in "sand clock" direction, .zw is max in "fallen sand clock" direction
-    float4 neigh_motion = Sample(sNeighMaxTexVort, i.uv);
+    float4 neigh_motion = Sample(sNeighMaxTexVort, i.uv + tile_uv_offs);
 
     motion = (abs(motion.x) < abs(motion.y)) ? neigh_motion.xy : neigh_motion.zw;
 #endif
 
-    float motion_pix_len = length(motion * BUFFER_SCREEN_SIZE);
+    float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
 
     // 1 for each side besides the center
-    if(motion_pix_len < 2.0) discard;
+    if(mot_px_len < 2.0) discard;
 
     static const int half_samples = 8;
-    static const float inv_samples = rcp(float(half_samples) * 2.0);
+    static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // x = motion pixel length, y = depth
     float2 center_info = Sample(sInfoTexVort, i.uv).xy;
-    float2 motion_per_sample = motion * inv_samples;
-    float sample_units_scale = float(half_samples) * RCP(motion_pix_len);
-    float sample_dither = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
+    float2 motion_per_sample = motion * inv_half_samples;
+    float sample_units_scale = float(half_samples) * RCP(mot_px_len);
     float4 color = 0;
 
     [loop]for(int j = 0; j < half_samples; j++)
@@ -118,7 +127,7 @@ void PS_Blur(PS_ARGS3)
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.y - center_info.y));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.y - center_info.y));
 
-    #if V_USE_NEW_MB
+    #if MB_USE_NEW_METHOD
         step = max(0.0, float(j) - 1.0);
         float2 spreadcmp1 = saturate(sample_units_scale * float2(center_info.x, sample_info1.x) - step);
         float2 spreadcmp2 = saturate(sample_units_scale * float2(center_info.x, sample_info2.x) - step);
@@ -131,7 +140,7 @@ void PS_Blur(PS_ARGS3)
         float weight1 = dot(depthcmp1, spreadcmp1);
         float weight2 = dot(depthcmp2, spreadcmp2);
 
-    #if V_USE_NEW_MB
+    #if MB_USE_NEW_METHOD
         // mirror filter to better guess the background
         bool2 mirror = bool2(sample_info1.y > sample_info2.y, sample_info2.x > sample_info1.x);
         weight1 = all(mirror) ? weight2 : weight1;
@@ -142,9 +151,9 @@ void PS_Blur(PS_ARGS3)
         color += float4(SampleLinColor(sample_uv2) * weight2, weight2);
     }
 
-#if V_USE_NEW_MB
-    color *= inv_samples;
-    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
+#if MB_USE_NEW_METHOD
+    color *= RCP(color.w); // instead of dividing by total samples, in order to remove artifacts
+    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv); // for when color.w is 0
 #else
     color += float4(SampleLinColor(i.uv), 1.0) * RCP(center_info.x);
     color.rgb *= RCP(color.w);
@@ -155,13 +164,14 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS2)
 {
-    float mot_len = length(SampleMotion(i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
+    float mot_px_len = length(SampleMotion(i.uv).xy * UI_MB_Amount * BUFFER_SCREEN_SIZE);
 
 #if MB_USE_MAX_NEIGH
-    mot_len = min(mot_len, float(K));
+    // limit the motion like in the paper
+    mot_px_len = min(mot_px_len, float(K));
 #endif
 
-    o.x = mot_len;
+    o.x = mot_px_len;
     o.y = GetLinearizedDepth(i.uv);
 }
 
