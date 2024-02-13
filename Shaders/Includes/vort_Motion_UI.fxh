@@ -52,7 +52,7 @@
 #define CAT_MOT "Motion Effects"
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Controls the amount of blur.", 0.0, 1.0, 0.5)
+    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
 #endif
 
 #if V_ENABLE_TAA

@@ -51,5 +51,5 @@ float3 GetScreenSpaceNormal(float2 uv)
     float3 vertNorth = float3(posNorth - 0.5, 1) * GetLinearizedDepth(posNorth);
     float3 vertEast = float3(posEast - 0.5, 1) * GetLinearizedDepth(posEast);
 
-    return NORMALIZE(cross(vertCenter - vertNorth, vertCenter - vertEast)) * 0.5 + 0.5;
+    return NORM(cross(vertCenter - vertNorth, vertCenter - vertEast)) * 0.5 + 0.5;
 }

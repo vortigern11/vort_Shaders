@@ -53,7 +53,7 @@ static const float A_THIRD = 1.0 / 3.0;
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
 #define RSQRT(_x) (RCP(sqrt(_x)))
-#define NORMALIZE(_x) ((_x) * RSQRT(_x))
+#define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
 #define LOG(_x) (log(max(EPSILON, (_x))))
 #define LOG2(_x) (log2(max(EPSILON, (_x))))
 #define LOG10(_x) (log10(max(EPSILON, (_x))))
@@ -260,6 +260,7 @@ uniform float timer < source = "timer"; >;
 #define TEX_RGBA8 Format = RGBA8;
 #define TEX_RGBA16 Format = RGBA16F;
 #define TEX_RGBA32 Format = RGBA32F;
+#define TEX_RGB10A2 Format = RGB10A2;
 #define TEX_R8 Format = R8;
 #define TEX_RG8 Format = RG8;
 #define TEX_R16 Format = R16F;
@@ -561,12 +562,14 @@ float3 SoftLightBlend(float3 a, float3 b)
     return (1.0 - 2.0 * b) * a * a + 2.0 * b * a;
 }
 
+float Max2(float2 f) { return max(f.x, f.y); }
 float Max3(float3 f) { return max(f.x, max(f.y, f.z)); }
 float Max3(float a, float b, float c) { return max(a, max(b, c)); }
 float2 Max3(float2 a, float2 b, float2 c) { return max(a, max(b, c)); }
 float3 Max3(float3 a, float3 b, float3 c) { return max(a, max(b, c)); }
 float4 Max3(float4 a, float4 b, float4 c) { return max(a, max(b, c)); }
 
+float Min2(float2 f) { return min(f.x, f.y); }
 float Min3(float3 f) { return min(f.x, min(f.y, f.z)); }
 float Min3(float a, float b, float c) { return min(a, min(b, c)); }
 float2 Min3(float2 a, float2 b, float2 c) { return min(a, min(b, c)); }
