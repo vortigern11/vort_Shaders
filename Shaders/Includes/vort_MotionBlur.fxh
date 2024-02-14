@@ -78,7 +78,8 @@ float3 GetDilatedMotionAndLen(int2 pos)
     float mot_len = length(motion);
 
     // limit the motion like in the paper
-    float new_mot_len = clamp(mot_len, 0.5, float(K));
+    mot_len = max(mot_len, 0.5);
+    float new_mot_len = min(mot_len, float(K));
     motion *= new_mot_len * RCP(mot_len);
 
     return float3(motion, new_mot_len);
