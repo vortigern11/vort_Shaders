@@ -123,10 +123,10 @@ namespace OKColors
             (-0.0894841775 * a) - (1.2914855480 * b)
         );
 
-        float3 lms_ = 1.0 + S * k_lms;
-        float3 lms = lms_ * (lms_ * lms_);
-        float3 lms_dS = (3.0 * k_lms) * (lms_ * lms_);
-        float3 lms_dS2 = (6.0 * k_lms) * (k_lms * lms_);
+        float3 lms_pre = 1.0 + S * k_lms;
+        float3 lms = lms_pre * (lms_pre * lms_pre);
+        float3 lms_dS = (3.0 * k_lms) * (lms_pre * lms_pre);
+        float3 lms_dS2 = (6.0 * k_lms) * (k_lms * lms_pre);
 
         float f = dot(wlms, lms);
         float f1 = dot(wlms, lms_dS);
@@ -191,10 +191,10 @@ namespace OKColors
             float3 lms_dt = dLC.x + dLC.y * k_lms;
 
             float2 LC = float2(L0 * (1.0 - t) + t * L1, t * C1);
-            float3 lms_ = LC.x + LC.y * k_lms;
-            float3 lms = lms_ * lms_ * lms_;
-            float3 lmsdt = 3 * lms_dt * lms_;
-            float3 lmsdt2 = 6 * lms_dt * lms_dt * lms_;
+            float3 lms_pre = LC.x + LC.y * k_lms;
+            float3 lms = lms_pre * lms_pre * lms_pre;
+            float3 lmsdt = 3 * lms_dt * lms_pre;
+            float3 lmsdt2 = 6 * lms_dt * lms_dt * lms_pre;
 
             float3 rgb = mul(rgb_mat, lms) - 1.0;
             float3 rgb1 = mul(rgb_mat, lmsdt);
@@ -235,32 +235,32 @@ namespace OKColors
     // Returns a smooth approximation of the location of the cusp
     // This polynomial was created by an optimization process
     // It has been designed so that S_mid < S_max and T_mid < T_max
-    float2 GetSTMid(float a_, float b_)
+    float2 GetSTMid(float a_pre, float b_pre)
     {
         float S = 0.11516993 + 1.0 / (
-            +7.44778970 + 4.15901240 * b_
-            + a_ * (-2.19557347 + 1.75198401 * b_
-            + a_ * (-2.13704948 - 10.02301043 * b_
-            + a_ * (-4.24894561 + 5.38770819 * b_ + 4.69891013 * a_
+            +7.44778970 + 4.15901240 * b_pre
+            + a_pre * (-2.19557347 + 1.75198401 * b_pre
+            + a_pre * (-2.13704948 - 10.02301043 * b_pre
+            + a_pre * (-4.24894561 + 5.38770819 * b_pre + 4.69891013 * a_pre
             ))));
 
         float T = 0.11239642 + 1.0 / (
-            +1.61320320 - 0.68124379 * b_
-            + a_ * (+0.40370612 + 0.90148123 * b_
-            + a_ * (-0.27087943 + 0.61223990 * b_
-            + a_ * (+0.00299215 - 0.45399568 * b_ - 0.14661872 * a_
+            +1.61320320 - 0.68124379 * b_pre
+            + a_pre * (+0.40370612 + 0.90148123 * b_pre
+            + a_pre * (-0.27087943 + 0.61223990 * b_pre
+            + a_pre * (+0.00299215 - 0.45399568 * b_pre - 0.14661872 * a_pre
             ))));
 
         return float2(S, T);
     }
 
-    float3 GetCS(float L, float a_, float b_)
+    float3 GetCS(float L, float a_pre, float b_pre)
     {
-        float2 cusp = FindCusp(a_, b_);
+        float2 cusp = FindCusp(a_pre, b_pre);
 
-        float C_max = FindGamutIntersect(a_, b_, L, 1, L, cusp);
+        float C_max = FindGamutIntersect(a_pre, b_pre, L, 1, L, cusp);
         float2 ST_max = ToST(cusp);
-        float2 ST_mid = GetSTMid(a_, b_);
+        float2 ST_mid = GetSTMid(a_pre, b_pre);
         float C_a = 0;
         float C_b = 0;
 
@@ -287,11 +287,11 @@ namespace OKColors
     {
         if (hsl.z == 0.0 || hsl.z == 1.0) return hsl.zzz;
 
-        float a_ = cos(DOUBLE_PI * hsl.x);
-        float b_ = sin(DOUBLE_PI * hsl.x);
+        float a_pre = cos(DOUBLE_PI * hsl.x);
+        float b_pre = sin(DOUBLE_PI * hsl.x);
         float L = InvToe(hsl.z);
 
-        float3 cs = GetCS(L, a_, b_);
+        float3 cs = GetCS(L, a_pre, b_pre);
         float C_0 = cs.x;
         float C_mid = cs.y;
         float C_max = cs.z;
@@ -319,7 +319,7 @@ namespace OKColors
             C = k_0 + t * k_1 / (1.0 - k_2 * t);
         }
 
-        return OKLABToRGB(float3(L, C * a_, C * b_));
+        return OKLABToRGB(float3(L, C * a_pre, C * b_pre));
     }
 
     float3 RGBToOKHSL(float3 rgb)
@@ -327,13 +327,13 @@ namespace OKColors
         float3 lab = RGBToOKLAB(rgb);
 
         float C = sqrt(lab.y * lab.y + lab.z * lab.z);
-        float a_ = lab.y / C;
-        float b_ = lab.z / C;
+        float a_pre = lab.y / C;
+        float b_pre = lab.z / C;
 
         float L = lab.x;
         float h = 0.5 + 0.5 * atan2(-lab.z, -lab.y) / PI;
 
-        float3 cs = GetCS(L, a_, b_);
+        float3 cs = GetCS(L, a_pre, b_pre);
         float C_0 = cs.x;
         float C_mid = cs.y;
         float C_max = cs.z;
@@ -370,10 +370,10 @@ namespace OKColors
 
     float3 OKHSVToRGB(float3 hsv)
     {
-        float a_ = cos(DOUBLE_PI * hsv.x);
-        float b_ = sin(DOUBLE_PI * hsv.x);
+        float a_pre = cos(DOUBLE_PI * hsv.x);
+        float b_pre = sin(DOUBLE_PI * hsv.x);
 
-        float2 cusp = FindCusp(a_, b_);
+        float2 cusp = FindCusp(a_pre, b_pre);
         float2 ST_max = ToST(cusp);
         float S_0 = 0.5;
         float k = 1 - S_0 / ST_max.x;
@@ -395,13 +395,13 @@ namespace OKColors
         C = C * L_new / L;
         L = L_new;
 
-        float3 rgb_scale = OKLABToRGB(float3(L_vt, a_ * C_vt, b_ * C_vt));
+        float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
         float scale_L = pow(rcp(max(EPSILON, Max3(rgb_scale))), A_THIRD);
 
         L = L * scale_L;
         C = C * scale_L;
 
-        return OKLABToRGB(float3(L, C * a_, C * b_));
+        return OKLABToRGB(float3(L, C * a_pre, C * b_pre));
     }
 
     float3 RGBToOKHSV(float3 rgb)
@@ -409,13 +409,13 @@ namespace OKColors
         float3 lab = RGBToOKLAB(rgb);
 
         float C = sqrt(lab.y * lab.y + lab.z * lab.z);
-        float a_ = lab.y / C;
-        float b_ = lab.z / C;
+        float a_pre = lab.y / C;
+        float b_pre = lab.z / C;
 
         float L = lab.x;
         float h = 0.5 + 0.5 * atan2(-lab.z, -lab.y) / PI;
 
-        float2 cusp = FindCusp(a_, b_);
+        float2 cusp = FindCusp(a_pre, b_pre);
         float2 ST_max = ToST(cusp);
         float S_0 = 0.5;
         float k = 1 - S_0 / ST_max.x;
@@ -430,7 +430,7 @@ namespace OKColors
         float C_vt = C_v * L_vt / L_v;
 
         // we can then use these to invert the step that compensates for the toe and the curved top part of the triangle:
-        float3 rgb_scale = OKLABToRGB(float3(L_vt, a_ * C_vt, b_ * C_vt));
+        float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
         float scale_L = pow(rcp(max(EPSILON, Max3(rgb_scale))), A_THIRD);
 
         L = L / scale_L;
