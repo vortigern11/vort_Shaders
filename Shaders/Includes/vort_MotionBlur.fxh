@@ -110,6 +110,7 @@ void PS_Blur(PS_ARGS3)
 
     float2 max_motion = Sample(sNeighMaxTexVort, i.uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
+    float2 max_mot_norm = max_motion * RCP(max_mot_len);
 
 // debug the max neighour tiles
 #if V_ENABLE_MOT_BLUR == 2
@@ -131,15 +132,15 @@ void PS_Blur(PS_ARGS3)
     float2 cen_motion = cen_info.xy * cen_info.w;
 
     // perpendicular to max_motion
-    float2 max_mot_norm = max_motion / max_mot_len;
     float2 wp = max_mot_norm.yx * float2(-1, 1);
 
-    // redirect to point in the same direction as cen_motion
+    // redirect to point in the same general direction as cen_motion
     if(dot(wp, cen_motion) < 0.0) wp = -wp;
 
     // alternative sampling direction
     float2 wc = NORM(lerp(wp, cen_info.xy, saturate((cen_info.w - 0.5) / 1.5)));
 
+    // precalculated weight modifiers
     float wa_max = abs(dot(wc, max_motion));
     float wa_cen = abs(dot(wc, cen_motion));
 
@@ -154,6 +155,7 @@ void PS_Blur(PS_ARGS3)
     {
         // use max motion on even steps, use center motion on odd steps
         float2 m = max_motion; float wa = wa_max;
+
         [flatten]if(j % 2 == 1) { m = cen_motion; wa = wa_cen; }
 
         float step = float(j) + 0.5 + sample_dither;
@@ -212,7 +214,7 @@ void PS_WriteInfo(PS_ARGS4)
     // xy = motion in pixels, z = motion px len
     float3 mot_info = GetDilatedMotionAndLen(i.vpos.xy);
     float motion_len = mot_info.z;
-    float2 motion_norm = mot_info.xy / motion_len;
+    float2 motion_norm = mot_info.xy * RCP(motion_len);
 
     o.xy = motion_norm;
     o.z = GetLinearizedDepth(i.uv);
@@ -262,9 +264,10 @@ void PS_NeighbourMax(PS_ARGS2)
         int2 pos = int2(i.vpos.xy) + int2(x, y);
         float2 motion = Fetch(sTileSndTexVort, pos).xy;
 
-        // if offset and motion are in opposite directions
-        // then the motion is directed at center
-        bool is_mot_in_center_dir = dot(float2(x, y), motion) < 0.0;
+        static const float COS_ANGLE_45 = 0.7071;
+        float2 rev_offs = -float2(x, y);
+        float abs_cos_angle = abs(dot(rev_offs, motion) * RCP(length(rev_offs) * length(motion)));
+        bool is_mot_in_center_dir = abs_cos_angle < COS_ANGLE_45;
         bool is_center = x == 0 && y == 0;
 
         if(is_center || is_mot_in_center_dir)
