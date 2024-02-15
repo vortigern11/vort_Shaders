@@ -145,7 +145,7 @@ void PS_Blur(PS_ARGS3)
     float wa_max = abs(dot(wc, max_motion));
     float wa_cen = abs(dot(wc, cen_motion));
 
-    static const int half_samples = 8;
+    static const int half_samples = 6;
     static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
