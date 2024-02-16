@@ -75,12 +75,11 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 float3 GetDilatedMotionAndLen(int2 pos)
 {
     float2 motion = FetchMotion(pos).xy * MB_MOTION_MOD;
-    float mot_len = length(motion);
 
     // limit the motion like in the paper
-    mot_len = max(mot_len, 0.5);
-    float new_mot_len = min(mot_len, float(K));
-    motion *= new_mot_len * RCP(mot_len);
+    float old_mot_len = max(0.5, length(motion));
+    float new_mot_len = min(old_mot_len, float(K));
+    motion *= new_mot_len * RCP(old_mot_len);
 
     return float3(motion, new_mot_len);
 }
@@ -114,10 +113,10 @@ void PS_Blur(PS_ARGS3)
     float2 max_mot_norm = max_motion * RCP(max_mot_len);
 
 // debug the max neighour tiles
-#if V_ENABLE_MOT_BLUR == 2
+#if V_ENABLE_MOT_BLUR == 99
     if(1) // bypass unreachable code bug
     {
-        o = DebugMotion(max_motion * BUFFER_PIXEL_SIZE);
+        o = DebugMotion(max_motion / MB_MOTION_MOD);
         return;
     }
 #endif
@@ -140,8 +139,8 @@ void PS_Blur(PS_ARGS3)
     float2 wc = NORM(lerp(wp, cen_mot_norm, saturate((cen_info.w - 0.5) / 1.5)));
 
     // precalculated weight modifiers
-    float wa_max = dot(wc, max_mot_norm);
-    float wa_cen = dot(wc, cen_mot_norm);
+    float wa_max = abs(dot(wc, max_mot_norm));
+    float wa_cen = abs(dot(wc, cen_mot_norm));
 
     static const int half_samples = 6;
     static const float inv_half_samples = rcp(float(half_samples));
