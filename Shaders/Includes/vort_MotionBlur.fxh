@@ -43,7 +43,7 @@ namespace MotBlur {
 #define MB_MOTION_MOD (UI_MB_Length * 0.5 * BUFFER_SCREEN_SIZE)
 
 // Whether to use the new motion blur implementation by Jimenez
-#define MB_USE_NEW_METHOD 1
+#define MB_USE_NEW_METHOD 0
 
 // scale the tile number (30px at 1080p)
 #define K (BUFFER_HEIGHT / 36)
