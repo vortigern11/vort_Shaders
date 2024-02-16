@@ -237,7 +237,6 @@ void PS_Motion2(PS_ARGS4) { o = EstimateMotion(i, 2, sMotionTexVortB); }
 void PS_Motion1(PS_ARGS4) { o = EstimateMotion(i, 1, sMotionTexVortB); }
 void PS_Motion0(PS_ARGS4) { o = EstimateMotion(i, 0, sMotionTexVortB); }
 
-// yo dawg I heard you like filtering, so here is a filter on top of the filter :)
 void PS_Filter6(PS_ARGS4) { o = AtrousUpscale(i, 6, sMotionTexVortA); }
 void PS_Filter5(PS_ARGS4) { o = AtrousUpscale(i, 5, sMotionTexVortA); }
 void PS_Filter4(PS_ARGS4) { o = AtrousUpscale(i, 4, sMotionTexVortA); }
@@ -245,14 +244,7 @@ void PS_Filter3(PS_ARGS4) { o = AtrousUpscale(i, 3, sMotionTexVortA); }
 void PS_Filter2(PS_ARGS4) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
 void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
 
-void PS_Debug(PS_ARGS3)
-{
-    float2 motion = Sample(MV_SAMP, i.uv).xy;
-    float angle = atan2(motion.y, motion.x);
-    float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
-
-    o = lerp(0.5, rgb, saturate(length(motion) * 100));
-}
+void PS_Debug(PS_ARGS3) { o = DebugMotion(Sample(MV_SAMP, i.uv).xy); }
 
 /*******************************************************************************
     Passes

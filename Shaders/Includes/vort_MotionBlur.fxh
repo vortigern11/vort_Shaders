@@ -40,7 +40,7 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define MB_MOTION_MOD (UI_MB_Amount * 0.5 * BUFFER_SCREEN_SIZE)
+#define MB_MOTION_MOD (UI_MB_Length * 0.5 * BUFFER_SCREEN_SIZE)
 
 // Whether to use the new motion blur implementation by Jimenez
 #define MB_USE_NEW_METHOD 1
@@ -117,10 +117,7 @@ void PS_Blur(PS_ARGS3)
 #if V_ENABLE_MOT_BLUR == 2
     if(1) // bypass unreachable code bug
     {
-        float2 motion = max_motion * BUFFER_PIXEL_SIZE;
-        float angle = atan2(motion.y, motion.x);
-        float3 rgb = saturate(3 * abs(2 * frac(angle / DOUBLE_PI + float3(0, -1.0/3.0, 1.0/3.0)) - 1) - 1);
-        o = lerp(0.5, rgb, saturate(length(motion) * 100));
+        o = DebugMotion(max_motion * BUFFER_PIXEL_SIZE);
         return;
     }
 #endif
@@ -130,7 +127,8 @@ void PS_Blur(PS_ARGS3)
 
     // xy = normalized motion, z = depth, w = motion px length
     float4 cen_info = Sample(sInfoTexVort, i.uv);
-    float2 cen_motion = cen_info.xy * cen_info.w;
+    float2 cen_mot_norm = cen_info.xy;
+    float2 cen_motion = cen_mot_norm * cen_info.w;
 
     // perpendicular to max_motion
     float2 wp = max_mot_norm.yx * float2(-1, 1);
@@ -139,11 +137,11 @@ void PS_Blur(PS_ARGS3)
     if(dot(wp, cen_motion) < 0.0) wp = -wp;
 
     // alternative sampling direction
-    float2 wc = NORM(lerp(wp, cen_info.xy, saturate((cen_info.w - 0.5) / 1.5)));
+    float2 wc = NORM(lerp(wp, cen_mot_norm, saturate((cen_info.w - 0.5) / 1.5)));
 
     // precalculated weight modifiers
-    float wa_max = abs(dot(wc, max_motion));
-    float wa_cen = abs(dot(wc, cen_motion));
+    float wa_max = dot(wc, max_mot_norm);
+    float wa_cen = dot(wc, cen_mot_norm);
 
     static const int half_samples = 6;
     static const float inv_half_samples = rcp(float(half_samples));
@@ -154,10 +152,11 @@ void PS_Blur(PS_ARGS3)
 
     [loop]for(uint j = 0; j < half_samples; j++)
     {
-        // use max motion on even steps, use center motion on odd steps
-        float2 m = max_motion; float wa = wa_max;
+        // use max motion on even steps
+        float2 m = max_motion; float2 m_n = max_mot_norm; float wa = wa_max;
 
-        [flatten]if(j % 2 == 1) { m = cen_motion; wa = wa_cen; }
+        // use center motion on odd steps
+        [flatten]if(j % 2 == 1) { m = cen_motion; m_n = cen_mot_norm; wa = wa_cen; }
 
         float step = float(j) + 0.5 + sample_dither;
         float2 offs = m * (step * inv_half_samples) * BUFFER_PIXEL_SIZE;
@@ -171,15 +170,15 @@ void PS_Blur(PS_ARGS3)
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
-        float2 w_ab1 = float2(wa, abs(dot(sample_info1.xy, m)));
-        float2 w_ab2 = float2(wa, abs(dot(sample_info2.xy, m)));
+        float2 w_ab1 = float2(wa, abs(dot(sample_info1.xy, m_n)));
+        float2 w_ab2 = float2(wa, abs(dot(sample_info2.xy, m_n)));
 
     #if MB_USE_NEW_METHOD
         step = max(0.0, step - 1.0);
         float2 spreadcmp1 = saturate(sample_units_scale * float2(cen_info.w, sample_info1.w) - step) * w_ab1;
         float2 spreadcmp2 = saturate(sample_units_scale * float2(cen_info.w, sample_info2.w) - step) * w_ab2;
     #else
-        float offs_len = max(1.0, step / sample_units_scale);
+        float offs_len = max(0.0, step - 1.0) / sample_units_scale;
         float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(cen_info.w, sample_info1.w))) * w_ab1;
         float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(cen_info.w, sample_info2.w))) * w_ab2;
     #endif
@@ -188,7 +187,8 @@ void PS_Blur(PS_ARGS3)
         float weight2 = dot(depthcmp2, spreadcmp2);
 
     #if MB_USE_NEW_METHOD
-        // mirror filter to better guess the background
+        // mirrored filter:
+        // extend blur to better mask guessed background
         bool2 mirror = bool2(sample_info1.z > sample_info2.z, sample_info2.w > sample_info1.w);
         weight1 = all(mirror) ? weight2 : weight1;
         weight2 = any(mirror) ? weight2 : weight1;
@@ -199,10 +199,11 @@ void PS_Blur(PS_ARGS3)
     }
 
 #if MB_USE_NEW_METHOD
-    color *= RCP(color.w); // instead of dividing by total samples, in order to remove artifacts
-    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv); // for when color.w is 0
+    color *= inv_half_samples * 0.5;
+    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
 #else
     float cen_weight = (float(half_samples) * 2.0) * RCP(cen_info.w * K);
+
     color += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
     color.rgb *= RCP(color.w);
 #endif

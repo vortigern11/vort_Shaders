@@ -52,7 +52,7 @@
 #define CAT_MOT "Motion Effects"
 
 #if V_ENABLE_MOT_BLUR
-    UI_FLOAT(CAT_MOT, UI_MB_Amount, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
+    UI_FLOAT(CAT_MOT, UI_MB_Length, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
 #endif
 
 #if V_ENABLE_TAA
@@ -130,4 +130,12 @@ float2 FetchMotion(int2 pos)
 
     // negate the random noise
     return motion * (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
+}
+
+float3 DebugMotion(float2 motion)
+{
+    float angle = atan2(motion.y, motion.x);
+    float3 rgb = saturate(3.0 * abs(2.0 * frac(angle / DOUBLE_PI + float3(0.0, -A_THIRD, A_THIRD)) - 1.0) - 1.0);
+
+    return lerp(0.5, rgb, saturate(length(motion) * 100));
 }
