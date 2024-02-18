@@ -71,7 +71,7 @@ void PS_Debug(PS_ARGS4)
     static const int off = 20;
     static const int2 f = int2(BUFFER_SCREEN_SIZE.x * 0.2, BUFFER_SCREEN_SIZE.y * 0.5);
     float2 vpos = i.vpos.xy;
-    float3 max_c = InverseReinhardMax(1.0);
+    float3 max_c = InverseReinhardMax(1.0, 1.02);
     float3 c = 0.0;
 
     float3 colors[4] = {

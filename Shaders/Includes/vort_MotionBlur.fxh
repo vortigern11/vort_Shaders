@@ -75,7 +75,7 @@ float3 GetDilatedMotionAndLen(int2 pos)
     float2 motion = FetchMotion(pos).xy * MB_MOTION_MOD;
 
     // for debugging
-    // motion = float2(-20, 0);
+    /* motion = float2(-20, 0); */
 
     // limit the motion like in the paper
     float old_mot_len = max(0.5, length(motion));
@@ -105,7 +105,7 @@ float3 GetColor(float2 uv)
     float3 c = SampleLinColor(uv);
 
 #if IS_SRGB
-    c = InverseReinhardMax(c);
+    c = InverseReinhardMax(c, 1.5);
 #endif
 
     return c;
@@ -114,7 +114,7 @@ float3 GetColor(float2 uv)
 float3 PutColor(float3 c)
 {
 #if IS_SRGB
-    c = ApplyReinhardMax(c);
+    c = ApplyReinhardMax(c, 1.5);
 #endif
 
     return ApplyGammaCurve(c);
