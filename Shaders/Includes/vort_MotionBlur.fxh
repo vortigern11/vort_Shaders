@@ -42,10 +42,6 @@ namespace MotBlur {
 
 #define MB_MOTION_MOD (UI_MB_Length * 0.5 * BUFFER_SCREEN_SIZE)
 
-// Whether to use the new motion blur implementation by Jimenez
-// Prevents the foreground from leaking in the background
-#define MB_USE_NEW_METHOD 1
-
 // scale the tile number (30px at 1080p)
 #define K (BUFFER_HEIGHT / 36)
 
@@ -158,13 +154,8 @@ void PS_Blur(PS_ARGS3)
         // the `max` is to make sure that the furthest sample still contributes
         float offs_len = max(0.0, step - 1.0) * m.z;
 
-    #if MB_USE_NEW_METHOD
         float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - offs_len);
         float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - offs_len);
-    #else
-        float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(cen_info.x, sample_info1.x)));
-        float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(cen_info.x, sample_info2.x)));
-    #endif
 
         // .x = bg weight, .y = fg weight
         float2 sample_w1 = depthcmp1 * spreadcmp1;
@@ -185,7 +176,6 @@ void PS_Blur(PS_ARGS3)
     // preserve thin features like in the paper
     float cen_weight = saturate(total_samples * RCP(cen_info.x * 40.0));
 
-#if MB_USE_NEW_METHOD
     // add center color to background
     bg_acc += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
     total_samples += 1.0;
@@ -199,14 +189,6 @@ void PS_Blur(PS_ARGS3)
     // fill the missing data with background color
     // instead of center in order to counteract artifacts in some cases
     float3 color = sum_acc.rgb + saturate(1.0 - sum_acc.w) * bg_col;
-#else
-    float4 sum_acc = bg_acc + fg_acc;
-
-    // add center color
-    sum_acc += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
-
-    float3 color = sum_acc.rgb * RCP(sum_acc.w);
-#endif
 
     o = ApplyGammaCurve(color);
 }
