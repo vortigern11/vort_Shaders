@@ -31,7 +31,7 @@
     Functions
 *******************************************************************************/
 
-float3 ApplyLottes(float3 c)
+float3 ApplyReinhardMax(float3 c)
 {
     c = (1.02 * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
     c = saturate(c);
@@ -39,7 +39,7 @@ float3 ApplyLottes(float3 c)
     return c;
 }
 
-float3 InverseLottes(float3 c)
+float3 InverseReinhardMax(float3 c)
 {
     c = saturate(c);
     c = c * RCP(1.02 - Max3(c.r, c.g, c.b));
@@ -47,8 +47,7 @@ float3 InverseLottes(float3 c)
     return c;
 }
 
-// https://www.desmos.com/calculator/mpslmho5wp
-float3 ApplyReinhard(float3 c)
+float3 ApplyReinhardLuma(float3 c)
 {
     c = (1.02 * c) * RCP(1.0 + RGBToYCbCrLumi(c));
     c = saturate(c);
@@ -56,11 +55,26 @@ float3 ApplyReinhard(float3 c)
     return c;
 }
 
-// https://www.desmos.com/calculator/mpslmho5wp
-float3 InverseReinhard(float3 c)
+float3 InverseReinhardLuma(float3 c)
 {
     c = saturate(c);
     c = c * RCP(1.02 - RGBToYCbCrLumi(c));
+
+    return c;
+}
+
+float3 ApplyReinhardAll(float3 c)
+{
+    c = (1.02 * c) * RCP(1.0 + c);
+    c = saturate(c);
+
+    return c;
+}
+
+float3 InverseReinhardAll(float3 c)
+{
+    c = saturate(c);
+    c = c * RCP(1.02 - c);
 
     return c;
 }

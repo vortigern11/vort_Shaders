@@ -359,7 +359,7 @@ void PS_Start(PS_ARGS4) {
 #if IS_SRGB && V_USE_ACES
     c = InverseACESFull(c);
 #elif IS_SRGB
-    c = InverseLottes(c);
+    c = InverseReinhardMax(c);
 #endif
 
     o = float4(c, 1);
@@ -385,7 +385,7 @@ void PS_End(PS_ARGS3)
 #if IS_SRGB && V_USE_ACES
     c = ApplyACESFull(c);
 #elif IS_SRGB
-    c = ApplyLottes(c);
+    c = ApplyReinhardMax(c);
 #endif
 
     o = ApplyGammaCurve(c);
