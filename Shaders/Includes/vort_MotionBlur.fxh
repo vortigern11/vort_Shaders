@@ -43,7 +43,8 @@ namespace MotBlur {
 #define MB_MOTION_MOD (UI_MB_Length * 0.5 * BUFFER_SCREEN_SIZE)
 
 // Whether to use the new motion blur implementation by Jimenez
-#define MB_USE_NEW_METHOD 0
+// Prevents the foreground from leaking in the background
+#define MB_USE_NEW_METHOD 1
 
 // scale the tile number (30px at 1080p)
 #define K (BUFFER_HEIGHT / 36)
@@ -55,7 +56,7 @@ namespace MotBlur {
     Textures, Samplers
 *******************************************************************************/
 
-texture2D InfoTexVort { TEX_SIZE(0) TEX_RGBA16 };
+texture2D InfoTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; SAM_POINT };
 
 texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
@@ -110,116 +111,115 @@ void PS_Blur(PS_ARGS3)
 
     float2 max_motion = Sample(sNeighMaxTexVort, i.uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
-    float2 max_mot_norm = max_motion * RCP(max_mot_len);
 
-// debug the max neighour tiles
-#if V_ENABLE_MOT_BLUR == 99
-    if(1) // bypass unreachable code bug
-    {
-        o = DebugMotion(max_motion / MB_MOTION_MOD);
-        return;
-    }
-#endif
-
-    // 1 for each side besides the center
+    // if there are less than 2 pixels movement, no point to blur
     if(max_mot_len < 2.0) discard;
 
-    // xy = normalized motion, z = depth, w = motion px length
-    float4 cen_info = Sample(sInfoTexVort, i.uv);
-    float2 cen_mot_norm = cen_info.xy;
-    float2 cen_motion = cen_mot_norm * cen_info.w;
+    // x = motion px length, y = depth
+    float2 cen_info = Sample(sInfoTexVort, i.uv).xy;
+    float2 cen_motion = GetDilatedMotionAndLen(i.vpos.xy).xy;
 
-    // perpendicular to max_motion
-    float2 wp = max_mot_norm.yx * float2(-1, 1);
-
-    // redirect to point in the same general direction as cen_motion
-    if(dot(wp, cen_motion) < 0.0) wp = -wp;
-
-    // alternative sampling direction
-    float2 wc = NORM(lerp(wp, cen_mot_norm, saturate((cen_info.w - 0.5) / 1.5)));
-
-    // precalculated weight modifiers
-    float wa_max = abs(dot(wc, max_mot_norm));
-    float wa_cen = abs(dot(wc, cen_mot_norm));
+    // logic from
+    // https://github.com/RomkoSI/G3D/blob/master/data-files/shader/MotionBlur/MotionBlur_gather.pix
+    float2 alt_dir = (cen_motion * RCP(cen_info.x)) * max_mot_len;
+    float2 max_dir = cen_info.x > 5.0 ? alt_dir : max_motion;
+    float2 cen_dir = cen_info.x < 1.5 ? max_motion : alt_dir;
 
     static const int half_samples = 6;
     static const float inv_half_samples = rcp(float(half_samples));
-    static const float depth_scale = 1000.0;
 
-    float sample_units_scale = float(half_samples) * RCP(max_mot_len);
-    float4 color = 0.0;
+    // xy = motion direction, z = px scale
+    float3 even_info = float3(max_dir * BUFFER_PIXEL_SIZE, inv_half_samples * length(max_dir));
+    float3 odd_info = float3(cen_dir * BUFFER_PIXEL_SIZE, inv_half_samples * length(cen_dir));
+
+    float total_samples = float(half_samples) * 2.0;
+    float4 bg_acc = 0.0;
+    float4 fg_acc = 0.0;
 
     [loop]for(uint j = 0; j < half_samples; j++)
     {
-        // use max motion on even steps
-        float2 m = max_motion; float2 m_n = max_mot_norm; float wa = wa_max;
-
-        // use center motion on odd steps
-        [flatten]if(j % 2 == 1) { m = cen_motion; m_n = cen_mot_norm; wa = wa_cen; }
+        // switch between max and center
+        float3 m = even_info;
+        [flatten]if(j % 2 == 1) m = odd_info;
 
         float step = float(j) + 0.5 + sample_dither;
-        float2 offs = m * (step * inv_half_samples) * BUFFER_PIXEL_SIZE;
+        float2 uv_offs = (step * inv_half_samples) * m.xy;
 
-        float2 sample_uv1 = saturate(i.uv + offs);
-        float2 sample_uv2 = saturate(i.uv - offs);
+        float2 sample_uv1 = saturate(i.uv + uv_offs);
+        float2 sample_uv2 = saturate(i.uv - uv_offs);
 
-        float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
-        float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
+        // x = motion px length, y = depth
+        float2 sample_info1 = Sample(sInfoTexVort, sample_uv1).xy;
+        float2 sample_info2 = Sample(sInfoTexVort, sample_uv2).xy;
 
-        float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
-        float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
+        float2 depthcmp1 = saturate(0.5 + float2(1.0, -1.0) * (sample_info1.y - cen_info.y));
+        float2 depthcmp2 = saturate(0.5 + float2(1.0, -1.0) * (sample_info2.y - cen_info.y));
 
-        float2 w_ab1 = float2(wa, abs(dot(sample_info1.xy, m_n)));
-        float2 w_ab2 = float2(wa, abs(dot(sample_info2.xy, m_n)));
+        // the `max` is to make sure that the furthest sample still contributes
+        float offs_len = max(0.0, step - 1.0) * m.z;
 
     #if MB_USE_NEW_METHOD
-        step = max(0.0, step - 1.0);
-        float2 spreadcmp1 = saturate(sample_units_scale * float2(cen_info.w, sample_info1.w) - step) * w_ab1;
-        float2 spreadcmp2 = saturate(sample_units_scale * float2(cen_info.w, sample_info2.w) - step) * w_ab2;
+        float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - offs_len);
+        float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - offs_len);
     #else
-        float offs_len = max(0.0, step - 1.0) / sample_units_scale;
-        float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(cen_info.w, sample_info1.w))) * w_ab1;
-        float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(cen_info.w, sample_info2.w))) * w_ab2;
+        float2 spreadcmp1 = saturate(1.0 - offs_len * RCP(float2(cen_info.x, sample_info1.x)));
+        float2 spreadcmp2 = saturate(1.0 - offs_len * RCP(float2(cen_info.x, sample_info2.x)));
     #endif
 
-        float weight1 = dot(depthcmp1, spreadcmp1);
-        float weight2 = dot(depthcmp2, spreadcmp2);
+        // .x = bg weight, .y = fg weight
+        float2 sample_w1 = depthcmp1 * spreadcmp1;
+        float2 sample_w2 = depthcmp2 * spreadcmp2;
 
-    #if MB_USE_NEW_METHOD
-        // mirrored filter:
-        // extend blur to better mask guessed background
-        bool2 mirror = bool2(sample_info1.z > sample_info2.z, sample_info2.w > sample_info1.w);
-        weight1 = all(mirror) ? weight2 : weight1;
-        weight2 = any(mirror) ? weight2 : weight1;
-    #endif
+        float3 sample_color1 = SampleLinColor(sample_uv1);
+        float3 sample_color2 = SampleLinColor(sample_uv2);
 
-        color += float4(SampleLinColor(sample_uv1) * weight1, weight1);
-        color += float4(SampleLinColor(sample_uv2) * weight2, weight2);
+        // bg/fg for first sample
+        bg_acc += float4(sample_color1, 1.0) * sample_w1.x;
+        fg_acc += float4(sample_color1, 1.0) * sample_w1.y;
+
+        // bg/fg for second sample
+        bg_acc += float4(sample_color2, 1.0) * sample_w2.x;
+        fg_acc += float4(sample_color2, 1.0) * sample_w2.y;
     }
 
-#if MB_USE_NEW_METHOD
-    color *= inv_half_samples * 0.5;
-    color.rgb += (1.0 - color.w) * SampleLinColor(i.uv);
-#else
-    float cen_weight = (float(half_samples) * 2.0) * RCP(cen_info.w * K);
+    // preserve thin features like in the paper
+    float cen_weight = saturate(total_samples * RCP(cen_info.x * 40.0));
 
-    color += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
-    color.rgb *= RCP(color.w);
+#if MB_USE_NEW_METHOD
+    // add center color to background
+    bg_acc += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
+    total_samples += 1.0;
+
+    float3 bg_col = bg_acc.rgb * RCP(bg_acc.w);
+    float4 sum_acc = bg_acc + fg_acc;
+
+    // normalize
+    sum_acc /= total_samples;
+
+    // fill the missing data with background color
+    // instead of center in order to counteract artifacts in some cases
+    float3 color = sum_acc.rgb + saturate(1.0 - sum_acc.w) * bg_col;
+#else
+    float4 sum_acc = bg_acc + fg_acc;
+
+    // add center color
+    sum_acc += float4(SampleLinColor(i.uv), 1.0) * cen_weight;
+
+    float3 color = sum_acc.rgb * RCP(sum_acc.w);
 #endif
 
-    o = ApplyGammaCurve(color.rgb);
+    o = ApplyGammaCurve(color);
 }
 
-void PS_WriteInfo(PS_ARGS4)
+void PS_WriteInfo(PS_ARGS2)
 {
-    // xy = motion in pixels, z = motion px len
-    float3 mot_info = GetDilatedMotionAndLen(i.vpos.xy);
-    float motion_len = mot_info.z;
-    float2 motion_norm = mot_info.xy * RCP(motion_len);
+    static const float depth_scale = 1000.0;
 
-    o.xy = motion_norm;
-    o.z = GetLinearizedDepth(i.uv);
-    o.w = motion_len;
+    float scaled_depth = GetLinearizedDepth(i.uv) * depth_scale;
+    float mot_len = GetDilatedMotionAndLen(i.vpos.xy).z;
+
+    o.x = mot_len;
+    o.y = scaled_depth;
 }
 
 void PS_TileDownHor(PS_ARGS2)
