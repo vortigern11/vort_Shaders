@@ -14,6 +14,7 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
+#include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_BlueNoise.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
@@ -36,10 +37,6 @@ namespace MotVect {
 /*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
-
-// linear color gives worse results, hence:
-texture2D ColorTexVort : COLOR;
-sampler2D sColorTexVort { Texture = ColorTexVort; };
 
 // .x = curr lumi .y = prev lumi
 texture2D FeatureTexVort    { TEX_SIZE(MIN_MIP) TEX_RG8 MipLevels = 1 + MAX_MIP - MIN_MIP; };
@@ -216,7 +213,7 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
 
 void PS_WriteFeature(PS_ARGS2)
 {
-    float3 c = Sample(sColorTexVort, i.uv).rgb;
+    float3 c = SampleGammaColor(i.uv);
 
 #if !IS_SRGB
     float2 range = GetHDRRange();
