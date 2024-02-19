@@ -44,6 +44,8 @@ namespace MotBlur {
 
 // scale the tile number (30px at 1080p)
 #define K (BUFFER_HEIGHT / 36)
+#define TILE_WIDTH  (BUFFER_WIDTH / K)
+#define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
 // Converting the samples to HDR and back yields worse results.
 // Bright colors overshadow others and the result seems fake.
@@ -55,18 +57,29 @@ namespace MotBlur {
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RGBA16 };
 sampler2D sInfoTexVort { Texture = InfoTexVort; SAM_POINT };
 
-texture2D TileFstTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT; TEX_RG16 };
+texture2D TileFstTexVort { Width = TILE_WIDTH; Height = BUFFER_HEIGHT; TEX_RG16 };
 sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
 
-texture2D TileSndTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+texture2D TileSndTexVort { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
 sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
 
-texture2D NeighMaxTexVort { Width = BUFFER_WIDTH / K; Height = BUFFER_HEIGHT / K; TEX_RG16 };
+texture2D NeighMaxTexVort { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 
 /*******************************************************************************
     Functions
 *******************************************************************************/
+
+float3 PutColor(float3 c)
+{
+#if !IS_SRGB
+    float2 range = GetHDRRange();
+
+    c = clamp(c, 0.0, range.y) / range.y;
+#endif
+
+    return ApplyGammaCurve(c);
+}
 
 // motion must be in pixel units
 float3 GetDilatedMotionAndLen(int2 pos)
@@ -211,13 +224,7 @@ void PS_Blur(PS_ARGS3)
     // instead of center in order to counteract artifacts in some cases
     float3 c = sum_acc.rgb + saturate(1.0 - sum_acc.w) * bg_col;
 
-#if !IS_SRGB
-    float2 range = GetHDRRange();
-
-    c = clamp(c, 0.0, range.y) / range.y;
-#endif
-
-    o = ApplyGammaCurve(c);
+    o = PutColor(c);
 }
 
 void PS_WriteInfo(PS_ARGS4)

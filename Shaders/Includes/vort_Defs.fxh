@@ -414,6 +414,17 @@ float3 ApplyGammaCurve(float3 c)
     return c;
 }
 
+float3 ApplyGammaCurveCS(float3 c)
+{
+#if IS_SRGB
+    c = LinToSRGB(c);
+#else
+    c = ApplyGammaCurve(c);
+#endif
+
+    return c;
+}
+
 float RGBToYCbCrLumi(float3 c)
 {
     return dot(c, float3(0.2126, 0.7152, 0.0722));
