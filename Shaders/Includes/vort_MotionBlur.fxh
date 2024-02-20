@@ -32,6 +32,7 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
+#include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
 namespace MotBlur {
@@ -70,12 +71,21 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
     Functions
 *******************************************************************************/
 
+float3 GetColor(float2 uv)
+{
+    float3 c = SampleLinColor(uv);
+
+#if IS_SRGB
+    c = InverseReinhardMax(c, 1.5);
+#endif
+
+    return c;
+}
+
 float3 PutColor(float3 c)
 {
-#if !IS_SRGB
-    float2 range = GetHDRRange();
-
-    c = clamp(c, 0.0, range.y) / range.y;
+#if IS_SRGB
+    c = ApplyReinhardMax(c, 1.5);
 #endif
 
     return ApplyGammaCurve(c);
@@ -193,8 +203,8 @@ void PS_Blur(PS_ARGS3)
         float2 sample_w1 = (depthcmp1 * spreadcmp1) * w_ab1;
         float2 sample_w2 = (depthcmp2 * spreadcmp2) * w_ab2;
 
-        float3 sample_color1 = SampleLinColor(sample_uv1);
-        float3 sample_color2 = SampleLinColor(sample_uv2);
+        float3 sample_color1 = GetColor(sample_uv1);
+        float3 sample_color2 = GetColor(sample_uv2);
 
         // bg/fg for first sample
         bg_acc += float4(sample_color1 * sample_w1.x, sample_w1.x);
@@ -211,7 +221,7 @@ void PS_Blur(PS_ARGS3)
     float cen_weight = saturate(total_samples * RCP(cen_info.w * 40.0));
 
     // add center color to background
-    bg_acc += float4(SampleLinColor(i.uv) * cen_weight, cen_weight);
+    bg_acc += float4(GetColor(i.uv) * cen_weight, cen_weight);
     total_samples += 1.0;
 
     float3 bg_col = bg_acc.rgb * RCP(bg_acc.w);
