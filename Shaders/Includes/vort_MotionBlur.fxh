@@ -137,6 +137,10 @@ void PS_Blur(PS_ARGS3)
     // if there are less than 2 pixels movement, no point to blur
     if(max_mot_len < 2.0) discard;
 
+    static const int half_samples = 6;
+    static const float inv_half_samples = rcp(float(half_samples));
+    static const float depth_scale = 1000.0;
+
     // xy = normalized motion, z = depth, w = motion px length
     float4 cen_info = Sample(sInfoTexVort, i.uv);
     float2 cen_motion = cen_info.xy * cen_info.w;
@@ -156,9 +160,6 @@ void PS_Blur(PS_ARGS3)
     // precalculated weight modifiers
     float wa_max = abs(dot(wc, max_mot_norm));
     float wa_cen = abs(dot(wc, cen_mot_norm));
-
-    static const int half_samples = 6;
-    static const float inv_half_samples = rcp(float(half_samples));
 
     // xy = motion per sample in uv units, zw = normalized motion
     float4 max_main = float4(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE), max_mot_norm);
@@ -187,8 +188,8 @@ void PS_Blur(PS_ARGS3)
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
         float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
 
-        float2 depthcmp1 = saturate(0.5 + float2(1.0, -1.0) * (sample_info1.z - cen_info.z));
-        float2 depthcmp2 = saturate(0.5 + float2(1.0, -1.0) * (sample_info2.z - cen_info.z));
+        float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
+        float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
         // the `max` is to make sure that the furthest sample still contributes
         float offs_len = max(0.0, step - 1.0) * m_others.x;
@@ -239,15 +240,12 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS4)
 {
-    static const float depth_scale = 1000.0;
-
-    float scaled_depth = GetLinearizedDepth(i.uv) * depth_scale;
     float3 mot_info = GetDilatedMotionAndLen(i.vpos.xy);
     float2 mot_norm = mot_info.xy * RCP(mot_info.z);
     float mot_len = mot_info.z;
 
     o.xy = mot_norm;
-    o.z = scaled_depth;
+    o.z = GetLinearizedDepth(i.uv);
     o.w = mot_len;
 }
 
