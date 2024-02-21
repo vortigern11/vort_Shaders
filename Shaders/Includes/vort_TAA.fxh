@@ -37,13 +37,6 @@
 namespace TAA {
 
 /*******************************************************************************
-    Globals
-*******************************************************************************/
-
-#define MIN_ALPHA 0.05
-#define MAX_ALPHA 0.5
-
-/*******************************************************************************
     Textures, Samplers
 *******************************************************************************/
 
@@ -91,7 +84,7 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
     Shaders
 *******************************************************************************/
 
-void PS_Main(PS_ARGS4)
+void PS_Main(PS_ARGS3)
 {
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
 
@@ -117,14 +110,13 @@ void PS_Main(PS_ARGS4)
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
 
-    bool is_first = prev_info.a < MIN_ALPHA;
+    bool is_first = prev_info.a < 0.05;
     bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
 
     // no prev color yet or motion leads to outside of screen coords
     if(is_first || is_outside_screen) discard;
 
     float3 prev_c = RGBToYCoCg(ApplyLinearCurve(prev_info.rgb));
-    float prev_a = prev_info.a;
 
     avg_c *= inv_samples;
     var_c *= inv_samples;
@@ -137,28 +129,17 @@ void PS_Main(PS_ARGS4)
     float3 max_c = avg_c + sigma;
 
     prev_c = ClipToAABB(prev_c, clamp(avg_c, min_c, max_c), avg_c, sigma);
-
-    float alpha = lerp(MIN_ALPHA, MAX_ALPHA, UI_TAA_Alpha);
-
-    alpha = lerp(alpha * frame_time * 0.06, MAX_ALPHA, prev_a * UI_TAA_Alpha);
-
-    curr_c = lerp(prev_c, curr_c, alpha);
-
-    float next_alpha = (length(curr_c - prev_c) + prev_a) * 0.5;
-
+    curr_c = lerp(prev_c, curr_c, UI_TAA_Alpha);
     curr_c = ApplyGammaCurve(YCoCgToRGB(curr_c));
 
-    o = float4(curr_c, next_alpha);
+    o = curr_c;
 }
 
 void PS_WritePrevColor(PS_ARGS4)
 {
     float2 new_uv = saturate(i.uv + GetUVJitter().xy);
-    float4 info = Sample(sColorTexVort, new_uv);
-    float3 c = info.rgb;
-    float a = clamp(info.a, MIN_ALPHA, MAX_ALPHA);
 
-    o = float4(c, a);
+    o = float4(SampleLinColor(new_uv), 1.0);
 }
 
 /*******************************************************************************
