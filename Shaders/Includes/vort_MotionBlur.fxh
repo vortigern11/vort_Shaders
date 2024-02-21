@@ -134,8 +134,7 @@ void PS_Blur(PS_ARGS3)
     float2 max_motion = Sample(sNeighMaxTexVort, i.uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
 
-    // if there are less than 2 pixels movement, no point to blur
-    if(max_mot_len < 2.0) discard;
+    if(max_mot_len < 1.0) discard;
 
     static const int half_samples = 6;
     static const float inv_half_samples = rcp(float(half_samples));
