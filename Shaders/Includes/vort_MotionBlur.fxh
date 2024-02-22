@@ -128,6 +128,11 @@ float2 GetTilesOffs(float2 vpos, bool only_horiz)
 
 void PS_Blur(PS_ARGS3)
 {
+// debug motion vectors
+#if V_ENABLE_MOT_BLUR == 9
+    if(1) { o = DebugMotion(i.uv); return; }
+#endif
+
     float sample_dither = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
     float2 tiles_uv_offs = GetTilesOffs(i.vpos.xy, sample_dither < 0.0);
 

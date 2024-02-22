@@ -86,6 +86,11 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 
 void PS_Main(PS_ARGS3)
 {
+// debug motion vectors
+#if V_ENABLE_TAA == 9
+    if(1) { o = DebugMotion(i.uv); return; }
+#endif
+
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
 
     float3 avg_c = curr_c;
@@ -105,8 +110,12 @@ void PS_Main(PS_ARGS3)
     }
 
     float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
+    float2 motion = SampleMotion(prev_uv).xy;
 
-    prev_uv += SampleMotion(prev_uv).xy;
+    // remove subpixel results
+    motion *= (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
+
+    prev_uv += motion;
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
 

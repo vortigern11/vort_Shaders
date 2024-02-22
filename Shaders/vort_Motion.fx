@@ -47,10 +47,6 @@ technique vort_Motion
 {
     #if V_MV_MODE == 0
         PASS_MV
-
-        #if V_MV_DEBUG
-            PASS_MV_DEBUG
-        #endif
     #endif
 
     #if V_ENABLE_MOT_BLUR

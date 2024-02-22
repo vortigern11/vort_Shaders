@@ -241,14 +241,9 @@ void PS_Filter3(PS_ARGS4) { o = AtrousUpscale(i, 3, sMotionTexVortA); }
 void PS_Filter2(PS_ARGS4) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
 void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
 
-void PS_Debug(PS_ARGS3) { o = DebugMotion(Sample(MV_SAMP, i.uv).xy); }
-
 /*******************************************************************************
     Passes
 *******************************************************************************/
-
-#define PASS_MV_DEBUG \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Debug; }
 
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort;   RenderTargetWriteMask = 1; } \
