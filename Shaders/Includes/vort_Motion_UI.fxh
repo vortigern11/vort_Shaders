@@ -52,7 +52,7 @@
 #define CAT_MOT "Motion Effects"
 
 #if V_ENABLE_MOT_BLUR
-    /* UI_BOOL(CAT_MOT, UI_MB_Debug, "Debug Motion Blur", "", false) */
+    UI_BOOL(CAT_MOT, UI_MB_Debug, "Debug Motion Blur", "", false)
     UI_FLOAT(CAT_MOT, UI_MB_Length, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
 #endif
 

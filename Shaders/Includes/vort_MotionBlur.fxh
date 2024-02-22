@@ -97,7 +97,7 @@ float3 GetDilatedMotionAndLen(int2 pos)
     float2 motion = FetchMotion(pos).xy * MB_MOTION_MOD;
 
     // for debugging
-    /* if(UI_MB_Debug) motion = float2(-20, 0); */
+    if(UI_MB_Debug) motion = float2(K, 0);
 
     // limit the motion like in the paper
     float old_mot_len = max(0.5, length(motion));
@@ -136,7 +136,7 @@ void PS_Blur(PS_ARGS3)
 
     if(max_mot_len < 1.0) discard;
 
-    static const int half_samples = 6;
+    static const int half_samples = 7;
     static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
@@ -190,7 +190,7 @@ void PS_Blur(PS_ARGS3)
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
-        // the `max` is to make sure that the furthest sample still contributes
+        // the `max` is to remove potential artifacts
         float offs_len = max(0.0, step - 1.0) * m_others.x;
 
         float2 spreadcmp1 = saturate(float2(cen_info.w, sample_info1.w) - offs_len);
