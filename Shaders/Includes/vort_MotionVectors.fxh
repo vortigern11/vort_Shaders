@@ -158,7 +158,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     if(mip > 0) mip = WORK_MIP;
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
-    float2 blue_noise = GetBlueNoise(i.vpos.xy).xy;
+    float2 noise = float2(GetGoldNoise(i.vpos.xy), GetGoldNoise(i.vpos.xy + 5.0));
     float center_z = 0;
 
     if (mip == 0)
@@ -173,7 +173,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     [loop]for(int x = -2; x <= 1; x++)
     [loop]for(int y = -2; y <= 1; y++)
     {
-        float2 sample_uv = i.uv + (float2(x, y) + blue_noise) * texelsize;
+        float2 sample_uv = i.uv + (float2(x, y) + noise) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z_c = Sample(sDownDepthTexVort, sample_uv).x;
         float sample_z_p = sample_gbuf.z;
