@@ -147,8 +147,9 @@ void PS_Main(PS_ARGS3)
 void PS_WritePrevColor(PS_ARGS4)
 {
     float2 new_uv = saturate(i.uv + GetUVJitter().xy);
+    float3 color = Sample(sColorTexVort, new_uv).rgb;
 
-    o = float4(SampleLinColor(new_uv), 1.0);
+    o = float4(color, 1.0);
 }
 
 /*******************************************************************************
