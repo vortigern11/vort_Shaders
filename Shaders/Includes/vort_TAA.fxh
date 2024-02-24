@@ -50,26 +50,6 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
     Functions
 *******************************************************************************/
 
-// this is absolutely not the correct way but there is no projection matrix in reshade
-// so some kind of small jitter applied to the uv is better than no jitter at all
-float4 GetUVJitter()
-{
-    static const float2 offs[4] = {
-        float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
-    };
-
-    float4 jitter = 0;
-
-    if(frame_count > 0)
-    {
-        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]);
-        jitter = float4(jitter.xy * BUFFER_PIXEL_SIZE, jitter.zw * BUFFER_PIXEL_SIZE);
-    }
-
-    // reduce jitter to make it unnoticable and to have sharper result
-    return jitter * UI_TAA_Jitter;
-}
-
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
     float3 r = old_c - new_c;
@@ -112,14 +92,7 @@ void PS_Main(PS_ARGS3)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
-    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
-
-    // remove subpixel results
-    motion *= (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
-
-    prev_uv += motion;
-
+    float2 prev_uv = i.uv + Sample(sTAAMVTexVort, i.uv).xy;
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
 
     bool is_first = prev_info.a < 0.05;
@@ -171,8 +144,7 @@ void PS_WriteMV(PS_ARGS2)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
-    float3 color = Sample(sColorTexVort, new_uv).rgb;
+    float3 color = Sample(sColorTexVort, i.uv).rgb;
 
     o = float4(color, 1.0);
 }
