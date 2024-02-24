@@ -40,6 +40,9 @@ namespace TAA {
     Textures, Samplers
 *******************************************************************************/
 
+texture TAAMVTexVort { TEX_SIZE(0) TEX_RG16 };
+sampler sTAAMVTexVort { Texture = TAAMVTexVort; SAM_POINT };
+
 texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA8 };
 sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
@@ -110,7 +113,7 @@ void PS_Main(PS_ARGS3)
     }
 
     float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
-    float2 motion = SampleMotion(prev_uv).xy;
+    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
 
     // remove subpixel results
     motion *= (length(motion * BUFFER_SCREEN_SIZE) > 0.999999);
@@ -144,6 +147,28 @@ void PS_Main(PS_ARGS3)
     o = curr_c;
 }
 
+void PS_WriteMV(PS_ARGS2)
+{
+    // xy = closest uv, z = closest depth
+    float3 closest = float3(i.uv, 1.0);
+
+    // apply min filter to remove some artifacts
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
+    {
+        float2 sample_uv = saturate(i.uv + float2(x, y) * BUFFER_PIXEL_SIZE);
+        float sample_z = GetLinearizedDepth(sample_uv);
+
+        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+    }
+
+    float2 motion = SampleMotion(closest.xy);
+    float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
+
+    // remove subpixel results
+    o.xy = motion * (mot_px_len >= 1.0);
+}
+
 void PS_WritePrevColor(PS_ARGS4)
 {
     float2 new_uv = saturate(i.uv + GetUVJitter().xy);
@@ -157,6 +182,7 @@ void PS_WritePrevColor(PS_ARGS4)
 *******************************************************************************/
 
 #define PASS_TAA \
+    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteMV; RenderTarget = TAA::TAAMVTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; SRGB_WRITE_ENABLE } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; SRGB_WRITE_ENABLE }
 

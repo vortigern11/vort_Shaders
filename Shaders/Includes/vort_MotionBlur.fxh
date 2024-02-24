@@ -92,9 +92,9 @@ float3 PutColor(float3 c)
 }
 
 // motion must be in pixel units
-float3 GetDilatedMotionAndLen(int2 pos)
+float3 GetDilatedMotionAndLen(float2 uv)
 {
-    float2 motion = FetchMotion(pos).xy * MB_MOTION_MOD;
+    float2 motion = SampleMotion(uv).xy * MB_MOTION_MOD;
 
     // for debugging
     if(UI_MB_Debug) motion = float2(K, 0);
@@ -244,13 +244,24 @@ void PS_Blur(PS_ARGS3)
 
 void PS_WriteInfo(PS_ARGS4)
 {
-    float3 mot_info = GetDilatedMotionAndLen(i.vpos.xy);
-    float2 mot_norm = mot_info.xy * RCP(mot_info.z);
-    float mot_len = mot_info.z;
+    // xy = closest uv, z = closest depth
+    float3 closest = float3(i.uv, 1.0);
 
-    o.xy = mot_norm;
-    o.z = GetLinearizedDepth(i.uv);
-    o.w = mot_len;
+    // apply min filter to remove some artifacts
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
+    {
+        float2 sample_uv = saturate(i.uv + float2(x, y) * BUFFER_PIXEL_SIZE);
+        float sample_z = GetLinearizedDepth(sample_uv);
+
+        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+    }
+
+    float3 mot_info = GetDilatedMotionAndLen(closest.xy);
+
+    o.xy = mot_info.xy * RCP(mot_info.z); // closest normalized motion
+    o.z = closest.z; // closest depth
+    o.w = mot_info.z; // closest motion px length
 }
 
 void PS_TileDownHor(PS_ARGS2)
@@ -262,7 +273,7 @@ void PS_TileDownHor(PS_ARGS2)
         int2 pos = int2(floor(i.vpos.x) * K + x, i.vpos.y);
 
         // xy = motion in pixels, z = motion px length
-        float3 mot_info = GetDilatedMotionAndLen(pos);
+        float3 mot_info = GetDilatedMotionAndLen(pos * BUFFER_PIXEL_SIZE);
 
         if(mot_info.z > max_motion.z) max_motion = mot_info;
     }
