@@ -158,7 +158,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     if(mip > 0) mip = WORK_MIP;
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
-    float2 noise = float2(GetGoldNoise(i.vpos.xy), GetGoldNoise(i.vpos.xy + 5.0));
+    float2 noise = GetWhiteNoise(i.vpos.xy).xy;
     float center_z = 0;
 
     if (mip == 0)

@@ -112,7 +112,7 @@ float2 GetTilesOffs(float2 vpos, bool only_horiz)
     // randomize max neighbour lookup near borders to reduce tile visibility
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float2 tile_border_dist = abs(frac(vpos * tiles_inv_size) - 0.5) * 2.0;
-    float rand = GetGoldNoise(vpos) - 0.5;
+    float rand = GetWhiteNoise(vpos).x - 0.5;
 
     // don't randomize diagonally
     tile_border_dist *= only_horiz ? float2(1.0, 0.0) : float2(0.0, 1.0);

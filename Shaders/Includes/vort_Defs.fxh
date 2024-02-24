@@ -594,13 +594,15 @@ float GetGradNoise(float2 pos)
     return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
 }
 
-// https://www.shadertoy.com/view/ltB3zD
-float GetGoldNoise(float2 vpos)
+float3 GetWhiteNoise(float2 vpos)
 {
     float seed = timer * 0.001;
-    float n = frac(tan(length(vpos) * INV_PHI * seed) * vpos.x);
+    float n = frac(tan(length(vpos) * seed) * vpos.x);
 
-    return isnan(n) ? 0.0 : n;
+    // tan can produce NaNs at certain inputs
+    n = isnan(n) ? 0.0 : n;
+
+    return float3(n, frac(n + 0.1), frac(n + 0.3));
 }
 
 float Halton1(uint i, uint b)
