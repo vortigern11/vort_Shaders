@@ -96,7 +96,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float cov_variance = moments_cov - moments_local.x * moments_search.x;
     float best_sim = cov_variance * RSQRT(local_variance * search_variance);
 
-    if(local_variance < exp(-10.0) || best_sim > 0.999999)
+    if(local_variance < exp(-13.0) || best_sim > 0.999999)
         return float4(total_motion, 0, 0);
 
     float randseed = GetR1(GetBlueNoise(i.vpos.xy).x, mip);
