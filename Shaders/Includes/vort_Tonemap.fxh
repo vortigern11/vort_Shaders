@@ -31,50 +31,52 @@
     Functions
 *******************************************************************************/
 
-float3 ApplyReinhardMax(float3 c, float k)
+static const float t_k = 1.05;
+
+float3 ApplyReinhardMax(float3 c)
 {
-    c = (k * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
+    c = (t_k * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
     c = saturate(c);
 
     return c;
 }
 
-float3 InverseReinhardMax(float3 c, float k)
+float3 InverseReinhardMax(float3 c)
 {
     c = saturate(c);
-    c = c * RCP(k - Max3(c.r, c.g, c.b));
+    c = c * RCP(t_k - Max3(c.r, c.g, c.b));
 
     return c;
 }
 
-float3 ApplyReinhardLuma(float3 c, float k)
+float3 ApplyReinhardLuma(float3 c)
 {
-    c = (k * c) * RCP(1.0 + RGBToYCbCrLumi(c));
-    c = saturate(c);
-
-    return c;
-}
-
-float3 InverseReinhardLuma(float3 c, float k)
-{
-    c = saturate(c);
-    c = c * RCP(k - RGBToYCbCrLumi(c));
-
-    return c;
-}
-
-float3 ApplyReinhardAll(float3 c, float k)
-{
-    c = (k * c) * RCP(1.0 + c);
+    c = (t_k * c) * RCP(1.0 + RGBToYCbCrLumi(c));
     c = saturate(c);
 
     return c;
 }
 
-float3 InverseReinhardAll(float3 c, float k)
+float3 InverseReinhardLuma(float3 c)
 {
     c = saturate(c);
-    c = c * RCP(k - c);
+    c = c * RCP(t_k - RGBToYCbCrLumi(c));
+
+    return c;
+}
+
+float3 ApplyReinhardAll(float3 c)
+{
+    c = (t_k * c) * RCP(1.0 + c);
+    c = saturate(c);
+
+    return c;
+}
+
+float3 InverseReinhardAll(float3 c)
+{
+    c = saturate(c);
+    c = c * RCP(t_k - c);
 
     return c;
 }
