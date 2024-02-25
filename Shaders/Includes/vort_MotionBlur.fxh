@@ -141,8 +141,8 @@ void PS_Blur(PS_ARGS3)
 
     if(max_mot_len < 1.0) discard;
 
-    int half_samples = clamp(floor(max_mot_len), 1, 7);
-    float inv_half_samples = rcp(float(half_samples));
+    static const int half_samples = 7;
+    static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // xy = normalized motion, z = depth, w = motion px length
