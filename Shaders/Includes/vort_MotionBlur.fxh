@@ -41,15 +41,10 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define MB_MOTION_MOD (UI_MB_Length * 0.5 * BUFFER_SCREEN_SIZE)
-
 // scale the tile number (30px at 1080p)
 #define K (BUFFER_HEIGHT / 36)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
-
-// Converting the samples to HDR and back yields worse results.
-// Bright colors overshadow others and the result seems fake.
 
 /*******************************************************************************
     Textures, Samplers
@@ -94,10 +89,10 @@ float3 PutColor(float3 c)
 // motion must be in pixel units
 float3 GetDilatedMotionAndLen(float2 uv)
 {
-    float2 motion = SampleMotion(uv).xy * MB_MOTION_MOD;
+    float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
 
     // for debugging
-    if(UI_MB_Debug) motion = float2(K, 0);
+    if(UI_MB_Debug) motion = float2(UI_MB_DebugLen);
 
     // limit the motion like in the paper
     float old_mot_len = max(0.5, length(motion));
@@ -107,19 +102,18 @@ float3 GetDilatedMotionAndLen(float2 uv)
     return float3(motion, new_mot_len);
 }
 
-float2 GetTilesOffs(float2 vpos, bool only_horiz)
+float2 GetTilesUVOffs(float2 vpos, bool only_horiz)
 {
     // randomize max neighbour lookup near borders to reduce tile visibility
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
-    float2 tile_border_dist = abs(frac(vpos * tiles_inv_size) - 0.5) * 2.0;
+    float2 tiles_border_dist = abs(frac(vpos * tiles_inv_size) - 0.5) * 2.0;
     float rand = GetWhiteNoise(vpos).x - 0.5;
 
     // don't randomize diagonally
-    tile_border_dist *= only_horiz ? float2(1.0, 0.0) : float2(0.0, 1.0);
+    tiles_border_dist *= only_horiz ? float2(1.0, 0.0) : float2(0.0, 1.0);
 
-    float2 uv_offset = (tile_border_dist * tiles_inv_size) * rand;
-
-    return uv_offset;
+    // uv offset
+    return (tiles_border_dist * rand) * tiles_inv_size;
 }
 
 /*******************************************************************************
@@ -134,7 +128,7 @@ void PS_Blur(PS_ARGS3)
 #endif
 
     float sample_dither = Dither(i.vpos.xy, 0.25); // -0.25 or 0.25
-    float2 tiles_uv_offs = GetTilesOffs(i.vpos.xy, sample_dither < 0.0);
+    float2 tiles_uv_offs = GetTilesUVOffs(i.vpos.xy, sample_dither < 0.0);
 
     float2 max_motion = Sample(sNeighMaxTexVort, i.uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
@@ -258,10 +252,10 @@ void PS_WriteInfo(PS_ARGS4)
     }
 
     float3 mot_info = GetDilatedMotionAndLen(closest.xy);
+    float2 mot_norm = mot_info.xy * RCP(mot_info.z);
 
-    o.xy = mot_info.xy * RCP(mot_info.z); // closest normalized motion
-    o.z = closest.z; // closest depth
-    o.w = mot_info.z; // closest motion px length
+    // xy = norm motion, z = closest depth, w = motion px len
+    o = float4(mot_norm, closest.z, mot_info.z);
 }
 
 void PS_TileDownHor(PS_ARGS2)
@@ -270,10 +264,10 @@ void PS_TileDownHor(PS_ARGS2)
 
     [loop]for(uint x = 0; x < K; x++)
     {
-        int2 pos = int2(floor(i.vpos.x) * K + x, i.vpos.y);
+        int2 sample_pos = int2(floor(i.vpos.x) * K + x, i.vpos.y);
 
         // xy = motion in pixels, z = motion px length
-        float3 mot_info = GetDilatedMotionAndLen(pos * BUFFER_PIXEL_SIZE);
+        float3 mot_info = GetDilatedMotionAndLen(sample_pos * BUFFER_PIXEL_SIZE);
 
         if(mot_info.z > max_motion.z) max_motion = mot_info;
     }
@@ -287,8 +281,8 @@ void PS_TileDownVert(PS_ARGS2)
 
     [loop]for(uint y = 0; y < K; y++)
     {
-        int2 pos = int2(i.vpos.x, floor(i.vpos.y) * K + y);
-        float2 motion = Fetch(sTileFstTexVort, pos).xy;
+        int2 sample_pos = int2(i.vpos.x, floor(i.vpos.y) * K + y);
+        float2 motion = Fetch(sTileFstTexVort, sample_pos).xy;
         float sq_len = dot(motion.xy, motion.xy);
 
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
@@ -304,8 +298,8 @@ void PS_NeighbourMax(PS_ARGS2)
     [loop]for(int x = -1; x <= 1; x++)
     [loop]for(int y = -1; y <= 1; y++)
     {
-        int2 pos = int2(i.vpos.xy) + int2(x, y);
-        float2 motion = Fetch(sTileSndTexVort, pos).xy;
+        int2 sample_pos = int2(i.vpos.xy) + int2(x, y);
+        float2 motion = Fetch(sTileSndTexVort, sample_pos).xy;
 
         static const float COS_ANGLE_45 = 0.7071;
         float2 rev_offs = -float2(x, y);

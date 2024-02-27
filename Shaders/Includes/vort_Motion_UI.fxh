@@ -47,6 +47,7 @@
 
 #if V_ENABLE_MOT_BLUR
     UI_BOOL(CAT_MOT, UI_MB_Debug, "Debug Motion Blur", "", false)
+    UI_INT2(CAT_MOT, UI_MB_DebugLen, "Debug Motion Blur Length", "", 0, 100, 0)
     UI_FLOAT(CAT_MOT, UI_MB_Length, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
 #endif
 
@@ -126,7 +127,7 @@ float2 SampleMotion(float2 uv)
     return motion;
 }
 
-float2 FetchMotion(int2 pos)
+float2 FetchMotion(float2 pos)
 {
     float2 motion = Fetch(MV_SAMP, pos).xy;
 
