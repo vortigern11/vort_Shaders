@@ -109,9 +109,9 @@ namespace ColorChanges {
 *******************************************************************************/
 
 #if V_ENABLE_SHARPEN
-float3 ApplySharpen(float3 c, sampler samp, float2 uv)
+float3 ApplySharpen(float3 c, float2 uv)
 {
-    float3 blurred = Filter13Taps(uv, samp, 0);
+    float3 blurred = Filter13Taps(CC_IN_SAMP, uv, 0).rgb;
     float3 sharp = GET_LUMI(c - blurred);
     float depth = GetLinearizedDepth(uv);
     float limit = abs(dot(sharp, A_THIRD));
@@ -373,7 +373,7 @@ void PS_End(PS_ARGS3)
     c = clamp(c, range.x, range.y);
 
 #if V_ENABLE_SHARPEN && V_HAS_DEPTH
-    c = ApplySharpen(c, CC_IN_SAMP, i.uv);
+    c = ApplySharpen(c, i.uv);
     c = clamp(c, range.x, range.y);
 #endif
 

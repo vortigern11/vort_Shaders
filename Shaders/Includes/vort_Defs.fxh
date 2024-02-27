@@ -414,7 +414,7 @@ float3 ApplyGammaCurve(float3 c)
     return c;
 }
 
-float3 ApplyGammaCurveCS(float3 c)
+float3 ForceGammaCurve(float3 c)
 {
 #if IS_SRGB
     c = LinToSRGB(c);

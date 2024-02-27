@@ -51,13 +51,13 @@ namespace Bloom {
 
 float4 Downsample(VSOUT i, sampler prev_samp, int prev_mip)
 {
-    return float4(Filter13Taps(i.uv, prev_samp, prev_mip), 1);
+    return float4(Filter13Taps(prev_samp, i.uv, prev_mip).rgb, 1);
 }
 
 float4 UpsampleAndCombine(VSOUT i, sampler prev_samp, sampler curr_samp, int curr_mip)
 {
     float3 curr_color = Sample(curr_samp, i.uv).rgb;
-    float3 prev_color = Filter9Taps(i.uv, prev_samp, curr_mip + 1);
+    float3 prev_color = Filter9Taps(prev_samp, i.uv, curr_mip + 1).rgb;
 
     return float4(lerp(curr_color, prev_color, UI_Bloom_Radius), 1);
 }
