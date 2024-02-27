@@ -39,6 +39,12 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
+#if V_ENABLE_MOT_BLUR
+    #ifndef V_MOT_BLUR_USE_COMPUTE
+        #define V_MOT_BLUR_USE_COMPUTE 0
+    #endif
+#endif
+
 #ifndef V_ENABLE_TAA
     #define V_ENABLE_TAA 0
 #endif
@@ -65,6 +71,10 @@ _vort_MotionEffects_Help_,
 "\n"
 "V_ENABLE_MOT_BLUR - 0 or 1\n"
 "Toggle Motion Blur off or on\n"
+"\n"
+"V_MOT_BLUR_USE_COMPUTE - 0 or 1\n"
+"Toggle use of compute shaders for Motion Blur\n"
+"Can improve performance on newer graphic cards\n"
 "\n"
 "V_ENABLE_TAA - 0 or 1\n"
 "Toggle TAA off or on\n"
