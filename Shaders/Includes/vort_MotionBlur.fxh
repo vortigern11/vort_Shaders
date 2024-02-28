@@ -145,7 +145,7 @@ float4 Calc_Blur(float2 pos)
 
 // debug motion vectors
 #if V_ENABLE_MOT_BLUR == 9
-    if(1) { o = DebugMotion(uv); return; }
+    if(1) { return float4(DebugMotion(uv), 1); }
 #endif
 
     float sample_dither = Dither(pos, 0.25); // -0.25 or 0.25

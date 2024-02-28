@@ -99,8 +99,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     if(local_variance < exp(-13.0) || best_sim > 0.999999)
         return float4(total_motion, 0, 0);
 
-    float randseed = GetR1(GetBlueNoise(i.vpos.xy).x, mip);
-    float2 randdir; sincos(randseed * HALF_PI, randdir.x, randdir.y);
+    // we use 4 samples so we will rotate by 90 degrees to make a full circle
+    // therefore we do sincos(rand * 90deg_to_rad, r.x, r.y)
+    float2 randdir; sincos(GetR1(GetBlueNoise(i.vpos.xy).x, mip) * HALF_PI, randdir.x, randdir.y);
     int searches = mip > 3 ? 4 : 2;
 
     while(searches-- > 0)
@@ -158,7 +159,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     if(mip > 0) mip = WORK_MIP;
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
-    float2 noise = GetWhiteNoise(i.vpos.xy).xy;
+    float2 noise = GetBlueNoise(i.vpos.xy + frame_count % 5).xy;
     float center_z = 0;
 
     if (mip == 0)
