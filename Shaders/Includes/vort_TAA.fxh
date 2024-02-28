@@ -31,6 +31,7 @@
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
+#include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
@@ -49,6 +50,23 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 /*******************************************************************************
     Functions
 *******************************************************************************/
+
+// this is absolutely not the correct way but there is no projection matrix in reshade
+// so some kind of small jitter applied to the uv is better than no jitter at all
+float4 GetUVJitter()
+{
+    static const float2 offs[4] = {
+        float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
+    };
+
+    float4 jitter = 0;
+
+    if(frame_count > 0)
+        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]) * BUFFER_PIXEL_SIZE.xyxy;
+
+    // reduce jitter to make it unnoticable and to have sharper result
+    return jitter * UI_TAA_Jitter;
+}
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
@@ -92,7 +110,11 @@ void PS_Main(PS_ARGS3)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = i.uv + Sample(sTAAMVTexVort, i.uv).xy;
+    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
+    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
+
+    prev_uv += motion;
+
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
 
     bool is_first = prev_info.a < 0.05;
@@ -123,13 +145,15 @@ void PS_Main(PS_ARGS3)
 void PS_WriteMV(PS_ARGS2)
 {
     // xy = closest uv, z = closest depth
-    float3 closest = float3(i.uv, 1.0);
+    float3 closest = float3(i.uv, GetLinearizedDepth(i.uv));
+
+    // instead of using a 3x3 kernel, take just the corners and center
+    static const float2 offs[4] = { float2(-1,-1), float2(-1,1), float2(1,1), float2(1,-1) };
 
     // apply min filter to remove some artifacts
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
+    [loop]for(int j = 0; j < 4; j++)
     {
-        float2 sample_uv = saturate(i.uv + float2(x, y) * BUFFER_PIXEL_SIZE);
+        float2 sample_uv = saturate(i.uv + offs[j] * BUFFER_PIXEL_SIZE);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
@@ -144,7 +168,8 @@ void PS_WriteMV(PS_ARGS2)
 
 void PS_WritePrevColor(PS_ARGS4)
 {
-    float3 color = Sample(sColorTexVort, i.uv).rgb;
+    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
+    float3 color = Sample(sColorTexVort, new_uv).rgb;
 
     o = float4(color, 1.0);
 }
