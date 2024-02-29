@@ -26,6 +26,7 @@
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
+#include "Includes/vort_Depth.fxh"
 
 /*******************************************************************************
     Globals
@@ -33,6 +34,11 @@
 
 #ifndef V_MV_MODE
     #define V_MV_MODE 0
+#endif
+
+#if V_MV_MODE == 4
+    uniform float4x4 matInvViewProj < source = "mat_InvViewProj"; >;
+    uniform float4x4 matPrevViewProj < source = "mat_PrevViewProj"; >;
 #endif
 
 #ifndef V_ENABLE_MOT_BLUR
@@ -64,14 +70,16 @@
 
 UI_HELP(
 _vort_MotionEffects_Help_,
-"V_MV_MODE - [0 - 3]\n"
+"V_MV_MODE - [0 - 4]\n"
 "0 - auto include my motion vectors (highly recommended)\n"
 "1 - manually use iMMERSE motion vectors\n"
 "2 - manually use other motion vectors (qUINT_of, qUINT_motionvectors, DRME, etc.)\n"
 "3 - manually setup in-game's motion vectors using the REST addon\n"
+"4 - same as 3, but it's an Unreal Engine game\n"
 "\n"
 "V_ENABLE_MOT_BLUR - 0 or 1\n"
 "Toggle Motion Blur off or on\n"
+"Set to 9 to debug motion vectors\n"
 "\n"
 "V_MOT_BLUR_USE_COMPUTE - 0 or 1\n"
 "Toggle use of compute shaders for Motion Blur\n"
@@ -79,8 +87,7 @@ _vort_MotionEffects_Help_,
 "\n"
 "V_ENABLE_TAA - 0 or 1\n"
 "Toggle TAA off or on\n"
-"Make sure some type of AA is enabled (like FXAA, SMAA, CMAA, etc.)\n"
-"You could use Marty's iMMERSE_SMAA or LoL's CMAA_2\n"
+"Set to 9 to debug motion vectors\n"
 "\n"
 "V_HAS_DEPTH - 0 or 1\n"
 "Whether the game has depth (2D or 3D)\n"
@@ -114,8 +121,8 @@ _vort_MotionEffects_Help_,
 
     #define MV_TEX texMotionVectors
     #define MV_SAMP sMotionVectorTex
-#elif V_MV_MODE == 3
-    texture2D RESTMVTexVort : MOTIONVECTORS;
+#elif V_MV_MODE > 2
+    texture2D RESTMVTexVort : VELOCITY;
     sampler2D sRESTMVTexVort { Texture = RESTMVTexVort; SAM_POINT };
 
     #define MV_TEX RESTMVTexVort
@@ -126,13 +133,56 @@ _vort_MotionEffects_Help_,
     Functions
 *******************************************************************************/
 
+float2 DecodeVelocity(float2 v, float2 uv)
+{
+// Unreal Engine games
+#if V_MV_MODE == 4
+    // whether there is velocity stored because the object is dynamic
+    // or we have to compute static velocity
+    if(v.x > 0.0)
+    {
+        // uncomment if velocity is stored as uint
+        /* v /= 65535.0; */
+
+        static const float inv_div = 1.0 / (0.499 * 0.5);
+        static const float h = 32767.0 / 65535.0;
+
+        v = (v - h) * inv_div;
+
+        // uncoment if gamma was encoded
+        /* v = (v * abs(v)) * 0.5; */
+    }
+    else
+    {
+        float depth = GetLinearizedDepth(uv);
+        float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
+        float4 curr_clip = float4(curr_screen, depth, 1);
+
+    // maybe switch ?
+        /* float4 r = mul(matInvViewProj, curr_clip); */
+        /* r.xyz *= RCP(r.w); */
+        /* float4 curr_pos = float4(r.xyz, 1); */
+        /* float4 prev_clip = mul(matPrevViewProj, curr_pos); */
+    // alternative
+        float4x4 mat_clip_to_prev_clip = mul(matInvViewProj, matPrevViewProj);
+        float4 prev_clip = mul(curr_clip, mat_clip_to_prev_clip);
+    // end
+
+        float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
+
+        v = curr_screen - prev_screen;
+    }
+#endif
+
+    return v * float2(-0.5, 0.5);
+}
+
 float2 SampleMotion(float2 uv)
 {
     float2 motion = Sample(MV_SAMP, uv).xy;
 
-#if V_MV_MODE == 3
-    // fix the in-game motion vectors
-    motion *= float2(-1,1) * 0.5;
+#if V_MV_MODE > 2
+    motion = DecodeVelocity(motion, uv);
 #endif
 
     return motion;
@@ -142,9 +192,8 @@ float2 FetchMotion(float2 pos)
 {
     float2 motion = Fetch(MV_SAMP, pos).xy;
 
-#if V_MV_MODE == 3
-    // fix the in-game motion vectors
-    motion *= float2(-1,1) * 0.5;
+#if V_MV_MODE > 2
+    motion = DecodeVelocity(motion, pos * BUFFER_PIXEL_SIZE);
 #endif
 
     return motion;
