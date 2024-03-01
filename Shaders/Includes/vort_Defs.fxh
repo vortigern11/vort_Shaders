@@ -277,10 +277,10 @@ uniform float timer < source = "timer"; >;
 struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
 struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
 struct CSIN {
-    uint3 id : SV_DispatchThreadID;
-    uint3 gtid : SV_GroupThreadID;
-    uint3 gid : SV_GroupID;
-    uint gidx : SV_GroupIndex;
+    uint3 id : SV_DispatchThreadID; // range [0 .. groups * threads).xyz
+    uint3 gid : SV_GroupID;         // range [0 .. groups).xyz
+    uint3 tid : SV_GroupThreadID;   // range [0 .. threads).xyz
+    uint gidx : SV_GroupIndex;      // range [0 .. total_threads_amount)
 };
 
 #define PS_ARGS1 in VSOUT i, out float  o : SV_Target0

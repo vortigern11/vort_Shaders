@@ -49,7 +49,8 @@ namespace MotBlur {
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
-#define GS 16 // compute shaders group size
+// compute shaders group size
+#define GS 16 // best performance tested
 
 /*******************************************************************************
     Textures, Samplers
@@ -109,9 +110,9 @@ float3 PutColor(float3 c)
 #endif
 }
 
-// motion must be in pixel units
 float3 GetDilatedMotionAndLen(float2 uv)
 {
+    // motion must be in pixel units
     float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
 
     // for debugging
@@ -154,11 +155,14 @@ float4 Calc_Blur(float2 pos)
     float2 max_motion = Sample(sNeighMaxTexVort, uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
 
+    // early out
     if(max_mot_len < 1.0) return 0;
 
-    static const int half_samples = 7;
-    static const float inv_half_samples = rcp(float(half_samples));
+    int half_samples = clamp(ceil(max_mot_len * 0.5), 3, 7);
+    float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
+
+    float total_samples = float(half_samples) * 2.0;
 
     // xy = normalized motion, z = depth, w = motion px length
     float4 cen_info = Sample(sInfoTexVort, uv);
@@ -234,8 +238,6 @@ float4 Calc_Blur(float2 pos)
         bg_acc += float4(sample_color2 * sample_w2.x, sample_w2.x);
         fg_acc += float4(sample_color2 * sample_w2.y, sample_w2.y);
     }
-
-    float total_samples = float(half_samples) * 2.0;
 
     // preserve thin features like in the paper
     float cen_weight = saturate(total_samples * RCP(cen_info.w * 40.0));
