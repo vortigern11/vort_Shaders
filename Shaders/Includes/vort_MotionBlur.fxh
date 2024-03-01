@@ -125,15 +125,15 @@ float3 GetDilatedMotionAndLen(float2 uv)
     return float3(motion, new_mot_len);
 }
 
-float2 GetTilesUVOffs(float2 vpos, bool only_horiz)
+float2 GetTilesUVOffs(float2 pos)
 {
     // randomize max neighbour lookup near borders to reduce tile visibility
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
-    float2 tiles_border_dist = abs(frac(vpos * tiles_inv_size) - 0.5) * 2.0;
-    float rand = GetWhiteNoise(vpos).x - 0.5;
+    float2 tiles_border_dist = abs(frac(pos * tiles_inv_size) - 0.5) * 2.0;
+    float rand = GetWhiteNoise(pos).x - 0.5;
 
     // don't randomize diagonally
-    tiles_border_dist *= only_horiz ? float2(1.0, 0.0) : float2(0.0, 1.0);
+    tiles_border_dist *= rand < 0.0 ? float2(1.0, 0.0) : float2(0.0, 1.0);
 
     // uv offset
     return (tiles_border_dist * rand) * tiles_inv_size;
@@ -148,8 +148,8 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(uv), 1); }
 #endif
 
-    float sample_dither = Dither(pos, 0.25); // -0.25 or 0.25
-    float2 tiles_uv_offs = GetTilesUVOffs(pos, sample_dither < 0.0);
+    float2 sample_dither = Dither(pos, 0.25) * float2(1, -1); // -0.25 or 0.25
+    float2 tiles_uv_offs = GetTilesUVOffs(pos);
 
     float2 max_motion = Sample(sNeighMaxTexVort, uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
@@ -197,11 +197,13 @@ float4 Calc_Blur(float2 pos)
         float4 m_main = max_main; float2 m_others = max_others;
         [flatten]if(j % 2 == 1) { m_main = cen_main; m_others = cen_others; }
 
-        float step = float(j) + 0.5 + sample_dither;
-        float2 uv_offs = step * m_main.xy;
+        // negated dither in the second direction
+        // to remove the otherwise visible gap
+        float2 step = float(j) + 0.5 + sample_dither;
+        float4 uv_offs = step.xxyy * m_main.xyxy;
 
-        float2 sample_uv1 = saturate(uv + uv_offs);
-        float2 sample_uv2 = saturate(uv - uv_offs);
+        float2 sample_uv1 = saturate(uv + uv_offs.xy);
+        float2 sample_uv2 = saturate(uv - uv_offs.zw);
 
         // xy = normalized motion, z = depth, w = motion px length
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
@@ -211,10 +213,8 @@ float4 Calc_Blur(float2 pos)
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
         // the `max` is to remove potential artifacts
-        float offs_len = max(0.0, step - 1.0) * m_others.x;
-
-        float2 spreadcmp1 = saturate(float2(cen_info.w, sample_info1.w) - offs_len);
-        float2 spreadcmp2 = saturate(float2(cen_info.w, sample_info2.w) - offs_len);
+        float2 spreadcmp1 = saturate(float2(cen_info.w, sample_info1.w) - max(0.0, step.x - 1.0) * m_others.x);
+        float2 spreadcmp2 = saturate(float2(cen_info.w, sample_info2.w) - max(0.0, step.y - 1.0) * m_others.x);
 
         float2 w_ab1 = float2(m_others.y, abs(dot(sample_info1.xy, m_main.zw)));
         float2 w_ab2 = float2(m_others.y, abs(dot(sample_info2.xy, m_main.zw)));
