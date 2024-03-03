@@ -31,7 +31,7 @@
     Functions
 *******************************************************************************/
 
-static const float t_k = 1.05;
+static const float t_k = 1.04;
 
 float3 ApplyReinhardMax(float3 c)
 {

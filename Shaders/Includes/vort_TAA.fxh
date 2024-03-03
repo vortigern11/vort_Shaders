@@ -145,15 +145,13 @@ void PS_Main(PS_ARGS3)
 void PS_WriteMV(PS_ARGS2)
 {
     // xy = closest uv, z = closest depth
-    float3 closest = float3(i.uv, GetLinearizedDepth(i.uv));
-
-    // instead of using a 3x3 kernel, take just the corners and center
-    static const float2 offs[4] = { float2(-1,-1), float2(-1,1), float2(1,1), float2(1,-1) };
+    float3 closest = float3(i.uv, 1.0);
 
     // apply min filter to remove some artifacts
-    [loop]for(int j = 0; j < 4; j++)
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
     {
-        float2 sample_uv = saturate(i.uv + offs[j] * BUFFER_PIXEL_SIZE);
+        float2 sample_uv = saturate(i.uv + float2(x,y) * BUFFER_PIXEL_SIZE);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);

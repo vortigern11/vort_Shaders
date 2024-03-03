@@ -63,22 +63,16 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
     uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = rcp(tex2Dsize(sFeatureTexVort, feature_mip));
 
-    static const int block_area = 9;
-    static const float inv_block_area = 1.0 / float(block_area);
-    static const float2 block_offs[9] =
-    {
-        float2(0,  0),
-        float2(0, -1), float2(0, 1), float2(-1, 0), float2(1, 0),
-        float2(-1, -1), float2(1, 1), float2(-1, 1), float2(1, -1)
-    };
+    static const float inv_block_area = 1.0 / 9.0;
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float moments_cov = 0;
 
-    [loop]for(uint k = 0; k < block_area; k++)
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
     {
-        float2 tuv = i.uv + block_offs[k] * texelsize;
+        float2 tuv = i.uv + float2(x,y) * texelsize;
         float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
         float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion), feature_mip).y;
 
@@ -119,9 +113,10 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             moments_search = 0;
             moments_cov = 0;
 
-            [loop]for(uint k = 0; k < block_area; k++)
+            [loop]for(int x = -1; x <= 1; x++)
+            [loop]for(int y = -1; y <= 1; y++)
             {
-                float2 tuv = i.uv + block_offs[k] * texelsize;
+                float2 tuv = i.uv + float2(x,y) * texelsize;
                 float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
                 float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion + search_offset), feature_mip).y;
 
@@ -167,7 +162,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     else
         center_z = Sample(sDownDepthTexVort, i.uv).x;
 
-    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 400.0;
+    float wm_mult = (1080.0 * BUFFER_RCP_HEIGHT) * 500.0;
     float wsum = 0.001;
     float4 gbuffer = 0;
 

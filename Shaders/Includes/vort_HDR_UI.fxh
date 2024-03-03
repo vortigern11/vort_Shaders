@@ -57,13 +57,6 @@
     #endif
 #endif
 
-/* #if IS_SRGB */
-/*     #define CAT_TONEMAP "Tonemapping" */
-
-/*     UI_LIST(CAT_TONEMAP, UI_CC_Tonemapper, "Tonemapper", "Which tonemapper to use", "Lottes\0ACES\0", 1) */
-/*     UI_FLOAT(CAT_TONEMAP, UI_CC_Exposure, "Exposure", "Used instead of inverse tonemapper is some cases", 0.0, 8.0, 4.0) */
-/* #endif */
-
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
 
@@ -84,7 +77,7 @@
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.02)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.1)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.7)
 #endif
 

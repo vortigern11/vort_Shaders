@@ -158,11 +158,9 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    int half_samples = clamp(ceil(max_mot_len * 0.5), 3, 7);
-    float inv_half_samples = rcp(float(half_samples));
+    static const int half_samples = 6;
+    static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
-
-    float total_samples = float(half_samples) * 2.0;
 
     // xy = normalized motion, z = depth, w = motion px length
     float4 cen_info = Sample(sInfoTexVort, uv);
@@ -239,6 +237,8 @@ float4 Calc_Blur(float2 pos)
         fg_acc += float4(sample_color2 * sample_w2.y, sample_w2.y);
     }
 
+    float total_samples = float(half_samples) * 2.0;
+
     // preserve thin features like in the paper
     float cen_weight = saturate(total_samples * RCP(cen_info.w * 40.0));
 
@@ -264,15 +264,13 @@ float4 Calc_WriteInfo(float2 pos)
     float2 uv = pos * BUFFER_PIXEL_SIZE;
 
     // xy = closest uv, z = closest depth
-    float3 closest = float3(uv, GetLinearizedDepth(uv));
-
-    // instead of using a 3x3 kernel, take just the corners and center
-    static const float2 offs[4] = { float2(-1,-1), float2(-1,1), float2(1,1), float2(1,-1) };
+    float3 closest = float3(uv, 1.0);
 
     // apply min filter to remove some artifacts
-    [loop]for(int j = 0; j < 4; j++)
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
     {
-        float2 sample_uv = saturate(uv + offs[j] * BUFFER_PIXEL_SIZE);
+        float2 sample_uv = saturate(uv + float2(x,y) * BUFFER_PIXEL_SIZE);
         float sample_z = GetLinearizedDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
