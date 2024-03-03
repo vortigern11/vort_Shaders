@@ -170,6 +170,13 @@ float3 ApplyColorGrading(float3 c)
     // color filter
     c *= UI_CC_ColorFilter;
 
+    // RGB(channel) mixer
+    c = float3(
+        dot(c.rgb, UI_CC_RGBMixerRed.rgb * 4.0 - 2.0),
+        dot(c.rgb, UI_CC_RGBMixerGreen.rgb * 4.0 - 2.0),
+        dot(c.rgb, UI_CC_RGBMixerBlue.rgb * 4.0 - 2.0)
+    );
+
     // saturation
     float lumi = GET_LUMI(c);
     c = lerp(lumi.xxx, c, UI_CC_Saturation + 1.0);
