@@ -33,10 +33,14 @@
 *******************************************************************************/
 
 #ifndef V_MV_MODE
-    #define V_MV_MODE 0
+    #define V_MV_MODE 1
 #endif
 
-#if V_MV_MODE == 4
+#ifndef V_MV_USE_REST
+    #define V_MV_USE_REST 0
+#endif
+
+#if V_MV_USE_REST == 2
     uniform float4x4 matInvViewProj < source = "mat_InvViewProj"; >;
     uniform float4x4 matPrevViewProj < source = "mat_PrevViewProj"; >;
 #endif
@@ -70,12 +74,17 @@
 
 UI_HELP(
 _vort_MotionEffects_Help_,
-"V_MV_MODE - [0 - 4]\n"
-"0 - auto include my motion vectors (highly recommended)\n"
-"1 - manually use iMMERSE motion vectors\n"
-"2 - manually use other motion vectors (qUINT_of, qUINT_motionvectors, DRME, etc.)\n"
-"3 - manually setup in-game's motion vectors using the REST addon\n"
-"4 - same as 3, but it's an Unreal Engine game\n"
+"V_MV_MODE - [0 - 3]\n"
+"0 - don't calculate motion vectors\n"
+"1 - auto include my motion vectors (highly recommended)\n"
+"2 - manually use iMMERSE motion vectors\n"
+"3 - manually use other motion vectors (qUINT_of, qUINT_motionvectors, DRME, etc.)\n"
+"\n"
+"V_MV_USE_REST - [0 - 3]\n"
+"0 - don't use REST addon for access to game's velocity\n"
+"1 - use REST addon to get game's velocity\n"
+"2 - use REST addon to get game's velocity in Unreal Engine games\n"
+"3 - use REST addon to get only dynamic objects' velocity in Unreal Engine games\n"
 "\n"
 "V_ENABLE_MOT_BLUR - 0 or 1\n"
 "Toggle Motion Blur off or on\n"
@@ -101,13 +110,13 @@ _vort_MotionEffects_Help_,
     Textures, Samplers
 *******************************************************************************/
 
-#if V_MV_MODE == 0
+#if V_MV_MODE == 1
     texture2D MotVectTexVort { TEX_SIZE(0) TEX_RG16 };
     sampler2D sMotVectTexVort { Texture = MotVectTexVort; SAM_POINT };
 
     #define MV_TEX MotVectTexVort
     #define MV_SAMP sMotVectTexVort
-#elif V_MV_MODE == 1
+#elif V_MV_MODE == 2
     namespace Deferred {
         texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
         sampler sMotionVectorsTex { Texture = MotionVectorsTex; SAM_POINT };
@@ -115,28 +124,30 @@ _vort_MotionEffects_Help_,
 
     #define MV_TEX Deferred::MotionVectorsTex
     #define MV_SAMP Deferred::sMotionVectorsTex
-#elif V_MV_MODE == 2
+#elif V_MV_MODE == 3
     texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
     sampler2D sMotionVectorTex { Texture = texMotionVectors; SAM_POINT };
 
     #define MV_TEX texMotionVectors
     #define MV_SAMP sMotionVectorTex
-#elif V_MV_MODE > 2
+#endif
+
+#if V_MV_USE_REST > 0
     texture2D RESTMVTexVort : VELOCITY;
     sampler2D sRESTMVTexVort { Texture = RESTMVTexVort; SAM_POINT };
-
-    #define MV_TEX RESTMVTexVort
-    #define MV_SAMP sRESTMVTexVort
 #endif
 
 /*******************************************************************************
     Functions
 *******************************************************************************/
 
-float2 DecodeVelocity(float2 v, float2 uv)
+#if V_MV_USE_REST > 0
+float2 DecodeVelocity(float2 alt_motion, float2 uv)
 {
+    float2 v = Sample(sRESTMVTexVort, uv).xy;
+
 // Unreal Engine games
-#if V_MV_MODE == 4
+#if V_MV_USE_REST > 1
     // whether there is velocity stored because the object is dynamic
     // or we have to compute static velocity
     if(v.x > 0.0)
@@ -151,9 +162,13 @@ float2 DecodeVelocity(float2 v, float2 uv)
 
         // uncoment if gamma was encoded
         /* v = (v * abs(v)) * 0.5; */
+
+        // normalize
+        v *= float2(-0.5, 0.5);
     }
     else
     {
+    #if V_MV_USE_REST == 2
         float depth = GetLinearizedDepth(uv);
         float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
         float4 curr_clip = float4(curr_screen, depth, 1);
@@ -171,29 +186,33 @@ float2 DecodeVelocity(float2 v, float2 uv)
         float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
 
         v = curr_screen - prev_screen;
-    }
-#endif
 
+        // normalize
+        v *= float2(-0.5, 0.5);
+    #else
+        // finding game's matrices is annoying, instead just use the calculated
+        // motion vectors for static objects
+        v = alt_motion;
+    #endif
+    }
+
+    return v;
+#else
     return v * float2(-0.5, 0.5);
+#endif
 }
+#endif
 
 float2 SampleMotion(float2 uv)
 {
-    float2 motion = Sample(MV_SAMP, uv).xy;
+    float2 motion = 0;
 
-#if V_MV_MODE > 2
-    motion = DecodeVelocity(motion, uv);
+#ifdef MV_SAMP
+    motion = Sample(MV_SAMP, uv).xy;
 #endif
 
-    return motion;
-}
-
-float2 FetchMotion(float2 pos)
-{
-    float2 motion = Fetch(MV_SAMP, pos).xy;
-
-#if V_MV_MODE > 2
-    motion = DecodeVelocity(motion, pos * BUFFER_PIXEL_SIZE);
+#if V_MV_USE_REST > 0
+    motion = DecodeVelocity(motion, uv);
 #endif
 
     return motion;

@@ -27,7 +27,7 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
-#if V_MV_MODE == 0
+#if V_MV_MODE == 1
     #include "Includes/vort_MotionVectors.fxh"
 #endif
 
@@ -45,7 +45,7 @@
 
 technique vort_Motion
 {
-    #if V_MV_MODE == 0
+    #if V_MV_MODE == 1
         PASS_MV
     #endif
 
