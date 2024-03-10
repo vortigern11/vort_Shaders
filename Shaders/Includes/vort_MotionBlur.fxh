@@ -44,8 +44,8 @@ namespace MotBlur {
 // older graphics cards get worse performance
 #define MB_USE_COMPUTE CAN_COMPUTE && V_MOT_BLUR_USE_COMPUTE
 
-// scale the tile number (30px at 1080p)
-#define K (BUFFER_HEIGHT / 36)
+// scale the tile number (40px at 1080p)
+#define K (BUFFER_HEIGHT / 27)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
@@ -177,8 +177,8 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    static const int half_samples = 6;
-    static const float inv_half_samples = rcp(float(half_samples));
+    int half_samples = clamp(floor(max_mot_len * 0.5), 2, 8);
+    float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // x = motion px len, y = motion angle, z = closest depth
