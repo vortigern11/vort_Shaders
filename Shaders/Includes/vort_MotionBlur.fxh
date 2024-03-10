@@ -126,6 +126,25 @@ float3 GetDilatedMotionAndLen(float2 uv)
     return float3(motion, new_mot_len);
 }
 
+float GetDirWeight(float angle1, float angle2)
+{
+    float rel_angle = abs(angle1 - angle2);
+
+    if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
+
+    // max angle is currently around 18 degrees
+    // PI can be substituted with value between 2.0 and 4.0
+    return saturate(1.0 - PI * rel_angle);
+}
+
+float2 DecodeLenAndAngle(float2 xy)
+{
+    float len = (xy.x - 0.5) * 2.0 * float(K);
+    float angle = (xy.y - 0.5) * DOUBLE_PI;
+
+    return float2(len, angle);
+}
+
 float2 GetTilesUVOffs(float2 pos)
 {
     // randomize max neighbour lookup near borders to reduce tile visibility
@@ -162,33 +181,20 @@ float4 Calc_Blur(float2 pos)
     static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
-    // xy = normalized motion, z = depth, w = motion px length
+    // x = motion px len, y = motion angle, z = closest depth
     float4 cen_info = Sample(sInfoTexVort, uv);
-    float2 cen_motion = cen_info.xy * cen_info.w;
+    float2 cen_motion = GetDilatedMotionAndLen(uv).xy;
 
-    float2 max_mot_norm = max_motion * RCP(max_mot_len);
-    float2 cen_mot_norm = cen_info.xy;
+    // reverse transforms
+    cen_info.xy = DecodeLenAndAngle(cen_info.xy);
 
-    // perpendicular to max_motion
-    float2 wp = max_mot_norm.yx * float2(-1, 1);
+    // xy = motion per sample in uv units, z = motion angle
+    float3 max_main = float3(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE), atan2(max_motion.y, max_motion.x));
+    float3 cen_main = float3(inv_half_samples * (cen_motion * BUFFER_PIXEL_SIZE), cen_info.y);
 
-    // redirect if necessary
-    if(dot(wp, cen_info.xy) < 0.0) wp = -wp;
-
-    // alternative sampling direction
-    float2 wc = NORM(lerp(wp, cen_mot_norm, saturate((cen_info.w - 0.5) / 1.5)));
-
-    // precalculated weight modifiers
-    float wa_max = abs(dot(wc, max_mot_norm));
-    float wa_cen = abs(dot(wc, cen_mot_norm));
-
-    // xy = motion per sample in uv units, zw = normalized motion
-    float4 max_main = float4(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE), max_mot_norm);
-    float4 cen_main = float4(inv_half_samples * (cen_motion * BUFFER_PIXEL_SIZE), cen_mot_norm);
-
-    // x = step to pixels scale, y = wa
-    float2 max_others = float2(inv_half_samples * max_mot_len, wa_max);
-    float2 cen_others = float2(inv_half_samples * cen_info.w, wa_cen);
+    // x = step to pixels scale, y = center dir weight
+    float2 max_others = float2(inv_half_samples * max_mot_len, GetDirWeight(max_main.z, cen_main.z));
+    float2 cen_others = float2(inv_half_samples * cen_info.x, 1.0);
 
     float4 bg_acc = 0.0;
     float4 fg_acc = 0.0;
@@ -196,7 +202,7 @@ float4 Calc_Blur(float2 pos)
     [loop]for(uint j = 0; j < half_samples; j++)
     {
         // switch between max and center
-        float4 m_main = max_main; float2 m_others = max_others;
+        float3 m_main = max_main; float2 m_others = max_others;
         [flatten]if(j % 2 == 1) { m_main = cen_main; m_others = cen_others; }
 
         // negated dither in the second direction
@@ -207,23 +213,28 @@ float4 Calc_Blur(float2 pos)
         float2 sample_uv1 = saturate(uv + uv_offs.xy);
         float2 sample_uv2 = saturate(uv - uv_offs.zw);
 
-        // xy = normalized motion, z = depth, w = motion px length
+        // x = motion px len, y = motion angle, z = closest depth
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
         float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
+
+        // reverse transforms
+        sample_info1.xy = DecodeLenAndAngle(sample_info1.xy);
+        sample_info2.xy = DecodeLenAndAngle(sample_info2.xy);
 
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
         // the `max` is to remove potential artifacts
-        float2 spreadcmp1 = saturate(float2(cen_info.w, sample_info1.w) - max(0.0, step.x - 1.0) * m_others.x);
-        float2 spreadcmp2 = saturate(float2(cen_info.w, sample_info2.w) - max(0.0, step.y - 1.0) * m_others.x);
+        float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - max(0.0, step.x - 1.0) * m_others.x);
+        float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - max(0.0, step.y - 1.0) * m_others.x);
 
-        float2 w_ab1 = float2(m_others.y, abs(dot(sample_info1.xy, m_main.zw)));
-        float2 w_ab2 = float2(m_others.y, abs(dot(sample_info2.xy, m_main.zw)));
+        // x = center dir weight, y = sample dir weight
+        float2 dir_w1 = float2(m_others.y, GetDirWeight(m_main.z, sample_info1.y));
+        float2 dir_w2 = float2(m_others.y, GetDirWeight(m_main.z, sample_info2.y));
 
-        // .x = bg weight, .y = fg weight
-        float2 sample_w1 = (depthcmp1 * spreadcmp1) * w_ab1;
-        float2 sample_w2 = (depthcmp2 * spreadcmp2) * w_ab2;
+        // x = bg weight, y = fg weight
+        float2 sample_w1 = (depthcmp1 * spreadcmp1) * dir_w1;
+        float2 sample_w2 = (depthcmp2 * spreadcmp2) * dir_w2;
 
         float3 sample_color1 = GetColor(sample_uv1);
         float3 sample_color2 = GetColor(sample_uv2);
@@ -240,7 +251,7 @@ float4 Calc_Blur(float2 pos)
     float total_samples = float(half_samples) * 2.0;
 
     // preserve thin features like in the paper
-    float cen_weight = saturate(total_samples * RCP(cen_info.w * 40.0));
+    float cen_weight = saturate(total_samples * RCP(cen_info.x * 40.0));
 
     // add center color to background
     bg_acc += float4(GetColor(uv) * cen_weight, cen_weight);
@@ -277,10 +288,14 @@ float4 Calc_WriteInfo(float2 pos)
     }
 
     float3 mot_info = GetDilatedMotionAndLen(closest.xy);
-    float2 mot_norm = mot_info.xy * RCP(mot_info.z);
+    float mot_angle = length(mot_info.xy) > 0.0 ? atan2(mot_info.y, mot_info.x) : 0.0;
 
-    // xy = norm motion, z = closest depth, w = motion px len
-    return float4(mot_norm, closest.z, mot_info.z);
+    // transform in order to store
+    mot_info.z = (mot_info.z * 0.5) / float(K) + 0.5;
+    mot_angle = mot_angle / DOUBLE_PI + 0.5;
+
+    // x = motion px len, y = motion angle, z = closest depth
+    return float4(mot_info.z, mot_angle, closest.z, 1.0);
 }
 
 float2 Calc_TileDownHor(float2 pos)
