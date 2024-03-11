@@ -137,42 +137,30 @@ float GetDirWeight(float angle1, float angle2)
     return saturate(1.0 - PI * rel_angle);
 }
 
-float2 DecodeLenAndAngle(float2 xy)
-{
-    float len = (xy.x - 0.5) * 2.0 * float(K);
-    float angle = (xy.y - 0.5) * DOUBLE_PI;
-
-    return float2(len, angle);
-}
-
-float2 GetTilesUVOffs(float2 pos)
-{
-    // randomize max neighbour lookup near borders to reduce tile visibility
-    float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
-    float2 tiles_border_dist = abs(frac(pos * tiles_inv_size) - 0.5) * 2.0;
-    float rand = GetWhiteNoise(pos).x - 0.5;
-
-    // don't randomize diagonally
-    tiles_border_dist *= rand < 0.0 ? float2(1.0, 0.0) : float2(0.0, 1.0);
-
-    // uv offset
-    return (tiles_border_dist * rand) * tiles_inv_size;
-}
-
 float4 Calc_Blur(float2 pos)
 {
     float2 uv = pos * BUFFER_PIXEL_SIZE;
 
 // debug motion vectors
 #if V_ENABLE_MOT_BLUR == 9
-    if(1) { return float4(DebugMotion(uv), 1); }
+    if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
     float2 sample_dither = Dither(pos, 0.25) * float2(1, -1); // -0.25 or 0.25
-    float2 tiles_uv_offs = GetTilesUVOffs(pos);
+    float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
+    float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
+    float2 tile_uv_offs = rand * tiles_inv_size;
 
-    float2 max_motion = Sample(sNeighMaxTexVort, uv + tiles_uv_offs).xy;
+    // don't randomize diagonally
+    tile_uv_offs *= sample_dither.x < 0.0 ? float2(1, 0) : float2(0, 1);
+
+    float2 max_motion = Sample(sNeighMaxTexVort, uv + tile_uv_offs).xy;
     float max_mot_len = length(max_motion);
+
+// debug tiles
+#if V_ENABLE_MOT_BLUR == 8
+    if(1) { return float4(DebugMotion(max_motion * BUFFER_PIXEL_SIZE), 1); }
+#endif
 
     // early out
     if(max_mot_len < 1.0) return 0;
@@ -184,9 +172,6 @@ float4 Calc_Blur(float2 pos)
     // x = motion px len, y = motion angle, z = closest depth
     float4 cen_info = Sample(sInfoTexVort, uv);
     float2 cen_motion = GetDilatedMotionAndLen(uv).xy;
-
-    // reverse transforms
-    cen_info.xy = DecodeLenAndAngle(cen_info.xy);
 
     // xy = motion per sample in uv units, z = motion angle
     float3 max_main = float3(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE), atan2(max_motion.y, max_motion.x));
@@ -216,10 +201,6 @@ float4 Calc_Blur(float2 pos)
         // x = motion px len, y = motion angle, z = closest depth
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
         float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
-
-        // reverse transforms
-        sample_info1.xy = DecodeLenAndAngle(sample_info1.xy);
-        sample_info2.xy = DecodeLenAndAngle(sample_info2.xy);
 
         float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
@@ -289,10 +270,6 @@ float4 Calc_WriteInfo(float2 pos)
 
     float3 mot_info = GetDilatedMotionAndLen(closest.xy);
     float mot_angle = length(mot_info.xy) > 0.0 ? atan2(mot_info.y, mot_info.x) : 0.0;
-
-    // transform in order to store
-    mot_info.z = (mot_info.z * 0.5) / float(K) + 0.5;
-    mot_angle = mot_angle / DOUBLE_PI + 0.5;
 
     // x = motion px len, y = motion angle, z = closest depth
     return float4(mot_info.z, mot_angle, closest.z, 1.0);

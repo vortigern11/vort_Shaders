@@ -218,9 +218,8 @@ float2 SampleMotion(float2 uv)
     return motion;
 }
 
-float3 DebugMotion(float2 uv)
+float3 DebugMotion(float2 motion)
 {
-    float2 motion = SampleMotion(uv);
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3.0 * abs(2.0 * frac(angle / DOUBLE_PI + float3(0.0, -A_THIRD, A_THIRD)) - 1.0) - 1.0);
 

@@ -89,7 +89,7 @@ void PS_Main(PS_ARGS3)
 {
 // debug motion vectors
 #if V_ENABLE_TAA == 9
-    if(1) { o = DebugMotion(i.uv); return; }
+    if(1) { o = DebugMotion(SampleMotion(i.uv)); return; }
 #endif
 
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
