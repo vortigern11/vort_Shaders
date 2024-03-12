@@ -44,8 +44,8 @@ namespace MotBlur {
 // older graphics cards get worse performance
 #define MB_USE_COMPUTE CAN_COMPUTE && V_MOT_BLUR_USE_COMPUTE
 
-// scale the tile number (40px at 1080p)
-#define K (BUFFER_HEIGHT / 27)
+// scale the tile number (30px at 1080p)
+#define K (BUFFER_HEIGHT / 36)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
