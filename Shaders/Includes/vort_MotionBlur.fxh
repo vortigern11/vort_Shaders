@@ -116,7 +116,7 @@ float3 GetDilatedMotionAndLen(float2 uv)
     float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
 
     // for debugging
-    if(UI_MB_Debug) motion = float2(UI_MB_DebugLen);
+    if(dot(UI_MB_DebugLen, 1) > 0) motion = float2(UI_MB_DebugLen);
 
     // limit the motion like in the paper
     float old_mot_len = max(0.5, length(motion));
@@ -126,15 +126,14 @@ float3 GetDilatedMotionAndLen(float2 uv)
     return float3(motion, new_mot_len);
 }
 
-float GetDirWeight(float angle1, float angle2)
+float GetDirWeight(float main_angle, float2 sample_len_angle)
 {
-    float rel_angle = abs(angle1 - angle2);
+    float rel_angle = abs(main_angle - sample_len_angle.y);
 
     if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
 
-    // max angle is currently around 18 degrees
-    // PI can be substituted with value between 2.0 and 4.0
-    return saturate(1.0 - PI * rel_angle);
+    // 0.35 rad is around 20 degrees
+    return (sample_len_angle.x < 1.0) || (rel_angle < 0.35);
 }
 
 float4 Calc_Blur(float2 pos)
@@ -165,7 +164,8 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    int half_samples = clamp(floor(max_mot_len * 0.5), 2, 8);
+    // even amount of samples depending on motion length
+    int half_samples = clamp(floor(max_mot_len * 0.25), 1, 4) * 2;
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
@@ -173,27 +173,35 @@ float4 Calc_Blur(float2 pos)
     float4 cen_info = Sample(sInfoTexVort, uv);
     float2 cen_motion = GetDilatedMotionAndLen(uv).xy;
 
-    // xy = motion per sample in uv units, z = motion angle
-    float3 max_main = float3(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE), atan2(max_motion.y, max_motion.x));
-    float3 cen_main = float3(inv_half_samples * (cen_motion * BUFFER_PIXEL_SIZE), cen_info.y);
+    float4 max_main;
+    float4 cen_main;
 
-    // x = step to pixels scale, y = center dir weight
-    float2 max_others = float2(inv_half_samples * max_mot_len, GetDirWeight(max_main.z, cen_main.z));
-    float2 cen_others = float2(inv_half_samples * cen_info.x, 1.0);
+    // xy = motion per sample in uv units
+    max_main.xy = float2(inv_half_samples * (max_motion * BUFFER_PIXEL_SIZE));
+    cen_main.xy = float2(inv_half_samples * (cen_motion * BUFFER_PIXEL_SIZE));
+
+    // z = step to pixels scale, w = motion angle
+    max_main.zw = float2(inv_half_samples * max_mot_len, atan2(max_motion.y, max_motion.x));
+    cen_main.zw = float2(inv_half_samples * cen_info.x, cen_info.y);
+
+    // don't lose half the samples when there is no center px motion
+    if(cen_info.x < 1.0) cen_main = max_main;
 
     float4 bg_acc = 0.0;
     float4 fg_acc = 0.0;
+    float total_weight = 0.0;
 
     [loop]for(uint j = 0; j < half_samples; j++)
     {
         // switch between max and center
-        float3 m_main = max_main; float2 m_others = max_others;
-        [flatten]if(j % 2 == 1) { m_main = cen_main; m_others = cen_others; }
+        // xy = motion per sample in uv units
+        // z = step to pixels scale, w = motion angle
+        float4 m = j % 2 == 0 ? max_main : cen_main;
 
         // negated dither in the second direction
         // to remove the otherwise visible gap
         float2 step = float(j) + 0.5 + sample_dither;
-        float4 uv_offs = step.xxyy * m_main.xyxy;
+        float4 uv_offs = step.xxyy * m.xyxy;
 
         float2 sample_uv1 = saturate(uv + uv_offs.xy);
         float2 sample_uv2 = saturate(uv - uv_offs.zw);
@@ -206,12 +214,12 @@ float4 Calc_Blur(float2 pos)
         float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
 
         // the `max` is to remove potential artifacts
-        float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - max(0.0, step.x - 1.0) * m_others.x);
-        float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - max(0.0, step.y - 1.0) * m_others.x);
+        float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - max(0.0, step.x - 1.0) * m.z);
+        float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - max(0.0, step.y - 1.0) * m.z);
 
-        // x = center dir weight, y = sample dir weight
-        float2 dir_w1 = float2(m_others.y, GetDirWeight(m_main.z, sample_info1.y));
-        float2 dir_w2 = float2(m_others.y, GetDirWeight(m_main.z, sample_info2.y));
+        // don't contribute if sample's motion is in different direction
+        float dir_w1 = GetDirWeight(m.w, sample_info1.xy);
+        float dir_w2 = GetDirWeight(m.w, sample_info2.xy);
 
         // x = bg weight, y = fg weight
         float2 sample_w1 = (depthcmp1 * spreadcmp1) * dir_w1;
@@ -220,29 +228,27 @@ float4 Calc_Blur(float2 pos)
         float3 sample_color1 = GetColor(sample_uv1);
         float3 sample_color2 = GetColor(sample_uv2);
 
-        // bg/fg for first sample
         bg_acc += float4(sample_color1 * sample_w1.x, sample_w1.x);
         fg_acc += float4(sample_color1 * sample_w1.y, sample_w1.y);
 
-        // bg/fg for second sample
         bg_acc += float4(sample_color2 * sample_w2.x, sample_w2.x);
         fg_acc += float4(sample_color2 * sample_w2.y, sample_w2.y);
+
+        total_weight += dir_w1 + dir_w2;
     }
 
-    float total_samples = float(half_samples) * 2.0;
-
     // preserve thin features like in the paper
-    float cen_weight = saturate(total_samples * RCP(cen_info.x * 40.0));
+    float cen_weight = saturate(float(half_samples) * RCP(cen_info.x * 20.0));
 
     // add center color to background
     bg_acc += float4(GetColor(uv) * cen_weight, cen_weight);
-    total_samples += 1.0;
+    total_weight += 1.0;
 
     float3 bg_col = bg_acc.rgb * RCP(bg_acc.w);
     float4 sum_acc = bg_acc + fg_acc;
 
     // normalize
-    sum_acc /= total_samples;
+    sum_acc /= total_weight;
 
     // fill the missing data with background color
     // instead of center in order to counteract artifacts in some cases
