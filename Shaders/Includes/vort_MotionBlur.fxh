@@ -165,9 +165,10 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    // even amount of samples depending on motion length
-    int half_samples = clamp(floor(max_mot_len * 0.25), 1, 4) * 2;
-    float inv_half_samples = rcp(float(half_samples));
+    // constant even amount of samples
+    // if the samples number varies, issues begin to appear
+    static const int half_samples = 6;
+    static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // x = motion px len, y = motion angle, z = closest depth
