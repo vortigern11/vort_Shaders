@@ -62,8 +62,9 @@
 #define CAT_MOT "Motion Effects"
 
 #if V_ENABLE_MOT_BLUR
+    UI_INT(CAT_MOT, UI_MB_Samples, "Motion Blur Samples", "Quality vs performance setting", 4, 8, 6)
     UI_FLOAT(CAT_MOT, UI_MB_Length, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
-    UI_INT2(CAT_MOT, UI_MB_DebugLen, "Debug Motion Blur Length", "", 0, 100, 0)
+    UI_INT2(CAT_MOT, UI_MB_DebugLen, "Debug Motion Blur Length", "To disable debug, set both sliders to 0", 0, 100, 0)
 #endif
 
 #if V_ENABLE_TAA

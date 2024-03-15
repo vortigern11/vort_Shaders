@@ -145,8 +145,7 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
-    // 0.0, 0.25, 0.5 or the same, but negated
-    float2 sample_dither = Dither(pos, float(frame_count % 3) * 0.25) * float2(1, -1);
+    float2 sample_dither = Dither(pos, float(frame_count % 4) * 0.125) * float2(1, -1);
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
     float2 tile_uv_offs = rand * tiles_inv_size;
@@ -167,8 +166,8 @@ float4 Calc_Blur(float2 pos)
 
     // constant even amount of samples
     // if the samples number varies, issues begin to appear
-    static const int half_samples = 6;
-    static const float inv_half_samples = rcp(float(half_samples));
+    int half_samples = UI_MB_Samples + UI_MB_Samples % 2;
+    float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // x = motion px len, y = motion angle, z = closest depth
