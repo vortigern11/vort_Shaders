@@ -366,7 +366,7 @@ void PS_Start(PS_ARGS4) {
 #if IS_SRGB && V_USE_ACES
     c = InverseACESFull(c);
 #elif IS_SRGB
-    c = InverseReinhardMax(c);
+    c = Tonemap::InverseReinhardAll(c);
 #endif
 
     o = float4(c, 1);
@@ -392,7 +392,7 @@ void PS_End(PS_ARGS3)
 #if IS_SRGB && V_USE_ACES
     c = ApplyACESFull(c);
 #elif IS_SRGB
-    c = ApplyReinhardMax(c);
+    c = Tonemap::ApplyReinhardAll(c);
 #endif
 
     o = ApplyGammaCurve(c);

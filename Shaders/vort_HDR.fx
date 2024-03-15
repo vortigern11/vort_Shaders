@@ -41,8 +41,7 @@ technique vort_HDR
         PASS_BLOOM_DEBUG
     #endif
 
-    PASS_BLOOM_DOWN
-    PASS_BLOOM_UP
+    PASS_BLOOM
 #endif
 
     PASS_END

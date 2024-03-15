@@ -91,7 +91,7 @@ float3 GetColor(float2 uv)
     float3 c = SampleLinColor(uv);
 
 #if IS_SRGB
-    c = InverseReinhardMax(c);
+    c = Tonemap::InverseReinhardAll(c);
 #endif
 
     return c;
@@ -100,7 +100,7 @@ float3 GetColor(float2 uv)
 float3 PutColor(float3 c)
 {
 #if IS_SRGB
-    c = ApplyReinhardMax(c);
+    c = Tonemap::ApplyReinhardAll(c);
 #endif
 
 #if MB_USE_COMPUTE

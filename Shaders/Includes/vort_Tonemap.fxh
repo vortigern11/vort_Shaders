@@ -22,20 +22,26 @@
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
-*******************************************************************************
+*******************************************************************************/
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
+
+namespace Tonemap {
+
+/*******************************************************************************
+    Globals
+*******************************************************************************/
+
+static const float t_k = 1.04;
 
 /*******************************************************************************
     Functions
 *******************************************************************************/
 
-static const float t_k = 1.04;
-
 float3 ApplyReinhardMax(float3 c)
 {
-    c = (t_k * c) * RCP(1.0 + Max3(c.r, c.g, c.b));
+    c = (t_k * c) * RCP(1.0 + Max3(c));
     c = saturate(c);
 
     return c;
@@ -44,7 +50,7 @@ float3 ApplyReinhardMax(float3 c)
 float3 InverseReinhardMax(float3 c)
 {
     c = saturate(c);
-    c = c * RCP(t_k - Max3(c.r, c.g, c.b));
+    c = c * RCP(t_k - Max3(c));
 
     return c;
 }
@@ -107,3 +113,5 @@ float3 InverseStanard(float3 c)
 
     return c;
 }
+
+} // namespace end
