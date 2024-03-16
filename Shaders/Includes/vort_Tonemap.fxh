@@ -30,16 +30,10 @@
 namespace Tonemap {
 
 /*******************************************************************************
-    Globals
-*******************************************************************************/
-
-static const float t_k = 1.04;
-
-/*******************************************************************************
     Functions
 *******************************************************************************/
 
-float3 ApplyReinhardMax(float3 c)
+float3 ApplyReinhardMax(float3 c, float t_k)
 {
     c = (t_k * c) * RCP(1.0 + Max3(c));
     c = saturate(c);
@@ -47,7 +41,7 @@ float3 ApplyReinhardMax(float3 c)
     return c;
 }
 
-float3 InverseReinhardMax(float3 c)
+float3 InverseReinhardMax(float3 c, float t_k)
 {
     c = saturate(c);
     c = c * RCP(t_k - Max3(c));
@@ -55,7 +49,7 @@ float3 InverseReinhardMax(float3 c)
     return c;
 }
 
-float3 ApplyReinhardLuma(float3 c)
+float3 ApplyReinhardLuma(float3 c, float t_k)
 {
     c = (t_k * c) * RCP(1.0 + RGBToYCbCrLumi(c));
     c = saturate(c);
@@ -63,7 +57,7 @@ float3 ApplyReinhardLuma(float3 c)
     return c;
 }
 
-float3 InverseReinhardLuma(float3 c)
+float3 InverseReinhardLuma(float3 c, float t_k)
 {
     c = saturate(c);
     c = c * RCP(t_k - RGBToYCbCrLumi(c));
@@ -71,7 +65,7 @@ float3 InverseReinhardLuma(float3 c)
     return c;
 }
 
-float3 ApplyReinhardAll(float3 c)
+float3 ApplyReinhardAll(float3 c, float t_k)
 {
     c = (t_k * c) * RCP(1.0 + c);
     c = saturate(c);
@@ -79,7 +73,7 @@ float3 ApplyReinhardAll(float3 c)
     return c;
 }
 
-float3 InverseReinhardAll(float3 c)
+float3 InverseReinhardAll(float3 c, float t_k)
 {
     c = saturate(c);
     c = c * RCP(t_k - c);

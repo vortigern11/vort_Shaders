@@ -57,6 +57,8 @@
     #endif
 #endif
 
+UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range", 1.001, 1.5, 1.04)
+
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
 
