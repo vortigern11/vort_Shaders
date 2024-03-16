@@ -42,8 +42,7 @@ namespace MotVect {
 texture2D FeatureTexVort    { TEX_SIZE(MIN_MIP) TEX_RG8 MipLevels = 1 + MAX_MIP - MIN_MIP; };
 sampler2D sFeatureTexVort   { Texture = FeatureTexVort; };
 
-// .x = curr depth .y = prev depth
-texture2D DownDepthTexVort  { TEX_SIZE(WORK_MIP) TEX_RG16 };
+texture2D DownDepthTexVort  { TEX_SIZE(WORK_MIP) TEX_R16 };
 sampler2D sDownDepthTexVort { Texture = DownDepthTexVort; SAM_POINT };
 
 texture2D MotionTexVortA    { TEX_SIZE(WORK_MIP) TEX_RGBA16 };
@@ -143,10 +142,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         randdir *= 0.5;
     }
 
-    float prev_z = Sample(sDownDepthTexVort, i.uv + total_motion).y;
     float similarity = 1.0 - sqrt(saturate(best_sim * 0.5 + 0.5));
 
-    return float4(total_motion, prev_z, similarity);
+    return float4(total_motion, 1.0, similarity);
 }
 
 float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
@@ -154,7 +152,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     if(mip > 0) mip = WORK_MIP;
 
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 1.5);
-    float2 noise = GetBlueNoise(i.vpos.xy + frame_count % 5).xy * 2.0 - 1.0;
+    float2 noise = GetBlueNoise(i.vpos.xy + frame_count % 5).xy;
     float center_z = 0;
 
     if(mip == 0)
@@ -165,21 +163,19 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float wsum = 0.001;
     float4 gbuffer = 0;
 
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
+    [loop]for(int x = -2; x <= 1; x++)
+    [loop]for(int y = -2; y <= 1; y++)
     {
         float2 sample_uv = i.uv + (float2(x, y) + noise) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
-        float sample_z_c = Sample(sDownDepthTexVort, sample_uv).x;
-        float sample_z_p = sample_gbuf.z;
+        float sample_z = Sample(sDownDepthTexVort, sample_uv).x;
 
         // too costly to sample depth again at mip 0
 
-        float wz_c = abs(center_z - sample_z_c) * RCP(max(center_z, sample_z_c)); wz_c *= wz_c * 72.0; // curr depth delta
-        float wz_p = abs(center_z - sample_z_p) * RCP(max(center_z, sample_z_p)); wz_p *= wz_p; // prev depth delta
-        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 500.0; // long motion
+        float wz = abs(center_z - sample_z) * RCP(max(center_z, sample_z)); wz *= wz * 250.0; // depth delta
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * 1500.0; // long motion
         float ws = sample_gbuf.w; // similarity
-        float weight = exp2(-(wz_c + wz_p + wm + ws) * 4.0) + 0.001;
+        float weight = exp2(-(wz + wm + ws) * 4.0) + 0.001;
 
         weight *= all(saturate(sample_uv - sample_uv * sample_uv));
         wsum += weight;
@@ -219,7 +215,7 @@ void PS_WriteFeature(PS_ARGS2)
     o.xy = dot(c, float3(0.299, 0.587, 0.114)).xx;
 }
 
-void PS_WriteDepth(PS_ARGS2) { o.xy = GetLinearizedDepth(i.uv); }
+void PS_WriteDepth(PS_ARGS1) { o = GetLinearizedDepth(i.uv); }
 
 void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sMotionTexVortB); }
 void PS_Motion5(PS_ARGS4) { o = EstimateMotion(i, 5, sMotionTexVortB); }
@@ -242,7 +238,7 @@ void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
 
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort;   RenderTargetWriteMask = 1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteDepth;   RenderTarget = MotVect::DownDepthTexVort; RenderTargetWriteMask = 1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteDepth;   RenderTarget = MotVect::DownDepthTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter6;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortA; } \
@@ -256,7 +252,6 @@ void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter1;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MV_TEX; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort;   RenderTargetWriteMask = 2; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteDepth;   RenderTarget = MotVect::DownDepthTexVort; RenderTargetWriteMask = 2; }
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort;   RenderTargetWriteMask = 2; }
 
 } // namespace end
