@@ -44,8 +44,8 @@ namespace MotBlur {
 // older graphics cards get worse performance
 #define MB_USE_COMPUTE CAN_COMPUTE && V_MOT_BLUR_USE_COMPUTE
 
-// scale the tile number (60px at 1080p)
-#define K (BUFFER_HEIGHT / 18)
+// scale the tile number (40px at 1080p)
+#define K (BUFFER_HEIGHT / 27)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
@@ -133,12 +133,14 @@ float3 GetDilatedMotionAndLen(float2 uv)
 
 float GetDirWeight(float main_angle, float2 sample_len_angle)
 {
+    if(sample_len_angle.x < 1.0) return 1.0;
+
     float rel_angle = abs(main_angle - sample_len_angle.y);
 
     if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
 
-    // 0.35 rad is around 20 degrees
-    return (sample_len_angle.x < 1.0) || (rel_angle < 0.35);
+    // max relative angle is 1/PI rad ~ 18 degrees
+    return saturate(1.0 - PI * rel_angle);
 }
 
 float4 Calc_Blur(float2 pos)
