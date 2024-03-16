@@ -59,17 +59,18 @@
     #define V_ENABLE_TAA 0
 #endif
 
-#define CAT_MOT "Motion Effects"
-
 #if V_ENABLE_MOT_BLUR
-    UI_INT(CAT_MOT, UI_MB_Samples, "Motion Blur Samples", "Quality vs performance setting", 4, 8, 6)
-    UI_FLOAT(CAT_MOT, UI_MB_Length, "Motion Blur Length", "Controls the amount of blur.", 0.0, 2.0, 1.0)
-    UI_INT2(CAT_MOT, UI_MB_DebugLen, "Debug Motion Blur Length", "To disable debug, set both sliders to 0", 0, 100, 0)
+    #define CAT_MB "Motion Blur"
+
+    UI_FLOAT(CAT_MB, UI_MB_Length, "Motion Length", "Modifies the velocity length", 0.0, 2.0, 1.0)
+    UI_INT2(CAT_MB, UI_MB_DebugLen, "Debug Length", "To disable debug, set both sliders to 0", 0, 100, 0)
 #endif
 
 #if V_ENABLE_TAA
-    UI_FLOAT(CAT_MOT, UI_TAA_Jitter, "TAA Jitter Amount", "How much to shift every pixel position each frame", 0.0, 1.0, 0.0)
-    UI_FLOAT(CAT_MOT, UI_TAA_Alpha, "TAA Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.05, 1.0, 0.333)
+    #define CAT_TAA "Temporal AA"
+
+    UI_FLOAT(CAT_TAA, UI_TAA_Jitter, "Jitter Amount", "How much to shift every pixel position each frame", 0.0, 1.0, 0.0)
+    UI_FLOAT(CAT_TAA, UI_TAA_Alpha, "Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.05, 1.0, 0.333)
 #endif
 
 UI_HELP(

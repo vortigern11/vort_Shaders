@@ -44,8 +44,8 @@ namespace MotBlur {
 // older graphics cards get worse performance
 #define MB_USE_COMPUTE CAN_COMPUTE && V_MOT_BLUR_USE_COMPUTE
 
-// scale the tile number (30px at 1080p)
-#define K (BUFFER_HEIGHT / 36)
+// scale the tile number (60px at 1080p)
+#define K (BUFFER_HEIGHT / 18)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
@@ -113,15 +113,20 @@ float3 PutColor(float3 c)
 float3 GetDilatedMotionAndLen(float2 uv)
 {
     // motion must be in pixel units
-    float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
+    float2 motion = SampleMotion(uv).xy * UI_MB_Length * BUFFER_SCREEN_SIZE;
 
     // for debugging
     if(dot(UI_MB_DebugLen, 1) > 0) motion = float2(UI_MB_DebugLen);
 
-    // limit the motion like in the paper
     float old_mot_len = max(0.5, length(motion));
     float new_mot_len = min(old_mot_len, float(K));
-    motion *= new_mot_len * RCP(old_mot_len);
+
+    // use radius instead of diameter
+    // modified after clamp on purpose
+    new_mot_len *= 0.5;
+
+    // limit the motion like in the paper
+    motion *= new_mot_len / old_mot_len;
 
     return float3(motion, new_mot_len);
 }
@@ -145,7 +150,7 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
-    float2 sample_dither = Dither(pos, float(frame_count % 4) * 0.125) * float2(1, -1);
+    float2 sample_dither = Dither(pos, 0.25) * float2(1, -1); // -0.25 or 0.25
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
     float2 tile_uv_offs = rand * tiles_inv_size;
@@ -164,9 +169,9 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    // constant even amount of samples
-    // if the samples number varies, issues begin to appear
-    int half_samples = UI_MB_Samples + UI_MB_Samples % 2;
+    // even amount of samples
+    // do not lower max_mot_len further
+    int half_samples = clamp(ceil(max_mot_len * 0.5), 1, 4) * 2;
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
