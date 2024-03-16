@@ -123,9 +123,9 @@ void PS_Up1(PS_ARGS4) { o = Upsample(i, sDownTexVort2, 1); }
 void PS_Up0(PS_ARGS4)
 {
     float3 src = Sample(BLOOM_IN_SAMP, i.uv).rgb;
-    float3 bloom = src + Upsample(i, sDownTexVort1, 0);
+    float3 bloom = src + Upsample(i, sDownTexVort1, 0).rgb;
 
-    o.rgb = lerp(src, bloom, UI_Bloom_Intensity);
+    o = float4(lerp(src, bloom, UI_Bloom_Intensity), 1.0);
 }
 
 /*******************************************************************************
