@@ -113,17 +113,14 @@ float3 PutColor(float3 c)
 float3 GetDilatedMotionAndLen(float2 uv)
 {
     // motion must be in pixel units
-    float2 motion = SampleMotion(uv).xy * UI_MB_Length * BUFFER_SCREEN_SIZE;
+    // and use radius instead of diameter
+    float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
 
     // for debugging
     if(dot(UI_MB_DebugLen, 1) > 0) motion = float2(UI_MB_DebugLen);
 
     float old_mot_len = max(0.5, length(motion));
     float new_mot_len = min(old_mot_len, float(K));
-
-    // use radius instead of diameter
-    // modified after clamp on purpose
-    new_mot_len *= 0.5;
 
     // limit the motion like in the paper
     motion *= new_mot_len / old_mot_len;
@@ -139,8 +136,8 @@ float GetDirWeight(float main_angle, float2 sample_len_angle)
 
     if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
 
-    // max relative angle is 1/PI rad ~ 18 degrees
-    return saturate(1.0 - PI * rel_angle);
+    // max relative angle is 45 degrees
+    return saturate(1.0 - rcp(PI * 0.25) * rel_angle);
 }
 
 float4 Calc_Blur(float2 pos)
@@ -155,12 +152,12 @@ float4 Calc_Blur(float2 pos)
     float2 sample_dither = Dither(pos, 0.25) * float2(1, -1); // -0.25 or 0.25
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
-    float2 tile_uv_offs = rand * tiles_inv_size;
+    float2 tiles_uv_offs = rand * tiles_inv_size;
 
     // don't randomize diagonally
-    tile_uv_offs *= sample_dither.x < 0.0 ? float2(1, 0) : float2(0, 1);
+    tiles_uv_offs *= sample_dither.x < 0.0 ? float2(1, 0) : float2(0, 1);
 
-    float2 max_motion = Sample(sNeighMaxTexVort, uv + tile_uv_offs).xy;
+    float2 max_motion = Sample(sNeighMaxTexVort, uv + tiles_uv_offs).xy;
     float max_mot_len = length(max_motion);
 
 // debug tiles
