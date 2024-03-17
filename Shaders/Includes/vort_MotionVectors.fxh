@@ -57,21 +57,25 @@ sampler2D sMotionTexVortB   { Texture = MotionTexVortB; SAM_POINT };
 
 float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 {
-    mip = max(mip - 1, MIN_MIP); // better quality
-
     uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = rcp(tex2Dsize(sFeatureTexVort, feature_mip));
 
-    static const float inv_block_area = 1.0 / 9.0;
+    static const int block_samples = 9;
+    static const float inv_block_samples = rcp(float(block_samples));
+    static const float2 block_offs[block_samples] =
+    {
+        float2(0,  0),
+        float2(0, -1), float2(0, 1), float2(-1, 0), float2(1, 0),
+        float2(-2, -2), float2(2, 2), float2(-2, 2), float2(2, -2)
+    };
 
     float2 moments_local = 0;
     float2 moments_search = 0;
     float moments_cov = 0;
 
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
+    [loop]for(int j = 0; j < block_samples; j++)
     {
-        float2 tuv = i.uv + float2(x,y) * texelsize;
+        float2 tuv = i.uv + block_offs[j] * texelsize;
         float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
         float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion), feature_mip).y;
 
@@ -80,9 +84,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         moments_cov += t_local * t_search;
     }
 
-    moments_local *= inv_block_area;
-    moments_search *= inv_block_area;
-    moments_cov *= inv_block_area;
+    moments_local *= inv_block_samples;
+    moments_search *= inv_block_samples;
+    moments_cov *= inv_block_samples;
 
     float local_variance = abs(moments_local.y - moments_local.x * moments_local.x);
     float search_variance = abs(moments_search.y - moments_search.x * moments_search.x);
@@ -93,8 +97,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
         return float4(total_motion, 0, 0);
 
     // we use 4 samples so we will rotate by 90 degrees to make a full circle
-    // therefore we do sincos(rand * 90deg_to_rad, r.x, r.y)
-    float2 randdir; sincos(GetR1(GetBlueNoise(i.vpos.xy).x, mip) * HALF_PI, randdir.x, randdir.y);
+    // therefore we do sincos(rand * 90deg, r.x, r.y)
+    float qrand = GetR1(GetBlueNoise(i.vpos.xy).x, mip);
+    float2 randdir; sincos(qrand * HALF_PI, randdir.x, randdir.y);
     int searches = mip > 3 ? 4 : 2;
 
     while(searches-- > 0)
@@ -112,10 +117,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
             moments_search = 0;
             moments_cov = 0;
 
-            [loop]for(int x = -1; x <= 1; x++)
-            [loop]for(int y = -1; y <= 1; y++)
+            [loop]for(int j = 0; j < block_samples; j++)
             {
-                float2 tuv = i.uv + float2(x,y) * texelsize;
+                float2 tuv = i.uv + block_offs[j] * texelsize;
                 float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
                 float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion + search_offset), feature_mip).y;
 
@@ -123,8 +127,8 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
                 moments_cov += t_search * t_local;
             }
 
-            moments_search *= inv_block_area;
-            moments_cov *= inv_block_area;
+            moments_search *= inv_block_samples;
+            moments_cov *= inv_block_samples;
 
             cov_variance = moments_cov - moments_local.x * moments_search.x;
             search_variance = abs(moments_search.y - moments_search.x * moments_search.x);
@@ -173,7 +177,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         // too costly to sample depth again at mip 0
 
         float wz = abs(center_z - sample_z) * RCP(max(center_z, sample_z)); wz *= wz * 250.0; // depth delta
-        float wm = length(sample_gbuf.xy) * 25.0; // long motion
+        float wm = dot(sample_gbuf.xy, sample_gbuf.xy) * BUFFER_WIDTH; // long motion
         float ws = sample_gbuf.w; // similarity
         float weight = exp2(-(wz + wm + ws) * 4.0) + 0.001;
 
@@ -192,7 +196,7 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
     if(mip < MAX_MIP)
         motion = AtrousUpscale(i, mip, mot_samp);
 
-    if(mip >= MIN_MIP)
+    if(mip > 0)
         motion = CalcLayer(i, mip, motion.xy);
 
     return motion;

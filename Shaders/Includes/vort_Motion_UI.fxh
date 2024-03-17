@@ -224,5 +224,5 @@ float3 DebugMotion(float2 motion)
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3.0 * abs(2.0 * frac(angle / DOUBLE_PI + float3(0.0, -A_THIRD, A_THIRD)) - 1.0) - 1.0);
 
-    return lerp(0.5, rgb, saturate(length(motion) * 100));
+    return lerp(0.5, rgb, saturate(length(motion) * 100.0));
 }
