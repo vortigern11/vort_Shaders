@@ -136,8 +136,8 @@ float GetDirWeight(float main_angle, float2 sample_len_angle)
 
     if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
 
-    // max relative angle is 45 degrees
-    return saturate(1.0 - rcp(PI * 0.25) * rel_angle);
+    // max relative angle is around 45 degrees
+    return saturate(1.0 - 1.27324 * rel_angle);
 }
 
 float4 Calc_Blur(float2 pos)
@@ -168,9 +168,8 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    // even amount of samples
-    // do not lower max_mot_len further
-    int half_samples = clamp(ceil(max_mot_len * 0.5), 1, 4) * 2;
+    // odd amount of samples so max_motion gets 1 more sample than center
+    int half_samples = clamp(round(max_mot_len * A_THIRD), 1, 3) * 2 + 1;
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
