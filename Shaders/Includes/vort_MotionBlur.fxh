@@ -91,7 +91,7 @@ float3 GetColor(float2 uv)
     float3 c = SampleLinColor(uv);
 
 #if IS_SRGB
-    c = Tonemap::InverseReinhardMax(c, 1.04);
+    c = Tonemap::InverseReinhardMax(c, 1.25);
 #endif
 
     return c;
@@ -100,7 +100,7 @@ float3 GetColor(float2 uv)
 float3 PutColor(float3 c)
 {
 #if IS_SRGB
-    c = Tonemap::ApplyReinhardMax(c, 1.04);
+    c = Tonemap::ApplyReinhardMax(c, 1.25);
 #endif
 
 #if MB_USE_COMPUTE
@@ -169,8 +169,8 @@ float4 Calc_Blur(float2 pos)
     if(max_mot_len < 1.0) return 0;
 
     // odd amount of samples so max_motion gets 1 more sample than center
-    int half_samples = clamp(round(max_mot_len * A_THIRD), 1, 3) * 2 + 1;
-    float inv_half_samples = rcp(float(half_samples));
+    static const int half_samples = 7;
+    static const float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
     // x = motion px len, y = motion angle, z = closest depth
