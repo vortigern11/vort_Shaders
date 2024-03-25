@@ -25,7 +25,12 @@ namespace MotVect {
 *******************************************************************************/
 
 #define MAX_MIP 6
-#define MIN_MIP 1
+
+#if V_MV_USE_HQ
+    #define MIN_MIP 0
+#else
+    #define MIN_MIP 1
+#endif
 
 /*******************************************************************************
     Textures, Samplers
@@ -138,22 +143,22 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
 float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
-    float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 3.0);
+    float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 2.0);
     float2 rand = GetBlueNoise(i.vpos.xy + frame_count % 5).xy - 0.5;
-    int sample_mip = mip > 0 ? mip + 1 : mip;
-    float center_z;
+    float center_z = Sample(sDownDepthTexVort, i.uv, mip).x;
+    int sample_mip = mip + 1;
 
-    if(mip == 0)
+    if(mip < MIN_MIP)
+    {
         center_z = GetLinearizedDepth(i.uv);
-    else
-        center_z = Sample(sDownDepthTexVort, i.uv, mip).x;
+        sample_mip = mip;
+    }
 
     float wsum = 0.001;
     float4 gbuffer = 0;
-    float rad = mip > 0 ? 1.5 : 0.5;
 
-    [loop]for(float x = -rad; x <= rad; x++)
-    [loop]for(float y = -rad; y <= rad; y++)
+    [loop]for(int x = -1.0; x <= 1.0; x++)
+    [loop]for(int y = -1.0; y <= 1.0; y++)
     {
         float2 sample_uv = i.uv + (float2(x, y) + rand) * texelsize;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
@@ -179,7 +184,7 @@ float4 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
     if(mip < MAX_MIP)
         motion = AtrousUpscale(i, mip, mot_samp);
 
-    if(mip > 0)
+    if(mip >= MIN_MIP)
         motion = CalcLayer(i, mip, motion.xy);
 
     return motion;

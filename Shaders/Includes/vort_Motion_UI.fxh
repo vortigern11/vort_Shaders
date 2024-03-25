@@ -36,6 +36,12 @@
     #define V_MV_MODE 1
 #endif
 
+#if V_MV_MODE == 1
+    #ifndef V_MV_USE_HQ
+        #define V_MV_USE_HQ 0
+    #endif
+#endif
+
 #ifndef V_MV_USE_REST
     #define V_MV_USE_REST 0
 #endif
@@ -86,6 +92,9 @@ _vort_MotionEffects_Help_,
 "1 - use REST addon to get game's velocity\n"
 "2 - use REST addon to get game's velocity in Unreal Engine games\n"
 "3 - use REST addon to get only dynamic objects' velocity in Unreal Engine games\n"
+"\n"
+"V_MV_USE_HQ - 0 or 1\n"
+"Enable high quality motion vectors at the cost of performance\n"
 "\n"
 "V_ENABLE_MOT_BLUR - 0 or 1\n"
 "Toggle Motion Blur off or on\n"
