@@ -149,7 +149,7 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
-    float2 sample_dither = Dither(pos, 0.25) * float2(1, -1); // -0.25 or 0.25
+    float2 sample_dither = (GetGradNoise(pos) - 0.5) * float2(1, -1); // [-0.5, 0.5]
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
     float2 tiles_uv_offs = rand * tiles_inv_size;
