@@ -145,14 +145,10 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
     float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 2.0);
     float2 rand = GetBlueNoise(i.vpos.xy + frame_count % 5).xy - 0.5;
-    float center_z = Sample(sDownDepthTexVort, i.uv, mip).x;
-    int sample_mip = mip + 1;
+    float center_z = Sample(sDownDepthTexVort, i.uv, max(0, mip - MIN_MIP)).x;
+    int sample_mip = max(0, mip - MIN_MIP + 1);
 
-    if(mip < MIN_MIP)
-    {
-        center_z = GetLinearizedDepth(i.uv);
-        sample_mip = mip;
-    }
+    if(mip < MIN_MIP) center_z = GetLinearizedDepth(i.uv);
 
     float wsum = 0.001;
     float4 gbuffer = 0;
@@ -164,7 +160,7 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sDownDepthTexVort, sample_uv, sample_mip).x;
 
-        float wz = abs(center_z - sample_z) * RCP(max(center_z, sample_z)); wz *= wz * 250.0; // depth delta
+        float wz = abs(center_z - sample_z) * RCP(max(center_z, sample_z)) * 4.0; // depth delta
         float wm = length(sample_gbuf.xy) * 25.0; // long motion
         float ws = sample_gbuf.z; // similarity
         float weight = exp2(-(wz + wm + ws) * 4.0) + 0.001;
