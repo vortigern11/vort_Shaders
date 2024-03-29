@@ -36,12 +36,15 @@ namespace MotVect {
     Textures, Samplers
 *******************************************************************************/
 
-// .x = curr lumi .y = prev lumi
+// .x = curr feat .y = prev feat
 texture2D FeatureTexVort    { TEX_SIZE(MIN_MIP) TEX_RG8 MipLevels = 1 + MAX_MIP - MIN_MIP; };
 sampler2D sFeatureTexVort   { Texture = FeatureTexVort; };
 
 texture2D DownDepthTexVort  { TEX_SIZE(MIN_MIP) TEX_R16 MipLevels = 1 + MAX_MIP - MIN_MIP; };
 sampler2D sDownDepthTexVort { Texture = DownDepthTexVort; SAM_POINT };
+
+texture2D MotionTexVort1 { TEX_SIZE(1) TEX_RGBA16 };
+sampler2D sMotionTexVort1 { Texture = MotionTexVort1; SAM_POINT };
 
 texture2D MotionTexVortA { TEX_SIZE(3) TEX_RGBA16 };
 texture2D MotionTexVortB { TEX_SIZE(3) TEX_RGBA16 };
@@ -73,9 +76,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
     [loop]for(uint j = 0; j < block_samples; j++)
     {
-        float2 tuv = saturate(i.uv + block_offs[j] * texelsize);
-        float t_local = Sample(sFeatureTexVort, tuv, feature_mip).x;
-        float t_search = Sample(sFeatureTexVort, tuv + total_motion, feature_mip).y;
+        float2 tuv = i.uv + block_offs[j] * texelsize;
+        float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
+        float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion), feature_mip).y;
 
         moments_local += float2(t_local, t_local * t_local);
         moments_search += float2(t_search, t_search * t_search);
@@ -112,9 +115,9 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
             [loop]for(uint j = 0; j < block_samples; j++)
             {
-                float2 tuv = saturate(i.uv + block_offs[j] * texelsize);
-                float t_local = Sample(sFeatureTexVort, tuv, feature_mip).x;
-                float t_search = Sample(sFeatureTexVort, tuv + total_motion + search_offset, feature_mip).y;
+                float2 tuv = i.uv + block_offs[j] * texelsize;
+                float t_local = Sample(sFeatureTexVort, saturate(tuv), feature_mip).x;
+                float t_search = Sample(sFeatureTexVort, saturate(tuv + total_motion + search_offset), feature_mip).y;
 
                 moments_search += float2(t_search, t_search * t_search);
                 moments_cov += t_search * t_local;
@@ -143,7 +146,7 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
 float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
-    float2 texelsize = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 5.0 : 2.0);
+    float2 scale = rcp(tex2Dsize(mot_samp)) * (mip >= MIN_MIP ? 5.0 : 3.0);
     float2 rand = GetBlueNoise(i.vpos.xy + frame_count % 5).xy - 0.5;
     float center_z = Sample(sDownDepthTexVort, i.uv, max(0, mip - MIN_MIP)).x;
     int sample_mip = max(0, mip - MIN_MIP + 1);
@@ -153,10 +156,10 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float wsum = 0.001;
     float4 gbuffer = 0;
 
-    [loop]for(int x = -1.0; x <= 1.0; x++)
-    [loop]for(int y = -1.0; y <= 1.0; y++)
+    [loop]for(int x = -1; x <= 1; x++)
+    [loop]for(int y = -1; y <= 1; y++)
     {
-        float2 sample_uv = i.uv + (float2(x, y) + rand) * texelsize;
+        float2 sample_uv = i.uv + (float2(x, y) + rand) * scale;
         float4 sample_gbuf = Sample(mot_samp, sample_uv);
         float sample_z = Sample(sDownDepthTexVort, sample_uv, sample_mip).x;
 
@@ -200,7 +203,7 @@ void PS_WriteFeature(PS_ARGS2)
     c = clamp(c, 0.0, range.y) / range.y;
 #endif
 
-    o.xy = dot(c, float3(0.299, 0.587, 0.114)).xx;
+    o.xy = dot(c, 0.3333).xx;
 }
 
 void PS_WriteDepth(PS_ARGS1) { o = GetLinearizedDepth(i.uv); }
@@ -211,14 +214,13 @@ void PS_Motion4(PS_ARGS4) { o = EstimateMotion(i, 4, sMotionTexVortB); }
 void PS_Motion3(PS_ARGS4) { o = EstimateMotion(i, 3, sMotionTexVortB); }
 void PS_Motion2(PS_ARGS4) { o = EstimateMotion(i, 2, sMotionTexVortB); }
 void PS_Motion1(PS_ARGS4) { o = EstimateMotion(i, 1, sMotionTexVortB); }
-void PS_Motion0(PS_ARGS4) { o = EstimateMotion(i, 0, sMotionTexVortB); }
+void PS_Motion0(PS_ARGS4) { o = EstimateMotion(i, 0, sMotionTexVort1); }
 
 void PS_Filter6(PS_ARGS4) { o = AtrousUpscale(i, 6, sMotionTexVortA); }
 void PS_Filter5(PS_ARGS4) { o = AtrousUpscale(i, 5, sMotionTexVortA); }
 void PS_Filter4(PS_ARGS4) { o = AtrousUpscale(i, 4, sMotionTexVortA); }
 void PS_Filter3(PS_ARGS4) { o = AtrousUpscale(i, 3, sMotionTexVortA); }
 void PS_Filter2(PS_ARGS4) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
-void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
 
 /*******************************************************************************
     Passes
@@ -237,8 +239,7 @@ void PS_Filter1(PS_ARGS4) { o = AtrousUpscale(i, 1, sMotionTexVortA); }
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter3;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter1;      RenderTarget = MotVect::MotionTexVortB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVort1; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MV_TEX; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatureTexVort; RenderTargetWriteMask = 2; }
 
