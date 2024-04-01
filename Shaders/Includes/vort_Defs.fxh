@@ -689,3 +689,15 @@ float2 GetHDRRange()
     return float2(0.0, 1.0);
 #endif
 }
+
+float4 GetRotator(float r)
+{
+    float2 sc; sincos(r, sc.x, sc.y);
+
+    return float4(sc.y, sc.x, -sc.x, sc.y);
+}
+
+float2 Rotate(float2 v, float4 rot)
+{
+    return float2(dot(v, rot.xy), dot(v, rot.zw));
+}
