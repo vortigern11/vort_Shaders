@@ -129,7 +129,7 @@ void PS_Main(PS_ARGS3)
     var_c *= inv_samples;
 
     // sharpen
-    curr_c += curr_c - avg_c;
+    curr_c = lerp(curr_c, curr_c + curr_c - avg_c, UI_TAA_Sharpen);
 
     float3 sigma = sqrt(abs(var_c - avg_c * avg_c));
     float3 min_c = avg_c - sigma;
