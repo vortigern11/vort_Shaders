@@ -204,7 +204,8 @@ float4 Calc_Blur(float2 pos)
 
         // negated dither in the second direction
         // to remove the otherwise visible gap
-        float2 step = float(j) + 0.5 + sample_dither;
+        // min() is have better result at object edges
+        float2 step = min(float(j) + 0.5 + sample_dither, float(half_samples - 1));
         float4 uv_offs = step.xxyy * m.xyxy;
 
         float2 sample_uv1 = saturate(uv + uv_offs.xy);
