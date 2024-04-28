@@ -24,6 +24,7 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
+#define SKIP (frame_count % 2 != 0)
 #define MAX_MIP 6
 
 #if V_MV_USE_HQ
@@ -66,6 +67,8 @@ sampler2D sMotionTexVortB { Texture = MotionTexVortB; SAM_POINT };
 
 float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 {
+    if(SKIP) discard;
+
     uint feature_mip = max(0, mip - MIN_MIP);
     float2 texelsize = rcp(tex2Dsize(sFeatureTexVort, feature_mip));
 
@@ -145,6 +148,8 @@ float4 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
 float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
+    if(SKIP) discard;
+
     float2 scale = rcp(tex2Dsize(mot_samp)) * (mip >= MIN_MIP ? 5.0 : 0.75);
     float2 rand = GetBlueNoise(i.vpos.xy + frame_count % 5).xy - 0.5;
     float center_z = Sample(sDownDepthTexVort, i.uv, max(0, mip - MIN_MIP)).x;
