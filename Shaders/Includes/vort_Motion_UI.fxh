@@ -46,7 +46,7 @@
     #define V_MV_USE_REST 0
 #endif
 
-#if V_MV_USE_REST == 2
+#if V_MV_USE_REST > 0
     uniform float4x4 matInvViewProj < source = "mat_InvViewProj"; >;
     uniform float4x4 matPrevViewProj < source = "mat_PrevViewProj"; >;
 #endif
@@ -89,10 +89,10 @@ _vort_MotionEffects_Help_,
 "3 - manually use other motion vectors (qUINT_of, qUINT_motionvectors, DRME, etc.)\n"
 "\n"
 "V_MV_USE_REST - [0 - 3]\n"
-"0 - don't use REST addon for access to game's velocity\n"
-"1 - use REST addon to get game's velocity\n"
-"2 - use REST addon to get game's velocity in Unreal Engine games\n"
-"3 - use REST addon to get only dynamic objects' velocity in Unreal Engine games\n"
+"0 - don't use REST addon for velocity\n"
+"1 - use REST addon to get velocity in Unreal Engine games\n"
+"2 - use REST addon to get velocity in CryEngine games\n"
+"3 - use REST addon to get velocity in generic games\n"
 "\n"
 "V_MV_USE_HQ - 0 or 1\n"
 "Enable high quality motion vectors at the cost of performance\n"
@@ -153,12 +153,36 @@ _vort_MotionEffects_Help_,
 *******************************************************************************/
 
 #if V_MV_USE_REST > 0
+float2 GetCameraVelocity(float2 uv)
+{
+    float depth = GetLinearizedDepth(uv);
+    float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
+    float4 curr_clip = float4(curr_screen, depth, 1);
+
+    // maybe switch ?
+    /* float4 r = mul(matInvViewProj, curr_clip); */
+    /* r.xyz *= RCP(r.w); */
+    /* float4 curr_pos = float4(r.xyz, 1); */
+    /* float4 prev_clip = mul(matPrevViewProj, curr_pos); */
+    // alternative
+    float4x4 mat_clip_to_prev_clip = mul(matInvViewProj, matPrevViewProj);
+    float4 prev_clip = mul(curr_clip, mat_clip_to_prev_clip);
+    // end
+
+    float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
+    float2 v = curr_screen - prev_screen;
+
+    // normalize
+    v *= float2(-0.5, 0.5);
+
+    return v;
+}
+
 float2 DecodeVelocity(float2 alt_motion, float2 uv)
 {
     float2 v = Sample(sRESTMVTexVort, uv).xy;
 
-// Unreal Engine games
-#if V_MV_USE_REST > 1
+#if V_MV_USE_REST == 1 // Unreal Engine games
     // whether there is velocity stored because the object is dynamic
     // or we have to compute static velocity
     if(v.x > 0.0)
@@ -179,38 +203,31 @@ float2 DecodeVelocity(float2 alt_motion, float2 uv)
     }
     else
     {
-    #if V_MV_USE_REST == 2
-        float depth = GetLinearizedDepth(uv);
-        float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
-        float4 curr_clip = float4(curr_screen, depth, 1);
-
-    // maybe switch ?
-        /* float4 r = mul(matInvViewProj, curr_clip); */
-        /* r.xyz *= RCP(r.w); */
-        /* float4 curr_pos = float4(r.xyz, 1); */
-        /* float4 prev_clip = mul(matPrevViewProj, curr_pos); */
-    // alternative
-        float4x4 mat_clip_to_prev_clip = mul(matInvViewProj, matPrevViewProj);
-        float4 prev_clip = mul(curr_clip, mat_clip_to_prev_clip);
-    // end
-
-        float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
-
-        v = curr_screen - prev_screen;
-
-        // normalize
-        v *= float2(-0.5, 0.5);
-    #else
-        // finding game's matrices is annoying, instead just use the calculated
-        // motion vectors for static objects
+    #ifdef MV_SAMP
         v = alt_motion;
+    #else
+        v = GetCameraVelocity(uv);
     #endif
     }
+#elif V_MV_USE_REST == 2 // CryEngine games
+    if(v.x != 0)
+    {
+        v = (v - 127.0 / 255.0) * 2.0;
+        v = (v * v) * (v > 0.0 ? float2(1, 1) : float2(-1, -1));
+    }
+    else
+    {
+    #ifdef MV_SAMP
+        v = alt_motion;
+    #else
+        v = GetCameraVelocity(uv);
+    #endif
+    }
+#else // Generic
+    v *= float2(-0.5, 0.5);
+#endif
 
     return v;
-#else
-    return v * float2(-0.5, 0.5);
-#endif
 }
 #endif
 
