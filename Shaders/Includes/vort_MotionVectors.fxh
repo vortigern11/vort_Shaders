@@ -24,7 +24,9 @@ namespace MotVect {
     Globals
 *******************************************************************************/
 
-#define SKIP (frame_count % 2 != 0)
+// normalize calculation to 60fps for performance reasons
+#define SKIP ((frame_count % max(1, int(16.67 / frame_time))) != 0)
+
 #define MAX_MIP 6
 
 #if V_MV_USE_HQ
