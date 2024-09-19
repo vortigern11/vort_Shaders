@@ -152,12 +152,12 @@ float4 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 {
     if(SKIP) discard;
 
-    float2 scale = rcp(tex2Dsize(mot_samp)) * (mip >= MIN_MIP ? 5.0 : 0.75);
+    float2 scale = BUFFER_PIXEL_SIZE * exp2(mip + 1) * (mip > 0 ? 5.0 : 1.0);
     float2 rand = GetBlueNoise(i.vpos.xy + frame_count % 5).xy - 0.5;
     float center_z = Sample(sDownDepthTexVort, i.uv, max(0, mip - MIN_MIP)).x;
     int sample_mip = max(0, mip - MIN_MIP + 1);
 
-    if(mip < MIN_MIP) center_z = GetLinearizedDepth(i.uv);
+    if(mip < MIN_MIP) center_z = GetDepth(i.uv);
 
     float wsum = 0.001;
     float4 gbuffer = 0;
@@ -212,7 +212,7 @@ void PS_WriteFeature(PS_ARGS2)
     o.xy = dot(c, float3(0.299, 0.587, 0.114)).xx;
 }
 
-void PS_WriteDepth(PS_ARGS1) { o = GetLinearizedDepth(i.uv); }
+void PS_WriteDepth(PS_ARGS1) { o = GetDepth(i.uv); }
 
 void PS_Motion6(PS_ARGS4) { o = EstimateMotion(i, 6, sMotionTexVortB); } // samp doesn't matter here
 void PS_Motion5(PS_ARGS4) { o = EstimateMotion(i, 5, sMotionTexVortB); }

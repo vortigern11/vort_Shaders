@@ -169,7 +169,7 @@ float4 Calc_Blur(float2 pos)
     if(max_mot_len < 1.0) return 0;
 
     // odd amount of samples so max_motion gets 1 more sample than center
-    int half_samples = clamp(round(max_mot_len * A_THIRD), 1, 3) * 2 + 1;
+    int half_samples = clamp(round(max_mot_len * A_THIRD), 1, 8) * 2 + 1;
     float inv_half_samples = rcp(float(half_samples));
     static const float depth_scale = 1000.0;
 
@@ -204,7 +204,7 @@ float4 Calc_Blur(float2 pos)
 
         // negated dither in the second direction
         // to remove the otherwise visible gap
-        // min() is have better result at object edges
+        // min() is to have better result at object edges
         float2 step = min(float(j) + 0.5 + sample_dither, float(half_samples - 1));
         float4 uv_offs = step.xxyy * m.xyxy;
 
@@ -274,7 +274,7 @@ float4 Calc_WriteInfo(float2 pos)
     [loop]for(int y = -1; y <= 1; y++)
     {
         float2 sample_uv = saturate(uv + float2(x,y) * BUFFER_PIXEL_SIZE);
-        float sample_z = GetLinearizedDepth(sample_uv);
+        float sample_z = GetDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
     }

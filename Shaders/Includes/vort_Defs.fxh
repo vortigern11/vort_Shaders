@@ -32,7 +32,7 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-5)
+#define EPSILON (1e-13) // higher numbers break MV calc
 #define PI (3.14159265359)
 #define HALF_PI (1.57079632679)
 #define DOUBLE_PI (6.28318530718)
@@ -409,6 +409,17 @@ float3 ApplyGammaCurve(float3 c)
     c = LinToPQ(c, V_HDR_WHITE_LVL);
 #elif IS_HDR_HLG
     c = LinToHLG(c, V_HDR_WHITE_LVL);
+#endif
+
+    return c;
+}
+
+float3 ForceLinearCurve(float3 c)
+{
+#if IS_SRGB
+    c = SRGBToLin(c);
+#else
+    c = ApplyLinearCurve(c);
 #endif
 
     return c;

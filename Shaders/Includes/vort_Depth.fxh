@@ -4,7 +4,7 @@
 texture2D DepthTexVort : DEPTH;
 sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
 
-float GetLinearizedDepth(float2 texcoord)
+float GetDepth(float2 texcoord)
 {
 #if !V_HAS_DEPTH
     return 0.5;
@@ -40,16 +40,16 @@ float GetLinearizedDepth(float2 texcoord)
 #endif
 }
 
-float3 GetScreenSpaceNormal(float2 uv)
+float3 GetNormals(float2 uv)
 {
     float3 offset = float3(BUFFER_PIXEL_SIZE, 0.0);
     float2 posCenter = uv;
     float2 posNorth = posCenter - offset.zy;
     float2 posEast = posCenter + offset.xz;
 
-    float3 vertCenter = float3(posCenter - 0.5, 1) * GetLinearizedDepth(posCenter);
-    float3 vertNorth = float3(posNorth - 0.5, 1) * GetLinearizedDepth(posNorth);
-    float3 vertEast = float3(posEast - 0.5, 1) * GetLinearizedDepth(posEast);
+    float3 vertCenter = float3(posCenter - 0.5, 1) * GetDepth(posCenter);
+    float3 vertNorth = float3(posNorth - 0.5, 1) * GetDepth(posNorth);
+    float3 vertEast = float3(posEast - 0.5, 1) * GetDepth(posEast);
 
     return NORM(cross(vertCenter - vertNorth, vertCenter - vertEast)) * 0.5 + 0.5;
 }

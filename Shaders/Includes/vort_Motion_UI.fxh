@@ -75,7 +75,6 @@
 #if V_ENABLE_TAA
     #define CAT_TAA "Temporal AA"
 
-    UI_FLOAT(CAT_TAA, UI_TAA_Jitter, "Jitter Amount", "How much to shift every pixel position each frame", 0.0, 1.0, 0.0)
     UI_FLOAT(CAT_TAA, UI_TAA_Alpha, "Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.05, 1.0, 0.2)
     UI_FLOAT(CAT_TAA, UI_TAA_Sharpen, "Sharpening", "The amount of sharpening applied", 0.0, 1.0, 0.0)
 #endif
@@ -155,7 +154,7 @@ _vort_MotionEffects_Help_,
 #if V_MV_USE_REST > 0
 float2 GetCameraVelocity(float2 uv)
 {
-    float depth = GetLinearizedDepth(uv);
+    float depth = GetDepth(uv);
     float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
     float4 curr_clip = float4(curr_screen, depth, 1);
 
@@ -251,5 +250,5 @@ float3 DebugMotion(float2 motion)
     float angle = atan2(motion.y, motion.x);
     float3 rgb = saturate(3.0 * abs(2.0 * frac(angle / DOUBLE_PI + float3(0.0, -A_THIRD, A_THIRD)) - 1.0) - 1.0);
 
-    return lerp(0.5, rgb, saturate(length(motion) * 100.0));
+    return lerp(0.5, rgb, saturate(log(1 + length(motion) * 400.0  / frame_time)));
 }

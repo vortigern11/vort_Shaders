@@ -113,7 +113,7 @@ float3 ApplySharpen(float3 c, float2 uv)
 {
     float3 blurred = Filter13Taps(CC_IN_SAMP, uv, 0).rgb;
     float3 sharp = GET_LUMI(c - blurred);
-    float depth = GetLinearizedDepth(uv);
+    float depth = GetDepth(uv);
     float limit = abs(dot(sharp, A_THIRD));
 
     sharp = sharp * UI_CC_SharpenStrength * (1.0 - depth) * (limit < UI_CC_SharpenLimit);

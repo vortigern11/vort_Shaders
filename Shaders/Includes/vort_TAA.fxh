@@ -51,23 +51,6 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
     Functions
 *******************************************************************************/
 
-// this is absolutely not the correct way but there is no projection matrix in reshade
-// so some kind of small jitter applied to the uv is better than no jitter at all
-float4 GetUVJitter()
-{
-    static const float2 offs[4] = {
-        float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
-    };
-
-    float4 jitter = 0;
-
-    if(frame_count > 0)
-        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]) * BUFFER_PIXEL_SIZE.xyxy;
-
-    // reduce jitter to make it unnoticable and to have sharper result
-    return jitter * UI_TAA_Jitter;
-}
-
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
     float3 r = old_c - new_c;
@@ -92,8 +75,14 @@ void PS_Main(PS_ARGS3)
     if(1) { o = DebugMotion(SampleMotion(i.uv)); return; }
 #endif
 
-    float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
+    float2 motion = Sample(sTAAMVTexVort, i.uv).xy;
+    float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
+    float2 prev_uv = i.uv + motion;
+    bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
 
+    if(mot_px_len < 1.0 || is_outside_screen) discard;
+
+    float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
 
@@ -110,19 +99,7 @@ void PS_Main(PS_ARGS3)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = saturate(i.uv - GetUVJitter().zw);
-    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
-
-    prev_uv += motion;
-
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
-
-    bool is_first = prev_info.a < 0.05;
-    bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
-
-    // no prev color yet or motion leads to outside of screen coords
-    if(is_first || is_outside_screen) discard;
-
     float3 prev_c = RGBToYCoCg(ApplyLinearCurve(prev_info.rgb));
 
     avg_c *= inv_samples;
@@ -152,7 +129,7 @@ void PS_WriteMV(PS_ARGS2)
     [loop]for(int y = -1; y <= 1; y++)
     {
         float2 sample_uv = saturate(i.uv + float2(x,y) * BUFFER_PIXEL_SIZE);
-        float sample_z = GetLinearizedDepth(sample_uv);
+        float sample_z = GetDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
     }
@@ -164,13 +141,7 @@ void PS_WriteMV(PS_ARGS2)
     o.xy = motion * (mot_px_len >= 1.0);
 }
 
-void PS_WritePrevColor(PS_ARGS4)
-{
-    float2 new_uv = saturate(i.uv + GetUVJitter().xy);
-    float3 color = Sample(sColorTexVort, new_uv).rgb;
-
-    o = float4(color, 1.0);
-}
+void PS_WritePrevColor(PS_ARGS4) { o = float4(Sample(sColorTexVort, i.uv).rgb, 1.0); }
 
 /*******************************************************************************
     Passes
