@@ -37,7 +37,7 @@ technique vort_HDR
     PASS_START
 
 #if V_ENABLE_BLOOM
-    #if V_BLOOM_DEBUG
+    #if V_ENABLE_BLOOM == 9
         PASS_BLOOM_DEBUG
     #endif
 

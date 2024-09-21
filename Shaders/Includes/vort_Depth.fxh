@@ -6,9 +6,6 @@ sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
 
 float GetDepth(float2 texcoord)
 {
-#if !V_HAS_DEPTH
-    return 0.5;
-#else
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
     texcoord.y = 1.0 - texcoord.y;
 #endif
@@ -37,7 +34,6 @@ float GetDepth(float2 texcoord)
     depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
     return saturate(depth);
-#endif
 }
 
 float3 GetNormals(float2 uv)

@@ -55,12 +55,6 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
-#if V_ENABLE_MOT_BLUR
-    #ifndef V_MOT_BLUR_USE_COMPUTE
-        #define V_MOT_BLUR_USE_COMPUTE 0
-    #endif
-#endif
-
 #ifndef V_ENABLE_TAA
     #define V_ENABLE_TAA 0
 #endif
@@ -102,20 +96,15 @@ _vort_MotionEffects_Help_,
 "V_MV_USE_HQ - 0 or 1\n"
 "Enable high quality motion vectors at the cost of performance\n"
 "\n"
-"V_ENABLE_MOT_BLUR - 0 or 1\n"
-"Toggle Motion Blur off or on\n"
-"Set to 9 to debug motion vectors\n"
-"\n"
-"V_MOT_BLUR_USE_COMPUTE - 0 or 1\n"
-"Toggle use of compute shaders for Motion Blur\n"
-"Can improve performance on newer graphic cards\n"
+"V_ENABLE_MOT_BLUR - [0 - 2]\n"
+"1 - enable Motion Blur\n"
+"2 - enable Motion Blur and use compute shaders (better performance on new GPUs)\n"
+"8 - debug tiles\n"
+"9 - debug motion vectors\n"
 "\n"
 "V_ENABLE_TAA - 0 or 1\n"
-"Toggle TAA off or on\n"
-"Set to 9 to debug motion vectors\n"
-"\n"
-"V_HAS_DEPTH - 0 or 1\n"
-"Whether the game has depth (2D or 3D)\n"
+"1 - enable TAA\n"
+"9 - debug motion vectors\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"

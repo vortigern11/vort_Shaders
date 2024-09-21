@@ -129,14 +129,6 @@ uniform float timer < source = "timer"; >;
     #define V_USE_HW_LIN 0
 #endif
 
-#ifndef V_HAS_DEPTH
-    #define V_HAS_DEPTH 1
-#endif
-
-#ifndef V_USE_ACES
-    #define V_USE_ACES 0
-#endif
-
 #if !IS_SRGB
     #ifndef V_HDR_WHITE_LVL
         #define V_HDR_WHITE_LVL 203
@@ -686,9 +678,7 @@ float Dither(float2 vpos, float scale)
 
 float2 GetHDRRange()
 {
-#if IS_SRGB && V_USE_ACES
-    return float2(FLOAT_MIN, FLOAT_MAX);
-#elif IS_SRGB
+#if IS_SRGB
     return float2(0.0, FLOAT_MAX);
 #elif IS_SCRGB
     return float2(-0.5, 10000.0 / V_HDR_WHITE_LVL);

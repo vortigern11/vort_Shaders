@@ -58,7 +58,7 @@
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
 
-#if IS_SRGB && V_USE_ACES
+#if V_USE_ACES
     #include "Includes/vort_ACES.fxh"
 #endif
 
@@ -76,7 +76,7 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-#if IS_SRGB && V_USE_ACES
+#if V_USE_ACES
     #define TO_LOG_CS(_x) ACEScgToACEScct(_x)
     #define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
     #define GET_LUMI(_x) ACESToLumi(_x)
@@ -363,7 +363,7 @@ void PS_Start(PS_ARGS4) {
     c = ApplyPalette(c, i.vpos.xy);
 #endif
 
-#if IS_SRGB && V_USE_ACES
+#if V_USE_ACES
     c = InverseACESFull(c);
 #elif IS_SRGB
     c = Tonemap::InverseReinhardMax(c, UI_Tonemap_Mod);
@@ -377,9 +377,13 @@ void PS_End(PS_ARGS3)
     float3 c = Sample(CC_IN_SAMP, i.uv).rgb;
     float2 range = GetHDRRange();
 
+#if V_USE_ACES
+    range.x = FLOAT_MIN;
+#endif
+
     c = clamp(c, range.x, range.y);
 
-#if V_ENABLE_SHARPEN && V_HAS_DEPTH
+#if V_ENABLE_SHARPEN
     c = ApplySharpen(c, i.uv);
     c = clamp(c, range.x, range.y);
 #endif
@@ -389,7 +393,7 @@ void PS_End(PS_ARGS3)
     c = clamp(c, range.x, range.y);
 #endif
 
-#if IS_SRGB && V_USE_ACES
+#if V_USE_ACES
     c = ApplyACESFull(c);
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);

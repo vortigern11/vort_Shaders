@@ -51,10 +51,12 @@
     #define V_ENABLE_LUT 0
 #endif
 
-#if V_ENABLE_BLOOM
-    #ifndef V_BLOOM_DEBUG
-        #define V_BLOOM_DEBUG 0
+#if IS_SRGB
+    #ifndef V_USE_ACES
+        #define V_USE_ACES 0
     #endif
+#else
+    #define V_USE_ACES 0
 #endif
 
 UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range", 1.001, 1.5, 1.04)
@@ -118,7 +120,7 @@ UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range
 UI_HELP(
 _vort_HDR_Help_,
 "V_ENABLE_BLOOM - 0 or 1\n"
-"Toggle the bloom effect.\n"
+"Toggle the bloom effect. Set to 9 to debug.\n"
 "\n"
 "V_ENABLE_SHARPEN - 0 or 1\n"
 "Toggle the sharpening and far blur.\n"
@@ -132,14 +134,8 @@ _vort_HDR_Help_,
 "V_ENABLE_COLOR_GRADING - 0 or 1\n"
 "Toggle all the color grading effects\n"
 "\n"
-"V_BLOOM_DEBUG - 0 or 1\n"
-"Shows 4 bright squares to see the bloom effect and make UI adjustments if you want.\n"
-"\n"
 "V_USE_ACES - 0 or 1\n"
 "Whether to use the full ACES tonemapper (very high performance cost)\n"
-"\n"
-"V_HAS_DEPTH - 0 or 1\n"
-"Whether the game has depth (2D or 3D game)\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"

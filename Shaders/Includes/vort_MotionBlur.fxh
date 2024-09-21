@@ -42,7 +42,7 @@ namespace MotBlur {
 *******************************************************************************/
 
 // older graphics cards get worse performance
-#define MB_USE_COMPUTE CAN_COMPUTE && V_MOT_BLUR_USE_COMPUTE
+#define MB_USE_COMPUTE CAN_COMPUTE && V_ENABLE_MOT_BLUR == 2
 
 // scale the tile number (40px at 1080p)
 #define K (BUFFER_HEIGHT / 27)
