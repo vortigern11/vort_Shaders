@@ -60,25 +60,26 @@ namespace MotBlur {
     Textures, Samplers
 *******************************************************************************/
 
+#if IS_SRGB
+    texture2D BlurTexVort { TEX_SIZE(0) TEX_RGBA8 };
+#else
+    texture2D BlurTexVort { TEX_SIZE(0) TEX_RGBA16 };
+#endif
+
+texture2D PrevTexVort { TEX_SIZE(0) TEX_RGBA16 };
 texture2D InfoTexVort { TEX_SIZE(0) TEX_RGBA16 };
 texture2D TileFstTexVort { Width = TILE_WIDTH; Height = BUFFER_HEIGHT; TEX_RG16 };
 texture2D TileSndTexVort { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
 texture2D NeighMaxTexVort { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
 
+sampler2D sBlurTexVort { Texture = BlurTexVort; };
+sampler2D sPrevTexVort { Texture = PrevTexVort; };
 sampler2D sInfoTexVort { Texture = InfoTexVort; SAM_POINT };
 sampler2D sTileFstTexVort { Texture = TileFstTexVort; SAM_POINT };
 sampler2D sTileSndTexVort { Texture = TileSndTexVort; SAM_POINT };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 
 #if MB_USE_COMPUTE
-    #if IS_SRGB
-        texture2D BlurTexVort { TEX_SIZE(0) TEX_RGBA8 };
-    #else
-        texture2D BlurTexVort { TEX_SIZE(0) TEX_RGBA16 };
-    #endif
-
-    sampler2D sBlurTexVort { Texture = BlurTexVort; };
-
     storage2D stInfoTexVort { Texture = InfoTexVort; };
     storage2D stTileFstTexVort { Texture = TileFstTexVort; };
     storage2D stTileSndTexVort { Texture = TileSndTexVort; };
@@ -90,9 +91,9 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
     Functions
 *******************************************************************************/
 
-float3 InColor(float2 uv)
+float3 InColor(float3 c)
 {
-    float3 c = SampleLinColor(uv);
+    c = ForceLinearCurve(c);
 
 #if IS_SRGB
     c = Tonemap::InverseReinhardMax(c, 1.1);
@@ -107,11 +108,7 @@ float3 OutColor(float3 c)
     c = Tonemap::ApplyReinhardMax(c, 1.1);
 #endif
 
-#if MB_USE_COMPUTE
     return ForceGammaCurve(c);
-#else
-    return ApplyGammaCurve(c);
-#endif
 }
 
 float3 GetMotionAndLength(float2 uv)
@@ -168,7 +165,7 @@ float4 Calc_Blur(float2 pos)
     float2 max_motion = Sample(sNeighMaxTexVort, saturate(uv + tiles_uv_offs)).xy;
     float max_mot_len = length(max_motion);
 
-    // x = motion px len, y = motion angle, z = depth
+    // x = motion px len, y = motion angle, z = curr depth, w = prev depth
     float4 cen_info = Sample(sInfoTexVort, uv);
     float2 cen_motion = GetMotionAndLength(uv).xy;
 
@@ -221,12 +218,12 @@ float4 Calc_Blur(float2 pos)
         float2 sample_uv1 = saturate(uv - uv_offs.xy);
         float2 sample_uv2 = saturate(uv + uv_offs.zw);
 
-        // x = motion px len, y = motion angle, z = depth
+        // x = motion px len, y = motion angle, z = curr depth, w = prev depth
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
         float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
 
         float2 depthcmp1 = saturate(0.5 + z_scales * (sample_info1.z - cen_info.z));
-        float2 depthcmp2 = saturate(0.5 + z_scales * (sample_info2.z - cen_info.z));
+        float2 depthcmp2 = saturate(0.5 + z_scales * (sample_info2.w - cen_info.w));
 
         // the `max` is to remove potential artifacts
         float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - max(0.0, step.x - 1.0) * m.z);
@@ -240,8 +237,8 @@ float4 Calc_Blur(float2 pos)
         float2 sample_w1 = (depthcmp1 * spreadcmp1) * dir_w1;
         float2 sample_w2 = (depthcmp2 * spreadcmp2) * dir_w2;
 
-        float3 sample_color1 = InColor(sample_uv1);
-        float3 sample_color2 = InColor(sample_uv2);
+        float3 sample_color1 = InColor(SampleGammaColor(sample_uv1));
+        float3 sample_color2 = InColor(Sample(sPrevTexVort, sample_uv2).rgb);
 
         bg_acc += float4(sample_color1, 1.0) * sample_w1.x;
         fg_acc += float4(sample_color1, 1.0) * sample_w1.y;
@@ -253,7 +250,7 @@ float4 Calc_Blur(float2 pos)
     }
 
     // add center color and weight to background
-    bg_acc += float4(InColor(uv), 1.0) * (inv_half_samples * 0.01);
+    bg_acc += float4(InColor(SampleGammaColor(uv)), 1.0) * (inv_half_samples * 0.01);
     total_weight += 1.0;
 
     float3 bg_col = bg_acc.rgb * RCP(bg_acc.w);
@@ -272,23 +269,26 @@ float4 Calc_Blur(float2 pos)
 float4 Calc_WriteInfo(float2 pos)
 {
     float2 uv = pos * BUFFER_PIXEL_SIZE;
-    float3 closest = float3(uv, 1.0);
+    float3 curr_uvz = float3(uv, 1.0);
+    float prev_z = 1.0;
 
     // apply min filter to remove some artifacts
     [loop]for(int x = -1; x <= 1; x++)
     [loop]for(int y = -1; y <= 1; y++)
     {
         float2 sample_uv = saturate(uv + float2(x,y) * BUFFER_PIXEL_SIZE);
-        float sample_z = GetDepth(sample_uv);
+        float sample_curr_z = GetDepth(sample_uv);
+        float sample_prev_z = Sample(sPrevTexVort, sample_uv).a;
 
-        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+        if(sample_curr_z < curr_uvz.z) curr_uvz = float3(sample_uv, sample_curr_z);
+        if(sample_prev_z < prev_z) prev_z = sample_prev_z;
     }
 
-    float3 mot_info = GetMotionAndLength(closest.xy);
+    float3 mot_info = GetMotionAndLength(curr_uvz.xy);
     float mot_angle = mot_info.z > 0.0 ? atan2(mot_info.y, mot_info.x) : 5.0; // custom value
 
-    // x = motion px len, y = motion angle, z = depth
-    return float4(mot_info.z, mot_angle, closest.z, 1.0);
+    // x = motion px len, y = motion angle, z = curr depth, w = prev depth
+    return float4(mot_info.z, mot_angle, curr_uvz.z, prev_z);
 }
 
 float2 Calc_TileDownHor(float2 pos)
@@ -371,8 +371,6 @@ float2 Calc_NeighbourMax(float2 pos)
     return max_motion.xy;
 }
 
-void Draw(float4 c, out float3 o) { if(c.a < 1.0) discard; o = c.rgb; }
-
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -383,14 +381,24 @@ void Draw(float4 c, out float3 o) { if(c.a < 1.0) discard; o = c.rgb; }
     void CS_TileDownVert(CS_ARGS) { tex2Dstore(stTileSndTexVort,  i.id.xy, Calc_TileDownVert(i.id.xy + 0.5).xyxy); }
     void CS_NeighbourMax(CS_ARGS) { tex2Dstore(stNeighMaxTexVort, i.id.xy, Calc_NeighbourMax(i.id.xy + 0.5).xyxy); }
     void CS_Blur(CS_ARGS)         { tex2Dstore(stBlurTexVort,     i.id.xy, Calc_Blur(i.id.xy + 0.5));              }
-    void PS_Draw(PS_ARGS3)        { Draw(Sample(sBlurTexVort, i.uv), o); }
 #else
     void PS_WriteInfo(PS_ARGS4)    { o = Calc_WriteInfo(i.vpos.xy);    }
     void PS_TileDownHor(PS_ARGS2)  { o = Calc_TileDownHor(i.vpos.xy);  }
     void PS_TileDownVert(PS_ARGS2) { o = Calc_TileDownVert(i.vpos.xy); }
     void PS_NeighbourMax(PS_ARGS2) { o = Calc_NeighbourMax(i.vpos.xy); }
-    void PS_BlurAndDraw(PS_ARGS3)  { Draw(Calc_Blur(i.vpos.xy), o);    }
+    void PS_Blur(PS_ARGS4)         { o = Calc_Blur(i.vpos.xy);         }
 #endif
+
+void PS_WritePrev(PS_ARGS4) { o = float4(SampleGammaColor(i.uv), GetDepth(i.uv)); }
+
+void PS_Draw(PS_ARGS3)
+{
+    float4 blur = Sample(sBlurTexVort, i.uv);
+
+    if(blur.a < 1.0) discard;
+
+    o = blur.rgb;
+}
 
 /*******************************************************************************
     Passes
@@ -403,6 +411,7 @@ void Draw(float4 c, out float3 o) { if(c.a < 1.0) discard; o = c.rgb; }
         pass { ComputeShader = MotBlur::CS_TileDownVert<GS, GS>; DispatchSizeX = CEIL_DIV(TILE_WIDTH, GS);   DispatchSizeY = CEIL_DIV(TILE_HEIGHT, GS);   } \
         pass { ComputeShader = MotBlur::CS_NeighbourMax<GS, GS>; DispatchSizeX = CEIL_DIV(TILE_WIDTH, GS);   DispatchSizeY = CEIL_DIV(TILE_HEIGHT, GS);   } \
         pass { ComputeShader = MotBlur::CS_Blur<GS, GS>;         DispatchSizeX = CEIL_DIV(BUFFER_WIDTH, GS); DispatchSizeY = CEIL_DIV(BUFFER_HEIGHT, GS); } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WritePrev; RenderTarget = MotBlur::PrevTexVort; } \
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Draw; }
 #else
     #define PASS_MOT_BLUR \
@@ -410,7 +419,9 @@ void Draw(float4 c, out float3 o) { if(c.a < 1.0) discard; o = c.rgb; }
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor;  RenderTarget = MotBlur::TileFstTexVort;  } \
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort;  } \
         pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_BlurAndDraw; SRGB_WRITE_ENABLE }
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur;         RenderTarget = MotBlur::BlurTexVort;     } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_WritePrev;    RenderTarget = MotBlur::PrevTexVort;     } \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Draw; }
 #endif
 
 } // namespace end

@@ -52,14 +52,20 @@ sampler2D sCurrFeatTexVort { Texture = CurrFeatTexVort; };
 sampler2D sPrevFeatTexVort { Texture = PrevFeatTexVort; };
 
 texture2D MotionTexVort1 { TEX_SIZE(1) TEX_RG16 };
-texture2D MotionTexVort2 { TEX_SIZE(2) TEX_RG16 };
 texture2D MotionTexVortA { TEX_SIZE(3) TEX_RG16 };
 texture2D MotionTexVortB { TEX_SIZE(3) TEX_RG16 };
 
 sampler2D sMotionTexVort1 { Texture = MotionTexVort1; SAM_POINT };
-sampler2D sMotionTexVort2 { Texture = MotionTexVort2; SAM_POINT };
 sampler2D sMotionTexVortA { Texture = MotionTexVortA; SAM_POINT };
 sampler2D sMotionTexVortB { Texture = MotionTexVortB; SAM_POINT };
+
+#if IS_DX9
+    #define MotionTexVort2 MotionTexVortA
+    #define sMotionTexVort2 sMotionTexVortA
+#else
+    texture2D MotionTexVort2 { TEX_SIZE(2) TEX_RG16 };
+    sampler2D sMotionTexVort2 { Texture = MotionTexVort2; SAM_POINT };
+#endif
 
 /*******************************************************************************
     Functions
