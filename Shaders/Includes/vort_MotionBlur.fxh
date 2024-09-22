@@ -32,6 +32,7 @@
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
+#include "Includes/vort_BlueNoise.fxh"
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
@@ -51,6 +52,9 @@ namespace MotBlur {
 
 // compute shaders group size
 #define GS 16 // best performance tested
+
+#define DEG_45 0.7854
+#define DEG_20 0.35
 
 /*******************************************************************************
     Textures, Samplers
@@ -86,7 +90,7 @@ sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
     Functions
 *******************************************************************************/
 
-float3 GetColor(float2 uv)
+float3 InColor(float2 uv)
 {
     float3 c = SampleLinColor(uv);
 
@@ -97,7 +101,7 @@ float3 GetColor(float2 uv)
     return c;
 }
 
-float3 PutColor(float3 c)
+float3 OutColor(float3 c)
 {
 #if IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, 1.1);
@@ -110,34 +114,38 @@ float3 PutColor(float3 c)
 #endif
 }
 
-float3 GetDilatedMotionAndLen(float2 uv)
+float3 GetMotionAndLength(float2 uv)
 {
     // motion must be in pixel units
-    // and use radius instead of diameter
+    // and halved because of 2 sampling directions
     float2 motion = (SampleMotion(uv).xy * 0.5) * (UI_MB_Length * BUFFER_SCREEN_SIZE);
 
     // for debugging
     if(dot(UI_MB_DebugLen, 1) > 0) motion = float2(UI_MB_DebugLen);
 
-    float old_mot_len = max(0.5, length(motion));
+    float old_mot_len = length(motion);
     float new_mot_len = min(old_mot_len, float(K));
 
-    // limit the motion like in the paper
-    motion *= new_mot_len / old_mot_len;
+    // limit motion max to tile size
+    if(old_mot_len > float(K)) motion *= new_mot_len / old_mot_len;
 
     return float3(motion, new_mot_len);
 }
 
-float GetDirWeight(float main_angle, float2 sample_len_angle)
+float GetDirWeight(float angle1, float angle2, float max_diff)
 {
-    if(sample_len_angle.x < 1.0) return 1.0;
+    // custom value > PI means vector length was 0
+    if(angle1 > 3.5 || angle2 > 3.5) return 1.0;
 
-    float rel_angle = abs(main_angle - sample_len_angle.y);
+    float rel_angle = abs(angle1 - angle2);
 
     if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
 
-    // max relative angle is around 45 degrees
-    return saturate(1.0 - 1.27324 * rel_angle);
+    float ratio = max(0.0, rel_angle - 0.1) / max(0.1, max_diff - 0.1);
+
+    // rel_angle < 6deg -> full weight
+    // rel_angle > max_diff -> no weight
+    return saturate(1.0 - ratio);
 }
 
 float4 Calc_Blur(float2 pos)
@@ -149,16 +157,23 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
-    float2 sample_dither = (GetGradNoise(pos) - 0.5) * float2(1, -1); // [-0.5, 0.5]
+    float rand = GetR1(GetBlueNoise(pos).xy, frame_count % 16);
+    float2 sample_noise = (rand - 0.5) * float2(1, -1);
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
-    float rand = GetWhiteNoise(pos).x * 0.5 - 0.25; // [-0.25, 0.25]
-    float2 tiles_uv_offs = rand * tiles_inv_size;
+    float2 tiles_uv_offs = (rand * 0.5 - 0.25) * tiles_inv_size;
 
     // don't randomize diagonally
-    tiles_uv_offs *= sample_dither.x < 0.0 ? float2(1, 0) : float2(0, 1);
+    tiles_uv_offs *= sample_noise.x < 0.0 ? float2(1, 0) : float2(0, 1);
 
-    float2 max_motion = Sample(sNeighMaxTexVort, uv + tiles_uv_offs).xy;
+    float2 max_motion = Sample(sNeighMaxTexVort, saturate(uv + tiles_uv_offs)).xy;
     float max_mot_len = length(max_motion);
+
+    // x = motion px len, y = motion angle, z = depth
+    float4 cen_info = Sample(sInfoTexVort, uv);
+    float2 cen_motion = GetMotionAndLength(uv).xy;
+
+    // due to tile randomization center motion might be greater
+    if(max_mot_len < cen_info.x) { max_mot_len = cen_info.x; max_motion = cen_motion; }
 
 // debug tiles
 #if V_ENABLE_MOT_BLUR == 8
@@ -168,14 +183,13 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    // odd amount of samples so max_motion gets 1 more sample than center
-    int half_samples = clamp(round(max_mot_len * A_THIRD), 1, 8) * 2 + 1;
-    float inv_half_samples = rcp(float(half_samples));
-    static const float depth_scale = 1000.0;
+    uint half_samples = clamp(floor(max_mot_len * 0.5), 3, 7);
 
-    // x = motion px len, y = motion angle, z = closest depth
-    float4 cen_info = Sample(sInfoTexVort, uv);
-    float2 cen_motion = GetDilatedMotionAndLen(uv).xy;
+    // odd amount of samples so max motion gets 1 more sample than center motion
+    half_samples += half_samples % 2 == 0 ? 1 : 0;
+
+    float inv_half_samples = rcp(float(half_samples));
+    float2 z_scales = RESHADE_DEPTH_LINEARIZATION_FAR_PLANE * float2(1, -1);
 
     float4 max_main;
     float4 cen_main;
@@ -187,9 +201,6 @@ float4 Calc_Blur(float2 pos)
     // z = step to pixels scale, w = motion angle
     max_main.zw = float2(inv_half_samples * max_mot_len, atan2(max_motion.y, max_motion.x));
     cen_main.zw = float2(inv_half_samples * cen_info.x, cen_info.y);
-
-    // don't lose half the samples when there is no center px motion
-    if(cen_info.x < 1.0) cen_main = max_main;
 
     float4 bg_acc = 0.0;
     float4 fg_acc = 0.0;
@@ -204,49 +215,45 @@ float4 Calc_Blur(float2 pos)
 
         // negated dither in the second direction
         // to remove the otherwise visible gap
-        // min() is to have better result at object edges
-        float2 step = min(float(j) + 0.5 + sample_dither, float(half_samples - 1));
+        float2 step = float(j) + 0.5 + sample_noise;
         float4 uv_offs = step.xxyy * m.xyxy;
 
-        float2 sample_uv1 = saturate(uv + uv_offs.xy);
-        float2 sample_uv2 = saturate(uv - uv_offs.zw);
+        float2 sample_uv1 = saturate(uv - uv_offs.xy);
+        float2 sample_uv2 = saturate(uv + uv_offs.zw);
 
-        // x = motion px len, y = motion angle, z = closest depth
+        // x = motion px len, y = motion angle, z = depth
         float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
         float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
 
-        float2 depthcmp1 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info1.z - cen_info.z));
-        float2 depthcmp2 = saturate(0.5 + float2(depth_scale, -depth_scale) * (sample_info2.z - cen_info.z));
+        float2 depthcmp1 = saturate(0.5 + z_scales * (sample_info1.z - cen_info.z));
+        float2 depthcmp2 = saturate(0.5 + z_scales * (sample_info2.z - cen_info.z));
 
         // the `max` is to remove potential artifacts
         float2 spreadcmp1 = saturate(float2(cen_info.x, sample_info1.x) - max(0.0, step.x - 1.0) * m.z);
         float2 spreadcmp2 = saturate(float2(cen_info.x, sample_info2.x) - max(0.0, step.y - 1.0) * m.z);
 
         // don't contribute if sample's motion is in different direction
-        float dir_w1 = GetDirWeight(m.w, sample_info1.xy);
-        float dir_w2 = GetDirWeight(m.w, sample_info2.xy);
+        float dir_w1 = GetDirWeight(m.w, sample_info1.y, DEG_20);
+        float dir_w2 = GetDirWeight(m.w, sample_info2.y, DEG_20);
 
         // x = bg weight, y = fg weight
         float2 sample_w1 = (depthcmp1 * spreadcmp1) * dir_w1;
         float2 sample_w2 = (depthcmp2 * spreadcmp2) * dir_w2;
 
-        float3 sample_color1 = GetColor(sample_uv1);
-        float3 sample_color2 = GetColor(sample_uv2);
+        float3 sample_color1 = InColor(sample_uv1);
+        float3 sample_color2 = InColor(sample_uv2);
 
-        bg_acc += float4(sample_color1 * sample_w1.x, sample_w1.x);
-        fg_acc += float4(sample_color1 * sample_w1.y, sample_w1.y);
+        bg_acc += float4(sample_color1, 1.0) * sample_w1.x;
+        fg_acc += float4(sample_color1, 1.0) * sample_w1.y;
 
-        bg_acc += float4(sample_color2 * sample_w2.x, sample_w2.x);
-        fg_acc += float4(sample_color2 * sample_w2.y, sample_w2.y);
+        bg_acc += float4(sample_color2, 1.0) * sample_w2.x;
+        fg_acc += float4(sample_color2, 1.0) * sample_w2.y;
 
         total_weight += dir_w1 + dir_w2;
     }
 
-    // preserve thin features like in the paper
-    float cen_weight = saturate(float(half_samples) * RCP(cen_info.x * 20.0));
-
-    // add center color to background
-    bg_acc += float4(GetColor(uv) * cen_weight, cen_weight);
+    // add center color and weight to background
+    bg_acc += float4(InColor(uv), 1.0) * (inv_half_samples * 0.01);
     total_weight += 1.0;
 
     float3 bg_col = bg_acc.rgb * RCP(bg_acc.w);
@@ -259,14 +266,12 @@ float4 Calc_Blur(float2 pos)
     // instead of center in order to counteract artifacts in some cases
     float3 c = sum_acc.rgb + saturate(1.0 - sum_acc.w) * bg_col;
 
-    return float4(PutColor(c), 1.0);
+    return float4(OutColor(c), 1.0);
 }
 
 float4 Calc_WriteInfo(float2 pos)
 {
     float2 uv = pos * BUFFER_PIXEL_SIZE;
-
-    // xy = closest uv, z = closest depth
     float3 closest = float3(uv, 1.0);
 
     // apply min filter to remove some artifacts
@@ -279,33 +284,43 @@ float4 Calc_WriteInfo(float2 pos)
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
     }
 
-    float3 mot_info = GetDilatedMotionAndLen(closest.xy);
-    float mot_angle = length(mot_info.xy) > 0.0 ? atan2(mot_info.y, mot_info.x) : 0.0;
+    float3 mot_info = GetMotionAndLength(closest.xy);
+    float mot_angle = mot_info.z > 0.0 ? atan2(mot_info.y, mot_info.x) : 5.0; // custom value
 
-    // x = motion px len, y = motion angle, z = closest depth
+    // x = motion px len, y = motion angle, z = depth
     return float4(mot_info.z, mot_angle, closest.z, 1.0);
 }
 
 float2 Calc_TileDownHor(float2 pos)
 {
     float3 max_motion = 0;
+    float3 avg_motion = 0;
 
     [loop]for(uint x = 0; x < K; x++)
     {
         float2 sample_pos = float2(floor(pos.x) * K + 0.5 + x, pos.y);
-
-        // xy = motion in pixels, z = motion px length
-        float3 mot_info = GetDilatedMotionAndLen(sample_pos * BUFFER_PIXEL_SIZE);
+        float3 mot_info = GetMotionAndLength(sample_pos * BUFFER_PIXEL_SIZE);
 
         if(mot_info.z > max_motion.z) max_motion = mot_info;
+
+        avg_motion += float3(mot_info.xy * mot_info.z, mot_info.z);
     }
 
-    return max_motion.xy;
+    if(max_motion.z < 1.0) return 0;
+
+    avg_motion.xy /= avg_motion.z;
+
+    float angle1 = atan2(max_motion.y, max_motion.x);
+    float angle2 = atan2(avg_motion.y, avg_motion.x);
+    float dir_w = GetDirWeight(angle1, angle2, DEG_45);
+
+    return lerp(avg_motion.xy, max_motion.xy, dir_w);
 }
 
 float2 Calc_TileDownVert(float2 pos)
 {
     float3 max_motion = 0;
+    float3 avg_motion = 0;
 
     [loop]for(uint y = 0; y < K; y++)
     {
@@ -314,9 +329,19 @@ float2 Calc_TileDownVert(float2 pos)
         float sq_len = dot(motion.xy, motion.xy);
 
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
+
+        avg_motion += float3(motion * sq_len, sq_len);
     }
 
-    return max_motion.xy;
+    if(max_motion.z < 1.0) return 0;
+
+    avg_motion.xy /= avg_motion.z;
+
+    float angle1 = atan2(max_motion.y, max_motion.x);
+    float angle2 = atan2(avg_motion.y, avg_motion.x);
+    float dir_w = GetDirWeight(angle1, angle2, DEG_45);
+
+    return lerp(avg_motion.xy, max_motion.xy, dir_w);
 }
 
 float2 Calc_NeighbourMax(float2 pos)
@@ -328,19 +353,19 @@ float2 Calc_NeighbourMax(float2 pos)
     {
         float2 sample_pos = pos + float2(x, y);
         float2 motion = Fetch(sTileSndTexVort, sample_pos).xy;
+        float sq_len = dot(motion, motion);
 
-        static const float COS_ANGLE_45 = 0.7071;
-        float2 rev_offs = -float2(x, y);
-        float abs_cos_angle = abs(dot(rev_offs, motion) * RCP(length(rev_offs) * length(motion)));
-        bool is_mot_in_center_dir = abs_cos_angle < COS_ANGLE_45;
+        if(sq_len < 1.0) continue;
+
+        float rel_angle = abs(atan2(-y, -x) - atan2(motion.y, motion.x));
+
+        if(rel_angle > PI) rel_angle = DOUBLE_PI - rel_angle;
+
+        bool is_mot_in_center_dir = rel_angle < DEG_45;
         bool is_center = x == 0 && y == 0;
 
-        if(is_center || is_mot_in_center_dir)
-        {
-            float sq_len = dot(motion, motion);
-
-            if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
-        }
+        if((is_center || is_mot_in_center_dir) && sq_len > max_motion.z)
+            max_motion = float3(motion, sq_len);
     }
 
     return max_motion.xy;

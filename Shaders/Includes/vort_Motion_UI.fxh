@@ -62,7 +62,7 @@
 #if V_MV_MODE == 1
     #define CAT_MV "Motion Vectors"
 
-    UI_FLOAT(CAT_MV, UI_MV_SCALE, "Filter", "Small details vs smoothness", 1.0, 5.0, 3.0)
+    UI_FLOAT(CAT_MV, UI_MV_SCALE, "Filter", "Small details vs smoothness", 1.0, 5.0, 4.0)
 #endif
 
 #if V_ENABLE_MOT_BLUR
@@ -76,7 +76,7 @@
     #define CAT_TAA "Temporal AA"
 
     UI_FLOAT(CAT_TAA, UI_TAA_Alpha, "Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.05, 1.0, 0.2)
-    UI_FLOAT(CAT_TAA, UI_TAA_Sharpen, "Sharpening", "The amount of sharpening applied", 0.0, 1.0, 0.0)
+    UI_FLOAT(CAT_TAA, UI_TAA_Sharpen, "Sharpening", "The amount of sharpening applied", 0.0, 1.0, 0.5)
 #endif
 
 UI_HELP(
