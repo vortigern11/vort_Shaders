@@ -62,7 +62,7 @@
 #if V_MV_MODE == 1
     #define CAT_MV "Motion Vectors"
 
-    UI_FLOAT(CAT_MV, UI_MV_SCALE, "Filter", "Small details vs smoothness", 1.0, 5.0, 4.0)
+    UI_FLOAT(CAT_MV, UI_MV_SCALE, "Filter", "Small details vs smoothness", 1.0, 5.0, 3.5)
 #endif
 
 #if V_ENABLE_MOT_BLUR

@@ -154,7 +154,7 @@ float4 Calc_Blur(float2 pos)
     if(1) { return float4(DebugMotion(SampleMotion(uv)), 1); }
 #endif
 
-    float rand = GetR1(GetBlueNoise(pos).xy, frame_count % 16);
+    float rand = GetR1(GetBlueNoise(pos).x, frame_count % 3 + 1);
     float2 sample_noise = (rand - 0.5) * float2(1, -1);
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float2 tiles_uv_offs = (rand * 0.5 - 0.25) * tiles_inv_size;
@@ -180,7 +180,7 @@ float4 Calc_Blur(float2 pos)
     // early out
     if(max_mot_len < 1.0) return 0;
 
-    uint half_samples = clamp(floor(max_mot_len * 0.5), 3, 7);
+    uint half_samples = clamp(floor(max_mot_len * 0.5), 3, 9);
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     half_samples += half_samples % 2 == 0 ? 1 : 0;

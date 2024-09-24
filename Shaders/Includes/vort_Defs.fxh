@@ -32,7 +32,7 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-13) // higher numbers break MV calc
+#define EPSILON (1e-13)
 #define PI (3.14159265359)
 #define HALF_PI (1.57079632679)
 #define DOUBLE_PI (6.28318530718)

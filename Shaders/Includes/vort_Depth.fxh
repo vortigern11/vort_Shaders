@@ -33,7 +33,7 @@ float GetDepth(float2 texcoord)
     static const float N = 1.0;
     depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-    return saturate(depth);
+    return depth;
 }
 
 float3 GetNormals(float2 uv)

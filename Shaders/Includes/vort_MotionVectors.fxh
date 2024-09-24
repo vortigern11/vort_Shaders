@@ -33,8 +33,8 @@ namespace MotVect {
     #define MIN_MIP 1
 #endif
 
-static const int upscale_samples = 9;
-static const float2 upscale_offs[upscale_samples] =
+static const int block_samples = 9;
+static const float2 block_offs[block_samples] =
 {
     float2(0, 0),
     float2(-1, -1), float2(1, 1), float2(-1, 1), float2(1, -1),
@@ -77,14 +77,13 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
     float2 texelsize = BUFFER_PIXEL_SIZE * exp2(max(0, mip - 1));
     uint feature_mip = max(0, mip - MIN_MIP);
 
-    float2 moments_local = 0;
-    float2 moments_search = 0;
-    float2 moments_cov = 0;
+    float2 moments_local = 1e-6;
+    float2 moments_search = 1e-6;
+    float2 moments_cov = 1e-6;
 
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
+    [loop]for(int j = 0; j < block_samples; j++)
     {
-        float2 tuv = i.uv + float2(x, y) * texelsize;
+        float2 tuv = i.uv + block_offs[j] * texelsize;
         float2 t_local = Sample(sCurrFeatTexVort, saturate(tuv), feature_mip).xy;
         float2 t_search = Sample(sPrevFeatTexVort, saturate(tuv + total_motion), feature_mip).xy;
 
@@ -93,7 +92,7 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
         moments_cov += t_local * t_search;
     }
 
-    float2 cossim = moments_cov * RSQRT(moments_local * moments_search);
+    float2 cossim = moments_cov * rsqrt(moments_local * moments_search);
     float best_sim = saturate(min(cossim.x, cossim.y));
     static const float max_sim = 0.999999;
 
@@ -115,13 +114,12 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
 
             float2 search_offset = randdir * texelsize;
 
-            moments_search = 0;
-            moments_cov = 0;
+            moments_search = 1e-6;
+            moments_cov = 1e-6;
 
-            [loop]for(int x = -1; x <= 1; x++)
-            [loop]for(int y = -1; y <= 1; y++)
+            [loop]for(int j = 0; j < block_samples; j++)
             {
-                float2 tuv = i.uv + float2(x, y) * texelsize;
+                float2 tuv = i.uv + block_offs[j] * texelsize;
                 float2 t_local = Sample(sCurrFeatTexVort, saturate(tuv), feature_mip).xy;
                 float2 t_search = Sample(sPrevFeatTexVort, saturate(tuv + total_motion + search_offset), feature_mip).xy;
 
@@ -129,7 +127,7 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
                 moments_cov += t_search * t_local;
             }
 
-            cossim = moments_cov * RSQRT(moments_local * moments_search);
+            cossim = moments_cov * rsqrt(moments_local * moments_search);
             float sim = saturate(min(cossim.x, cossim.y));
 
             if(sim > best_sim)
@@ -159,9 +157,9 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     float wsum = 0;
     float2 motion_sum = 0;
 
-    [loop]for(int j = 0; j < upscale_samples; j++)
+    [loop]for(int j = 0; j < block_samples; j++)
     {
-        float2 sample_uv = i.uv + (upscale_offs[j] + qrand) * scale;
+        float2 sample_uv = i.uv + (block_offs[j] + qrand) * scale;
         float2 sample_mot = Sample(mot_samp, sample_uv).xy;
         float sample_z = Sample(sCurrFeatTexVort, sample_uv, feature_mip).y;
 
@@ -175,7 +173,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
     }
 
     return motion_sum / wsum;
-    /* return Sample(mot_samp, i.uv); */
+    /* return Sample(mot_samp, i.uv).xy; */
 }
 
 float2 EstimateMotion(VSOUT i, int mip, sampler mot_samp)
