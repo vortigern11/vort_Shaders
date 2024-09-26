@@ -18,6 +18,7 @@
 #include "Includes/vort_BlueNoise.fxh"
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_Motion_UI.fxh"
+#include "Includes/vort_MotionUtils.fxh"
 
 namespace MotVect {
 
@@ -84,8 +85,8 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
     [loop]for(int j = 0; j < block_samples; j++)
     {
         float2 tuv = i.uv + block_offs[j] * texelsize;
-        float2 t_local = Sample(sCurrFeatTexVort, saturate(tuv), feature_mip).xy;
-        float2 t_search = Sample(sPrevFeatTexVort, saturate(tuv + total_motion), feature_mip).xy;
+        float2 t_local = Sample(sCurrFeatTexVort, tuv, feature_mip).xy;
+        float2 t_search = Sample(sPrevFeatTexVort, tuv + total_motion, feature_mip).xy;
 
         moments_local += t_local * t_local;
         moments_search += t_search * t_search;
@@ -120,8 +121,8 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion)
             [loop]for(int j = 0; j < block_samples; j++)
             {
                 float2 tuv = i.uv + block_offs[j] * texelsize;
-                float2 t_local = Sample(sCurrFeatTexVort, saturate(tuv), feature_mip).xy;
-                float2 t_search = Sample(sPrevFeatTexVort, saturate(tuv + total_motion + search_offset), feature_mip).xy;
+                float2 t_local = Sample(sCurrFeatTexVort, tuv, feature_mip).xy;
+                float2 t_search = Sample(sPrevFeatTexVort, tuv + total_motion + search_offset, feature_mip).xy;
 
                 moments_search += t_search * t_search;
                 moments_cov += t_search * t_local;
@@ -240,7 +241,7 @@ void PS_Filter2(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2;      RenderTarget = MotVect::MotionTexVort2; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MV_TEX; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MotVectTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::PrevFeatTexVort; }
 
 } // namespace end

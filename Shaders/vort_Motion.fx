@@ -26,6 +26,7 @@
 
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Motion_UI.fxh"
+#include "Includes/vort_MotionUtils.fxh"
 
 #if V_MV_MODE == 1
     #include "Includes/vort_MotionVectors.fxh"

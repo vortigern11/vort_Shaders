@@ -32,7 +32,7 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-13)
+#define EPSILON (1e-8)
 #define PI (3.14159265359)
 #define HALF_PI (1.57079632679)
 #define DOUBLE_PI (6.28318530718)
@@ -52,7 +52,7 @@ static const float A_THIRD = 1.0 / 3.0;
 #define RCP(_x) (rcp(max(EPSILON, (_x))))
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
-#define RSQRT(_x) (RCP(sqrt(_x)))
+#define RSQRT(_x) (rsqrt(max(EPSILON, _x)))
 #define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
 #define LOG(_x) (log(max(EPSILON, (_x))))
 #define LOG2(_x) (log2(max(EPSILON, (_x))))
@@ -691,9 +691,10 @@ float2 GetHDRRange()
 #endif
 }
 
-float4 GetRotator(float r)
+// rotates counter clockwise
+float4 GetRotator(float rads)
 {
-    float2 sc; sincos(r, sc.x, sc.y);
+    float2 sc; sincos(rads, sc.x, sc.y);
 
     return float4(sc.y, sc.x, -sc.x, sc.y);
 }
@@ -701,4 +702,12 @@ float4 GetRotator(float r)
 float2 Rotate(float2 v, float4 rot)
 {
     return float2(dot(v, rot.xy), dot(v, rot.zw));
+}
+
+float ACOS(float cos_rads)
+{
+    float abs_cr = abs(cos_rads);
+    float rads = (-0.156583 * abs_cr + HALF_PI) * sqrt(1.0 - abs_cr);
+
+    return cos_rads < 0.0 ? PI - rads : rads;
 }

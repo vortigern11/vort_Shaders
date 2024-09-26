@@ -34,6 +34,7 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
+#include "Includes/vort_MotionUtils.fxh"
 
 namespace TAA {
 
@@ -92,8 +93,7 @@ void PS_Main(PS_ARGS3)
     [loop]for(int j = 0; j < 4; j++)
     {
         float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
-        float2 sample_uv = saturate(i.uv + uv_offs);
-        float3 sample_c = RGBToYCoCg(SampleLinColor(sample_uv));
+        float3 sample_c = RGBToYCoCg(SampleLinColor(i.uv + uv_offs));
 
         avg_c += sample_c;
         var_c += sample_c * sample_c;
@@ -128,7 +128,7 @@ void PS_WriteMV(PS_ARGS2)
     [loop]for(int x = -1; x <= 1; x++)
     [loop]for(int y = -1; y <= 1; y++)
     {
-        float2 sample_uv = saturate(i.uv + float2(x,y) * BUFFER_PIXEL_SIZE);
+        float2 sample_uv = i.uv + float2(x,y) * BUFFER_PIXEL_SIZE;
         float sample_z = GetDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);

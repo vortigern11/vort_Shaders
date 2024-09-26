@@ -25,6 +25,7 @@
 *******************************************************************************/
 
 #pragma once
+#include "Includes/vort_Defs.fxh"
 
 #ifndef V_ENABLE_BLOOM
     #define V_ENABLE_BLOOM 0
