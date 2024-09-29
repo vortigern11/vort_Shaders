@@ -58,8 +58,14 @@
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
-    UI_FLOAT(CAT_MB, UI_MB_Length, "Motion Length", "Modifies the velocity length", 0.0, 2.0, 1.0)
-    UI_INT2(CAT_MB, UI_MB_DebugLen, "Debug Length", "To disable debug, set both sliders to 0", 0, 100, 0)
+    UI_FLOAT(CAT_MB, UI_MB_Mult, "Motion Multiplier", "Best to leave at 1.", 1, 2, 1)
+
+    #if V_ENABLE_MOT_BLUR == 7
+        UI_INT2(CAT_MB, UI_MB_DebugLen, "Debug Length", "", -100, 100, 0)
+        UI_FLOAT(CAT_MB, UI_MB_DebugZCen, "Debug Depth Center", "", 0.0, 1.0, 0.0)
+        UI_FLOAT(CAT_MB, UI_MB_DebugZRange, "Debug Depth Range", "", 0.0, 1.0, 0.5)
+        UI_BOOL(CAT_MB, UI_MB_DebugRev, "Debug Reverse Background Blur", "", false)
+    #endif
 #endif
 
 #if V_ENABLE_TAA
@@ -89,6 +95,7 @@ _vort_MotionEffects_Help_,
 "V_ENABLE_MOT_BLUR - [0 - 2]\n"
 "1 - enable Motion Blur\n"
 "2 - enable Motion Blur and use compute shaders (better performance on new GPUs)\n"
+"7 - debug motion blur\n"
 "8 - debug tiles\n"
 "9 - debug motion vectors\n"
 "\n"

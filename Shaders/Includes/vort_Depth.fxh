@@ -4,6 +4,8 @@
 texture2D DepthTexVort : DEPTH;
 sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
 
+#define Z_FAR_PLANE RESHADE_DEPTH_LINEARIZATION_FAR_PLANE
+
 float GetDepth(float2 texcoord)
 {
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
