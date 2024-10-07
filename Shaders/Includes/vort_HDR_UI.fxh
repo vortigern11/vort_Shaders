@@ -57,6 +57,7 @@
         #define V_USE_ACES 0
     #endif
 #else
+    #undef V_USE_ACES
     #define V_USE_ACES 0
 #endif
 

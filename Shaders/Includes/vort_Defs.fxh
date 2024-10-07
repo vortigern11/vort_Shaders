@@ -48,6 +48,24 @@
 
 static const float A_THIRD = 1.0 / 3.0;
 
+// ordering matters in some situations
+static const uint S_BOX_OFFS1 = 9;
+static const float2 BOX_OFFS1[S_BOX_OFFS1] = {
+    float2(0, 0),
+    float2(1, 0), float2( 0, 1), float2(-1, 0), float2(0, -1),
+    float2(1, 1), float2(-1,-1), float2(-1, 1), float2(1, -1)
+};
+static const uint S_BOX_OFFS2 = 25;
+static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
+    float2(0, 0),
+    float2(1, 0), float2( 0,  1), float2(-1,  0), float2( 0, -1),
+    float2(1, 1), float2(-1, -1), float2(-1,  1), float2( 1, -1),
+    float2(2, 0), float2( 0,  2), float2(-2,  0), float2( 0, -2),
+    float2(2, 1), float2( 2, -1), float2(-2,  1), float2(-2, -1),
+    float2(1, 2), float2(-1,  2), float2( 1, -2), float2(-1, -2),
+    float2(2, 2), float2(-2, -2), float2(-2,  2), float2( 2, -2)
+};
+
 // safer versions of built-in functions
 #define RCP(_x) (rcp(max(EPSILON, (_x))))
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
@@ -376,7 +394,7 @@ float3 LinToHLG(float3 c, float white_lvl)
     return c < 0.5 ? c : (LOG(c * 12 - c2) * c1 + c3);
 }
 
-float3 ApplyLinearCurve(float3 c)
+float3 ApplyLinCurve(float3 c)
 {
 #if IS_SRGB && (!IS_8BIT || !V_USE_HW_LIN)
     c = SRGBToLin(c);
@@ -406,12 +424,12 @@ float3 ApplyGammaCurve(float3 c)
     return c;
 }
 
-float3 ForceLinearCurve(float3 c)
+float3 ForceLinCurve(float3 c)
 {
 #if IS_SRGB
     c = SRGBToLin(c);
 #else
-    c = ApplyLinearCurve(c);
+    c = ApplyLinCurve(c);
 #endif
 
     return c;
@@ -594,7 +612,9 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
 float GetGradNoise(float2 pos)
 {
-    return frac(52.9829189 * frac(dot(pos, float2(0.06711056, 0.00583715))));
+    float idx = 5.588238 * float(frame_count % 63 + 1);
+
+    return frac(52.9829189 * frac(dot(pos + idx, float2(0.06711056, 0.00583715))));
 }
 
 float3 GetWhiteNoise(float2 vpos)
@@ -671,7 +691,7 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
 
 float Dither(float2 vpos, float scale)
 {
-    float2 s = float2(uint2(vpos) % 2) * 2.0 - 1.0;
+    float2 s = float2(floor(vpos) % 2) * 2.0 - 1.0;
 
     return scale * s.x * s.y;
 }
@@ -704,6 +724,15 @@ float2 Rotate(float2 v, float4 rot)
     return float2(dot(v, rot.xy), dot(v, rot.zw));
 }
 
+float GetCosAngle(float2 v1, float2 v2)
+{
+    // var. 1: dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2))
+    // var. 2: dot(v1, v2) * RCP(length(v1) * length(v2)
+    // var. 3: dot(NORM(v1), NORM(v2))
+
+    return dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2));
+}
+
 float ACOS(float cos_rads)
 {
     float abs_cr = abs(cos_rads);
@@ -711,3 +740,5 @@ float ACOS(float cos_rads)
 
     return cos_rads < 0.0 ? PI - rads : rads;
 }
+
+bool ValidateUV(float2 uv) { return all(saturate(uv - uv * uv)); }

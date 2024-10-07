@@ -79,7 +79,7 @@ void PS_Main(PS_ARGS3)
     float2 motion = Sample(sTAAMVTexVort, i.uv).xy;
     float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
     float2 prev_uv = i.uv + motion;
-    bool is_outside_screen = !all(saturate(prev_uv - prev_uv * prev_uv));
+    bool is_outside_screen = !ValidateUV(prev_uv);
 
     if(mot_px_len < 1.0 || is_outside_screen) discard;
 
@@ -100,7 +100,7 @@ void PS_Main(PS_ARGS3)
     }
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
-    float3 prev_c = RGBToYCoCg(ApplyLinearCurve(prev_info.rgb));
+    float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
 
     avg_c *= inv_samples;
     var_c *= inv_samples;

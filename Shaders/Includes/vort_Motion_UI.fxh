@@ -52,19 +52,19 @@
 #if V_MV_MODE == 1
     #define CAT_MV "Motion Vectors"
 
-    UI_FLOAT(CAT_MV, UI_MV_SCALE, "Filter", "Small details vs smoothness", 1.0, 5.0, 3.5)
+    UI_FLOAT(CAT_MV, UI_MV_Scale, "Filter Scale", "Small details vs smoothness", 1.0, 5.0, 2.0)
 #endif
 
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
-    UI_FLOAT(CAT_MB, UI_MB_Mult, "Motion Multiplier", "Best to leave at 1.", 1, 2, 1)
+    UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
     #if V_ENABLE_MOT_BLUR == 7
-        UI_INT2(CAT_MB, UI_MB_DebugLen, "Debug Length", "", -100, 100, 0)
-        UI_FLOAT(CAT_MB, UI_MB_DebugZCen, "Debug Depth Center", "", 0.0, 1.0, 0.0)
-        UI_FLOAT(CAT_MB, UI_MB_DebugZRange, "Debug Depth Range", "", 0.0, 1.0, 0.5)
-        UI_BOOL(CAT_MB, UI_MB_DebugRev, "Debug Reverse Background Blur", "", false)
+        UI_INT2(CAT_MB, UI_MB_DebugLen, "DB Length", "", -100, 100, 0)
+        UI_FLOAT(CAT_MB, UI_MB_DebugZCen, "DB Depth Center", "", 0.0, 1.0, 0.0)
+        UI_FLOAT(CAT_MB, UI_MB_DebugZRange, "DB Depth Range", "", 0.0, 1.0, 0.5)
+        UI_BOOL(CAT_MB, UI_MB_DebugRev, "DB Reverse Background Blur", "", false)
     #endif
 #endif
 
@@ -92,9 +92,8 @@ _vort_MotionEffects_Help_,
 "V_MV_USE_HQ - 0 or 1\n"
 "Enable high quality motion vectors at the cost of performance\n"
 "\n"
-"V_ENABLE_MOT_BLUR - [0 - 2]\n"
+"V_ENABLE_MOT_BLUR - 0 or 1\n"
 "1 - enable Motion Blur\n"
-"2 - enable Motion Blur and use compute shaders (better performance on new GPUs)\n"
 "7 - debug motion blur\n"
 "8 - debug tiles\n"
 "9 - debug motion vectors\n"
