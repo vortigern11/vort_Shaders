@@ -161,7 +161,7 @@ uniform float timer < source = "timer"; >;
         ui_min = _min; \
         ui_max = _max; \
         ui_tooltip = _descr; \
-        ui_step = 0.001; \
+        ui_step = 1e-4; \
         ui_type = "slider"; \
     > = _default;
 
@@ -173,7 +173,7 @@ uniform float timer < source = "timer"; >;
         ui_min = _min; \
         ui_max = _max; \
         ui_tooltip = _descr; \
-        ui_step = 0.001; \
+        ui_step = 1e-4; \
         ui_type = "slider"; \
     > = _default;
 
@@ -185,7 +185,7 @@ uniform float timer < source = "timer"; >;
         ui_min = _min; \
         ui_max = _max; \
         ui_tooltip = _descr; \
-        ui_step = 0.001; \
+        ui_step = 1e-4; \
         ui_type = "slider"; \
     > = _default;
 
@@ -197,7 +197,7 @@ uniform float timer < source = "timer"; >;
         ui_min = _min; \
         ui_max = _max; \
         ui_tooltip = _descr; \
-        ui_step = 0.001; \
+        ui_step = 1e-4; \
         ui_type = "slider"; \
     > = _default;
 

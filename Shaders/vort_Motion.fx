@@ -33,7 +33,11 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    #include "Includes/vort_MotionBlur.fxh"
+    #if CAN_COMPUTE
+        #include "Includes/vort_MotionBlur.fxh"
+    #else
+        #include "Includes/vort_MotionBlur_DX9.fxh"
+    #endif
 #endif
 
 #if V_ENABLE_TAA

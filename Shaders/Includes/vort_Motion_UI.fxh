@@ -41,13 +41,7 @@
     #define V_MV_USE_REST 0
 #endif
 
-// motion blur has a mandatory compute shader pass
-#if CAN_COMPUTE
-    #ifndef V_ENABLE_MOT_BLUR
-        #define V_ENABLE_MOT_BLUR 0
-    #endif
-#else
-    #undef V_ENABLE_MOT_BLUR
+#ifndef V_ENABLE_MOT_BLUR
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
@@ -66,12 +60,15 @@
 
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
-    #if V_MV_MODE > 0
-        UI_FLOAT(CAT_MB, UI_MB_Diff, "MV Smallest Diff", "Only change if you know how to debug Motion Vectors", 0.0, 1.0, 0.01)
+    #if CAN_COMPUTE && (V_MV_MODE > 0)
+        UI_FLOAT(CAT_MB, UI_MB_Diff, "MV Correctness", "Only change if you know how to debug Motion Vectors", 0, 1, 0)
     #endif
 
     #if V_ENABLE_MOT_BLUR == 7
-        UI_LIST(CAT_MB, UI_MB_DebugUseRepeat, "DB Use Repeating Pattern", "", "None\0Circle\0Long Line\0Short Line\0", 0)
+        #if CAN_COMPUTE
+            UI_LIST(CAT_MB, UI_MB_DebugUseRepeat, "DB Use Repeating Pattern", "", "None\0Circle\0Long Line\0Short Line\0", 0)
+        #endif
+
         UI_INT2(CAT_MB, UI_MB_DebugLen, "DB Length", "", -100, 100, 0)
         UI_FLOAT(CAT_MB, UI_MB_DebugZCen, "DB Depth Center", "", 0.0, 1.0, 0.0)
         UI_FLOAT(CAT_MB, UI_MB_DebugZRange, "DB Depth Range", "", 0.0, 1.0, 0.5)
