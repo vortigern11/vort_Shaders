@@ -54,11 +54,15 @@ technique vort_Motion
         PASS_MV
     #endif
 
-    #if V_ENABLE_MOT_BLUR
-        PASS_MOT_BLUR
-    #endif
+    #if V_MV_DEBUG
+        PASS_MV_DEBUG
+    #else
+        #if V_ENABLE_MOT_BLUR
+            PASS_MOT_BLUR
+        #endif
 
-    #if V_ENABLE_TAA
-        PASS_TAA
+        #if V_ENABLE_TAA
+            PASS_TAA
+        #endif
     #endif
 }

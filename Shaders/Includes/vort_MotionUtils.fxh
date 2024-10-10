@@ -62,7 +62,7 @@
 #endif
 
 #if V_MV_USE_REST > 0
-    texture2D RESTMVTexVort : VELOCITY;
+    texture2D RESTMVTexVort : MOTION;
     sampler2D sRESTMVTexVort { Texture = RESTMVTexVort; SAM_POINT };
 #endif
 
@@ -176,6 +176,11 @@ float3 DebugMotion(float2 motion)
     Shaders
 *******************************************************************************/
 
+void PS_DebugMV(PS_ARGS3) { o = DebugMotion(SampleMotion(i.uv)); }
+
 /*******************************************************************************
     Passes
 *******************************************************************************/
+
+#define PASS_MV_DEBUG \
+    pass { VertexShader = PostProcessVS; PixelShader = PS_DebugMV; }

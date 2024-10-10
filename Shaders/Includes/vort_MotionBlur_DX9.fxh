@@ -43,9 +43,8 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 7)
+#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
 #define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
-#define DEBUG_VELOCITY (V_ENABLE_MOT_BLUR == 9)
 
 // scale the tile number (40px at 1080p)
 #define K (BUFFER_HEIGHT / 27)
@@ -155,7 +154,7 @@ float2 GetTileOffs(float2 pos)
     float2 tiles_uv_offs = tiles_noise * tiles_inv_size;
 
     // don't randomize diagonally
-    tiles_uv_offs *= tiles_noise < 0.0 ? float2(1, 0) : float2(0, 1);
+    tiles_uv_offs *= Dither(pos, 0.25) < 0.0 ? float2(1, 0) : float2(0, 1);
 
     return tiles_uv_offs;
 }
@@ -176,10 +175,6 @@ float4 CalcBlur(VSOUT i)
     // due to tile randomization center motion might be greater
     if(max_mot_len < cen_mot_len) { max_mot_len = cen_mot_len; max_motion = cen_motion; }
 
-#if DEBUG_VELOCITY
-    if(1) { return float4(DebugMotion(SampleMotion(i.uv)), 1); }
-#endif
-
 #if DEBUG_TILES
     if(1) { return float4(DebugMotion(max_motion * BUFFER_PIXEL_SIZE), 1); }
 #endif
@@ -187,7 +182,7 @@ float4 CalcBlur(VSOUT i)
     // early out when less than 2px movement
     if(max_mot_len < 1.0) return float4(OutColor(cen_color), 1.0);
 
-    uint half_samples = clamp(round(max_mot_len * A_THIRD), 3, 9);
+    uint half_samples = clamp(round(max_mot_len * A_THIRD), 3, 15);
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -203,7 +198,7 @@ float4 CalcBlur(VSOUT i)
     // helps when an object is moving but the background isn't
     float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_mot_norm, 1.0);
 
-    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1);
+    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1) * (half_samples > 3);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px = inv_half_samples * max_mot_len;

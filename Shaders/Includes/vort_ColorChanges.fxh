@@ -57,6 +57,7 @@
 #include "Includes/vort_HDRTexB.fxh"
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
+#include "Includes/vort_BlueNoise.fxh"
 
 #if V_USE_ACES
     #include "Includes/vort_ACES.fxh"
@@ -398,6 +399,9 @@ void PS_End(PS_ARGS3)
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);
 #endif
+
+    // dither
+    c += (GetR3(GetBlueNoise(i.vpos.xy).rgb, frame_count % 32) - 0.5) * 0.001;
 
     o = ApplyGammaCurve(c);
 }

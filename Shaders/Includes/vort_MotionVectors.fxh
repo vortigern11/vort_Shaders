@@ -27,12 +27,7 @@ namespace MotVect {
 *******************************************************************************/
 
 #define MAX_MIP 6
-
-#if V_MV_USE_HQ
-    #define MIN_MIP 0
-#else
-    #define MIN_MIP 1
-#endif
+#define MIN_MIP 1
 
 static const uint block_samples = 9;
 static const float2 block_offs[block_samples] =

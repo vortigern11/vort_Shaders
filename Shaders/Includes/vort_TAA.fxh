@@ -71,11 +71,6 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 
 void PS_Main(PS_ARGS3)
 {
-// debug motion vectors
-#if V_ENABLE_TAA == 9
-    if(1) { o = DebugMotion(SampleMotion(i.uv)); return; }
-#endif
-
     float2 motion = Sample(sTAAMVTexVort, i.uv).xy;
     float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
     float2 prev_uv = i.uv + motion;

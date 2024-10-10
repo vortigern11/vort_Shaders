@@ -43,9 +43,9 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 7)
+#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
 #define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
-#define DEBUG_VELOCITY (V_ENABLE_MOT_BLUR == 9)
+#define DEBUG_NEXT_MV (V_ENABLE_MOT_BLUR == 7)
 
 // scale the tile number (40px at 1080p)
 #define K (BUFFER_HEIGHT / 27)
@@ -118,18 +118,7 @@ float2 GetDebugMotion(float2 uv)
     // % of max motion length
     float2 motion = 2.0 * ML * (UI_MB_DebugLen * 0.01);
 
-    if(UI_MB_DebugZCen > 0.0)
-    {
-        float z = GetDepth(uv);
-        float z_cent = UI_MB_DebugZCen;
-        float z_range = UI_MB_DebugZRange;
-        float min_z = saturate(z_cent - z_range);
-        float max_z = saturate(z_cent + z_range);
-
-        if(z < min_z) motion = 0;
-        if(z > max_z) motion = UI_MB_DebugRev ? -motion : 0;
-    }
-    else if(UI_MB_DebugUseRepeat)
+    if(UI_MB_DebugUseRepeat)
     {
         float2 curr_offs = 0;
 
@@ -141,6 +130,17 @@ float2 GetDebugMotion(float2 uv)
         }
 
         motion = motion.xx * curr_offs;
+    }
+    else if(UI_MB_DebugZCen > 0.0)
+    {
+        float z = GetDepth(uv);
+        float z_cent = UI_MB_DebugZCen;
+        float z_range = UI_MB_DebugZRange;
+        float min_z = saturate(z_cent - z_range);
+        float max_z = saturate(z_cent + z_range);
+
+        if(z < min_z) motion = 0;
+        if(z > max_z) motion = UI_MB_DebugRev ? -motion : 0;
     }
 
     return motion * BUFFER_PIXEL_SIZE;
@@ -181,7 +181,7 @@ float2 GetTileOffs(float2 pos)
     float2 tiles_uv_offs = tiles_noise * tiles_inv_size;
 
     // don't randomize diagonally
-    tiles_uv_offs *= tiles_noise < 0.0 ? float2(1, 0) : float2(0, 1);
+    tiles_uv_offs *= Dither(pos, 0.25) < 0.0 ? float2(1, 0) : float2(0, 1);
 
     return tiles_uv_offs;
 }
@@ -213,18 +213,18 @@ float4 CalcBlur(VSOUT i)
     if(max_mot_len1 < cen_mot_len1) { max_mot_len1 = cen_mot_len1; max_motion1 = cen_motion1; }
     if(max_mot_len2 < cen_mot_len2) { max_mot_len2 = cen_mot_len2; max_motion2 = cen_motion2; }
 
-#if DEBUG_VELOCITY
-    if(1) { return float4(DebugMotion(-cen_motion2 * BUFFER_PIXEL_SIZE), 1); }
-#endif
-
 #if DEBUG_TILES
     if(1) { return float4(DebugMotion(-max_motion2 * BUFFER_PIXEL_SIZE), 1); }
+#endif
+
+#if DEBUG_NEXT_MV
+    if(1) { return float4(DebugMotion(-cen_motion2 * BUFFER_PIXEL_SIZE), 1); }
 #endif
 
     // early out when less than 2px movement
     if(max_mot_len1 < 1.0 && max_mot_len2 < 1.0) return float4(OutColor(cen_color), 1.0);
 
-    uint half_samples = clamp(round(max(max_mot_len1, max_mot_len2) * A_THIRD), 3, 9);
+    uint half_samples = clamp(round(max(max_mot_len1, max_mot_len2) * A_THIRD), 3, 15);
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -245,7 +245,7 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_mot_norm1, 1.0);
     float3 cen_main2 = cen_mot_len2 < 1.0 ? max_main2 : float3(cen_mot_norm2, 1.0);
 
-    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1);
+    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1) * (half_samples > 3);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px1 = inv_half_samples * max_mot_len1;
@@ -429,7 +429,7 @@ void StoreNextMV(uint2 id)
     float2 prev_cz = float2(dot(A_THIRD, OutColor(prev_feat.rgb)), prev_feat.a);
     float2 next_cz = float2(dot(A_THIRD, SampleGammaColor(uv)), GetDepth(uv));
 
-    is_wrong_mv = all(abs(prev_cz - next_cz) > UI_MB_Diff);
+    is_wrong_mv = Min2(abs(prev_cz - next_cz)) > UI_MB_Diff;
 #endif
 
     if(!ValidateUV(prev_uv) || is_wrong_mv) return;

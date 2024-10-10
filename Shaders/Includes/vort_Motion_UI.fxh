@@ -31,10 +31,8 @@
     #define V_MV_MODE 1
 #endif
 
-#if V_MV_MODE == 1
-    #ifndef V_MV_USE_HQ
-        #define V_MV_USE_HQ 0
-    #endif
+#ifndef V_MV_DEBUG
+    #define V_MV_DEBUG 0
 #endif
 
 #ifndef V_MV_USE_REST
@@ -61,10 +59,10 @@
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
     #if CAN_COMPUTE && (V_MV_MODE > 0)
-        UI_FLOAT(CAT_MB, UI_MB_Diff, "MV Correctness", "Only change if you know how to debug Motion Vectors", 0, 1, 0)
+        UI_FLOAT(CAT_MB, UI_MB_Diff, "MV Correctness", "Controls which motion vectors to reject.", 0, 1, 0)
     #endif
 
-    #if V_ENABLE_MOT_BLUR == 7
+    #if V_ENABLE_MOT_BLUR == 9
         #if CAN_COMPUTE
             UI_LIST(CAT_MB, UI_MB_DebugUseRepeat, "DB Use Repeating Pattern", "", "None\0Circle\0Long Line\0Short Line\0", 0)
         #endif
@@ -97,18 +95,17 @@ _vort_MotionEffects_Help_,
 "2 - use REST addon to get velocity in CryEngine games\n"
 "3 - use REST addon to get velocity in generic games\n"
 "\n"
-"V_MV_USE_HQ - 0 or 1\n"
-"Enable high quality motion vectors at the cost of performance\n"
+"V_MV_DEBUG - 0 or 1\n"
+"Enable the debug view of the motion vectors\n"
 "\n"
 "V_ENABLE_MOT_BLUR - 0 or 1\n"
 "1 - enable Motion Blur\n"
-"7 - debug motion blur\n"
+"7 - debug next motion\n"
 "8 - debug tiles\n"
-"9 - debug motion vectors\n"
+"9 - debug motion blur\n"
 "\n"
 "V_ENABLE_TAA - 0 or 1\n"
 "1 - enable TAA\n"
-"9 - debug motion vectors\n"
 "\n"
 "V_USE_HW_LIN - 0 or 1\n"
 "Toggle hardware linearization (better performance).\n"
