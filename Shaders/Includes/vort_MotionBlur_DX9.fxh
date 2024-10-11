@@ -198,7 +198,7 @@ float4 CalcBlur(VSOUT i)
     // helps when an object is moving but the background isn't
     float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_mot_norm, 1.0);
 
-    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1) * (half_samples > 3);
+    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px = inv_half_samples * max_mot_len;

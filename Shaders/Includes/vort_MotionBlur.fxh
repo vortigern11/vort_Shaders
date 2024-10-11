@@ -245,7 +245,7 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_mot_norm1, 1.0);
     float3 cen_main2 = cen_mot_len2 < 1.0 ? max_main2 : float3(cen_mot_norm2, 1.0);
 
-    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1) * (half_samples > 3);
+    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px1 = inv_half_samples * max_mot_len1;
@@ -428,8 +428,10 @@ void StoreNextMV(uint2 id)
     float4 prev_feat = Sample(sPrevFeatTexVort, prev_uv);
     float2 prev_cz = float2(dot(A_THIRD, OutColor(prev_feat.rgb)), prev_feat.a);
     float2 next_cz = float2(dot(A_THIRD, SampleGammaColor(uv)), GetDepth(uv));
+    bool is_wrong_c = abs(prev_cz.x - next_cz.x) > UI_MB_ThreshC;
+    bool is_wrong_z = abs(prev_cz.y - next_cz.y) > UI_MB_ThreshZ;
 
-    is_wrong_mv = Min2(abs(prev_cz - next_cz)) > UI_MB_Diff;
+    is_wrong_mv = is_wrong_c && is_wrong_z;
 #endif
 
     if(!ValidateUV(prev_uv) || is_wrong_mv) return;
