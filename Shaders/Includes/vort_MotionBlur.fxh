@@ -245,7 +245,8 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_mot_norm1, 1.0);
     float3 cen_main2 = cen_mot_len2 < 1.0 ? max_main2 : float3(cen_mot_norm2, 1.0);
 
-    float2 sample_noise = (GetGradNoise(i.vpos.xy) - 0.5) * float2(1, -1);
+    // tested, dither is better than IGN here
+    float2 sample_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px1 = inv_half_samples * max_mot_len1;
