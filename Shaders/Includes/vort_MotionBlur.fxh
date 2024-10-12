@@ -422,18 +422,12 @@ void StoreNextMV(uint2 id)
     if(!UI_MB_DebugUseRepeat) prev_uv = uv;
 #endif
 
-    bool is_wrong_mv = false;
-
-#if V_MV_MODE > 0
-    // noisy calculated motion vectors...
     float4 prev_feat = Sample(sPrevFeatTexVort, prev_uv);
     float2 prev_cz = float2(dot(A_THIRD, OutColor(prev_feat.rgb)), prev_feat.a);
     float2 next_cz = float2(dot(A_THIRD, SampleGammaColor(uv)), GetDepth(uv));
     bool is_wrong_c = abs(prev_cz.x - next_cz.x) > UI_MB_ThreshC;
     bool is_wrong_z = abs(prev_cz.y - next_cz.y) > UI_MB_ThreshZ;
-
-    is_wrong_mv = is_wrong_c && is_wrong_z;
-#endif
+    bool is_wrong_mv = is_wrong_c && is_wrong_z;
 
     if(!ValidateUV(prev_uv) || is_wrong_mv) return;
 

@@ -58,7 +58,7 @@
 
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
-    #if CAN_COMPUTE && (V_MV_MODE > 0)
+    #if CAN_COMPUTE
         UI_FLOAT(CAT_MB, UI_MB_ThreshC, "MV Thresh Wrong Color", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
         UI_FLOAT(CAT_MB, UI_MB_ThreshZ, "MV Thresh Wrong Depth", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
     #endif
