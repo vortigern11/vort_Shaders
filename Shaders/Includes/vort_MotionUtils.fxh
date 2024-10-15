@@ -73,19 +73,14 @@
 #if V_MV_USE_REST > 0
 float2 GetCameraVelocity(float2 uv)
 {
+    // TODO: maybe switch
+    /* float depth = GetRawDepth(uv); */
     float depth = GetDepth(uv);
     float2 curr_screen = (uv * 2.0 - 1.0) * float2(1, -1);
     float4 curr_clip = float4(curr_screen, depth, 1);
 
-    // maybe switch ?
-    /* float4 r = mul(matInvViewProj, curr_clip); */
-    /* r.xyz *= RCP(r.w); */
-    /* float4 curr_pos = float4(r.xyz, 1); */
-    /* float4 prev_clip = mul(matPrevViewProj, curr_pos); */
-    // alternative
     float4x4 mat_clip_to_prev_clip = mul(matInvViewProj, matPrevViewProj);
     float4 prev_clip = mul(curr_clip, mat_clip_to_prev_clip);
-    // end
 
     float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
     float2 v = curr_screen - prev_screen;
@@ -100,7 +95,9 @@ float2 DecodeVelocity(float2 alt_motion, float2 uv)
 {
     float2 v = Sample(sRESTMVTexVort, uv).xy;
 
-#if V_MV_USE_REST == 1 // Unreal Engine games
+#if V_MV_USE_REST == 1 // Generic
+    v *= float2(-0.5, 0.5);
+#elif V_MV_USE_REST == 2 // Unreal Engine games
     // whether there is velocity stored because the object is dynamic
     // or we have to compute static velocity
     if(v.x > 0.0)
@@ -127,7 +124,7 @@ float2 DecodeVelocity(float2 alt_motion, float2 uv)
         v = GetCameraVelocity(uv);
     #endif
     }
-#elif V_MV_USE_REST == 2 // CryEngine games
+#elif V_MV_USE_REST == 3 // CryEngine games
     if(v.x != 0)
     {
         v = (v - 127.0 / 255.0) * 2.0;
@@ -141,8 +138,6 @@ float2 DecodeVelocity(float2 alt_motion, float2 uv)
         v = GetCameraVelocity(uv);
     #endif
     }
-#else // Generic
-    v *= float2(-0.5, 0.5);
 #endif
 
     return v;

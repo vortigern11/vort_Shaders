@@ -6,36 +6,49 @@ sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
 
 #define Z_FAR_PLANE RESHADE_DEPTH_LINEARIZATION_FAR_PLANE
 
-float GetDepth(float2 texcoord)
+float GetRawDepth(float2 uv)
 {
 #if RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN
-    texcoord.y = 1.0 - texcoord.y;
+    uv.y = 1.0 - uv.y;
 #endif
-    texcoord.x /= RESHADE_DEPTH_INPUT_X_SCALE;
-    texcoord.y /= RESHADE_DEPTH_INPUT_Y_SCALE;
+
+    uv.x /= RESHADE_DEPTH_INPUT_X_SCALE;
+    uv.y /= RESHADE_DEPTH_INPUT_Y_SCALE;
+
 #if RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET
-    texcoord.x -= RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET * BUFFER_RCP_WIDTH;
+    uv.x -= RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET * BUFFER_RCP_WIDTH;
 #else // Do not check RESHADE_DEPTH_INPUT_X_OFFSET, since it may be a decimal number, which the preprocessor cannot handle
-    texcoord.x -= RESHADE_DEPTH_INPUT_X_OFFSET / 2.000000001;
+    uv.x -= RESHADE_DEPTH_INPUT_X_OFFSET / 2.000000001;
 #endif
+
 #if RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET
-    texcoord.y += RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET * BUFFER_RCP_HEIGHT;
+    uv.y += RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET * BUFFER_RCP_HEIGHT;
 #else
-    texcoord.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
+    uv.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
 #endif
-    float depth = Sample(sDepthTexVort, texcoord).x * RESHADE_DEPTH_MULTIPLIER;
+
+    return Sample(sDepthTexVort, uv).x;
+}
+
+float GetDepth(float2 uv)
+{
+    float depth = GetRawDepth(uv);
+
+    depth *= RESHADE_DEPTH_MULTIPLIER;
 
 #if RESHADE_DEPTH_INPUT_IS_LOGARITHMIC
     static const float C = 0.01;
     depth = (exp(depth * LOG(C + 1.0)) - 1.0) / C;
 #endif
+
 #if RESHADE_DEPTH_INPUT_IS_REVERSED
     depth = 1.0 - depth;
 #endif
+
     static const float N = 1.0;
     depth /= RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - depth * (RESHADE_DEPTH_LINEARIZATION_FAR_PLANE - N);
 
-    return depth;
+    return saturate(depth);
 }
 
 float3 GetNormals(float2 uv)

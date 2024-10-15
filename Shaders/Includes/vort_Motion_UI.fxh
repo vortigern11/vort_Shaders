@@ -56,6 +56,7 @@
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
+    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 10, 50, 14)
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
     #if CAN_COMPUTE
@@ -92,9 +93,9 @@ _vort_MotionEffects_Help_,
 "\n"
 "V_MV_USE_REST - [0 - 3]\n"
 "0 - don't use REST addon for velocity\n"
-"1 - use REST addon to get velocity in Unreal Engine games\n"
-"2 - use REST addon to get velocity in CryEngine games\n"
-"3 - use REST addon to get velocity in generic games\n"
+"1 - use REST addon to get velocity in generic games\n"
+"2 - use REST addon to get velocity in Unreal Engine games\n"
+"3 - use REST addon to get velocity in CryEngine games\n"
 "\n"
 "V_MV_DEBUG - 0 or 1\n"
 "Enable the debug view of the motion vectors\n"

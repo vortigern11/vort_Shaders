@@ -224,7 +224,8 @@ float4 CalcBlur(VSOUT i)
     // early out when less than 2px movement
     if(max_mot_len1 < 1.0 && max_mot_len2 < 1.0) return float4(OutColor(cen_color), 1.0);
 
-    uint half_samples = clamp(round(max(max_mot_len1, max_mot_len2) * A_THIRD), 3, 15);
+    uint mhs = UI_MB_MaxSamples / 2;
+    uint half_samples = clamp(round(max(max_mot_len1, max_mot_len2) * A_THIRD), 3, mhs);
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -245,8 +246,7 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_mot_norm1, 1.0);
     float3 cen_main2 = cen_mot_len2 < 1.0 ? max_main2 : float3(cen_mot_norm2, 1.0);
 
-    // tested, dither is better than IGN here
-    float2 sample_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1);
+    float2 sample_noise = (GetIGN(i.vpos.xy, 0) - 0.5) * float2(1, -1);
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px1 = inv_half_samples * max_mot_len1;
