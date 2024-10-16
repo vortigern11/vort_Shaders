@@ -43,6 +43,11 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
+#define USE_HQ_MB CAN_COMPUTE && V_ENABLE_MOT_BLUR != 2
+#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
+#define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
+#define DEBUG_NEXT_MV (V_ENABLE_MOT_BLUR == 7)
+
 #ifndef V_ENABLE_TAA
     #define V_ENABLE_TAA 0
 #endif
@@ -56,16 +61,16 @@
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
-    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 10, 50, 14)
+    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 10, 50, 18)
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
-    #if CAN_COMPUTE
+    #if USE_HQ_MB
         UI_FLOAT(CAT_MB, UI_MB_ThreshC, "MV Thresh Wrong Color", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
         UI_FLOAT(CAT_MB, UI_MB_ThreshZ, "MV Thresh Wrong Depth", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
     #endif
 
-    #if V_ENABLE_MOT_BLUR == 9
-        #if CAN_COMPUTE
+    #if DEBUG_BLUR
+        #if USE_HQ_MB
             UI_LIST(CAT_MB, UI_MB_DebugUseRepeat, "DB Use Repeating Pattern", "", "None\0Circle\0Long Line\0Short Line\0", 0)
         #endif
 
@@ -100,8 +105,9 @@ _vort_MotionEffects_Help_,
 "V_MV_DEBUG - 0 or 1\n"
 "Enable the debug view of the motion vectors\n"
 "\n"
-"V_ENABLE_MOT_BLUR - 0 or 1\n"
-"1 - enable Motion Blur\n"
+"V_ENABLE_MOT_BLUR - [0 - 2]\n"
+"1 - enable high quality Motion Blur\n"
+"2 - enable high performance Motion Blur\n"
 "7 - debug next motion\n"
 "8 - debug tiles\n"
 "9 - debug motion blur\n"

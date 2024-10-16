@@ -43,9 +43,6 @@ namespace MotBlur {
     Globals
 *******************************************************************************/
 
-#define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
-#define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
-
 // scale the tile number (40px at 1080p)
 #define K (BUFFER_HEIGHT / 27)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)

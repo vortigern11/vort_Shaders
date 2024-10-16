@@ -33,7 +33,7 @@
 #endif
 
 #if V_ENABLE_MOT_BLUR
-    #if CAN_COMPUTE
+    #if USE_HQ_MB
         #include "Includes/vort_MotionBlur.fxh"
     #else
         #include "Includes/vort_MotionBlur_DX9.fxh"
