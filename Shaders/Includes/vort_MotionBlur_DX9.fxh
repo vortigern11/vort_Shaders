@@ -179,8 +179,9 @@ float4 CalcBlur(VSOUT i)
     // early out when less than 2px movement
     if(max_mot_len < 1.0) return float4(OutColor(cen_color), 1.0);
 
-    uint mhs = UI_MB_MaxSamples / 2;
-    uint half_samples = clamp(round(max_mot_len * A_THIRD), 3, mhs);
+    uint raw_hs = round(max_mot_len * A_THIRD);
+    uint max_hs = uint(UI_MB_MaxSamples) / 2;
+    uint half_samples = clamp(raw_hs, 3, max_hs);
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -196,7 +197,8 @@ float4 CalcBlur(VSOUT i)
     // helps when an object is moving but the background isn't
     float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_mot_norm, 1.0);
 
-    float2 sample_noise = (GetIGN(i.vpos.xy, 0) - 0.5) * float2(1, -1);
+    float rand = raw_hs > max_hs ? (GetIGN(i.vpos.xy, 0) - 0.5) : Dither(i.vpos.xy, 0.25);
+    float2 sample_noise = rand * float2(1, -1); // negated dither in second direction to remove visible gap
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px = inv_half_samples * max_mot_len;
@@ -210,8 +212,6 @@ float4 CalcBlur(VSOUT i)
         // switch between max and center
         float3 m = j % 2 == 0 ? max_main : cen_main;
 
-        // negated dither in the second direction
-        // to remove the otherwise visible gap
         float2 step = float(j) + 0.5 + sample_noise;
         float2 pn = m.xy * BUFFER_PIXEL_SIZE;
         float2 sample_uv1 = i.uv - (step.x * steps_to_px) * pn;
