@@ -220,9 +220,8 @@ float4 CalcBlur(VSOUT i)
     // early out when less than 2px movement
     if(max_mot_len1 < 1.0 && max_mot_len2 < 1.0) return float4(OutColor(cen_color), 1.0);
 
-    uint raw_hs = round(max(max_mot_len1, max_mot_len2) * A_THIRD);
-    uint max_hs = uint(UI_MB_MaxSamples) / 2;
-    uint half_samples = clamp(raw_hs, 3, max_hs);
+    // don't change without solid reason
+    uint half_samples = clamp(ceil(max(max_mot_len1, max_mot_len2)), 3, max(3, UI_MB_MaxSamples));
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -243,8 +242,8 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_mot_norm1, 1.0);
     float3 cen_main2 = cen_mot_len2 < 1.0 ? max_main2 : float3(cen_mot_norm2, 1.0);
 
-    float rand = raw_hs > max_hs ? (GetIGN(i.vpos.xy, 0) - 0.5) : Dither(i.vpos.xy, 0.25);
-    float2 sample_noise = rand * float2(1, -1); // negated dither in second direction to remove visible gap
+    // dither looks better than IGN
+    float2 sample_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1); // negated in second direction to remove visible gap
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px1 = inv_half_samples * max_mot_len1;
@@ -252,7 +251,6 @@ float4 CalcBlur(VSOUT i)
 
     float4 bg_acc = 0;
     float4 fg_acc = 0;
-    float total_weight = 0;
 
     [loop]for(uint j = 0; j < half_samples; j++)
     {
@@ -304,19 +302,25 @@ float4 CalcBlur(VSOUT i)
 
         bg_acc += float4(sample_color1, 1.0) * sample_w1.x;
         fg_acc += float4(sample_color1, 1.0) * sample_w1.y;
-        total_weight += float(dir_w1.x + dir_w1.y > 0.0);
 
         bg_acc += float4(sample_color2, 1.0) * sample_w2.x;
         fg_acc += float4(sample_color2, 1.0) * sample_w2.y;
-        total_weight += float(dir_w2.x + dir_w2.y > 0.0);
     }
 
-    // add center color and weight to background
-    bg_acc += float4(cen_color, 1.0) * saturate(RCP(total_weight) * 0.02);
-    total_weight += 1.0;
+    // don't sum total weight, use total samples to prevent artifacts
+    float total_samples = float(half_samples) * 2.0;
 
+    // better than only depending on samples amount
+    float cen_weight = saturate(0.05 * float(half_samples) * rcp(Max3(0.5, cen_mot_len1, cen_mot_len2)));
+
+    // add center color and weight to background
+    bg_acc += float4(cen_color, 1.0) * cen_weight;
+    total_samples += 1.0;
+
+    // (bg + center) for fill color produces some artifacts,
+    // which are less annoying than using only center
     float3 fill_col = bg_acc.rgb * RCP(bg_acc.w);
-    float4 sum_acc = (bg_acc + fg_acc) * RCP(total_weight);
+    float4 sum_acc = (bg_acc + fg_acc) * RCP(total_samples);
 
     // fill the missing data with background + center color
     // instead of only center in order to prevent artifacts

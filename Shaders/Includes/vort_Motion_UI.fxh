@@ -43,7 +43,7 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
-#define USE_HQ_MB CAN_COMPUTE && V_ENABLE_MOT_BLUR != 2
+#define USE_HQ_MB CAN_COMPUTE && V_ENABLE_MOT_BLUR != 1
 #define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
 #define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
 #define DEBUG_NEXT_MV (V_ENABLE_MOT_BLUR == 7)
@@ -61,7 +61,7 @@
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
-    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 10, 50, 18)
+    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 45, 11)
     UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
 
     #if USE_HQ_MB
@@ -106,8 +106,9 @@ _vort_MotionEffects_Help_,
 "Enable the debug view of the motion vectors\n"
 "\n"
 "V_ENABLE_MOT_BLUR - [0 - 2]\n"
-"1 - enable high quality Motion Blur\n"
-"2 - enable high performance Motion Blur\n"
+"0 - disabled\n"
+"1 - enable high performance Motion Blur\n"
+"2 - enable high quality Motion Blur\n"
 "7 - debug next motion\n"
 "8 - debug tiles\n"
 "9 - debug motion blur\n"

@@ -612,7 +612,7 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
 float GetIGN(float2 pos, uint seed)
 {
-    float idx = 5.588238 * float(seed + 1);
+    float idx = 5.588238 * float(min(seed, 63));
 
     return frac(52.9829189 * frac(dot(pos + idx, float2(0.06711056, 0.00583715))));
 }
