@@ -76,8 +76,8 @@ sampler2D sTileSndTexVort  { Texture = TileSndTexVort; SAM_POINT };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
 sampler2D sPrevMVTexVort   { Texture = PrevMVTexVort; SAM_POINT };
 sampler2D sNextMVTexVort   { Texture = NextMVTexVort; SAM_POINT };
-sampler2D sPrevInfoTexVort { Texture = PrevInfoTexVort; SAM_POINT };
-sampler2D sNextInfoTexVort { Texture = NextInfoTexVort; SAM_POINT };
+sampler2D sPrevInfoTexVort { Texture = PrevInfoTexVort; };
+sampler2D sNextInfoTexVort { Texture = NextInfoTexVort; };
 sampler2D sBlurTexVort     { Texture = BlurTexVort; SAM_POINT };
 sampler2D sPrevFeatTexVort { Texture = PrevFeatTexVort; };
 
@@ -172,7 +172,7 @@ float3 LimitMotionAndLen(float2 motion)
 
 float2 GetTileOffs(float2 pos)
 {
-    float tiles_noise = GetBlueNoise(pos).x * 0.5 - 0.25;
+    float tiles_noise = (GetBlueNoise(pos).x - 0.5) * 0.25; // -0.125 to 0.125
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float2 tiles_uv_offs = tiles_noise * tiles_inv_size;
 
@@ -233,7 +233,6 @@ float4 CalcBlur(VSOUT i)
     float2 cen_mot_norm2 = cen_motion2 * RCP(cen_mot_len2);
 
     // xy = norm motion (direction), z = how parallel to center dir
-    // tested, don't change
     float3 max_main1 = float3(max_mot_norm1, cen_mot_len1 < 1.0 ? 1.0 : abs(dot(cen_mot_norm1, max_mot_norm1)));
     float3 max_main2 = float3(max_mot_norm2, cen_mot_len2 < 1.0 ? 1.0 : abs(dot(cen_mot_norm2, max_mot_norm2)));
 
@@ -273,8 +272,8 @@ float4 CalcBlur(VSOUT i)
         float sample_z1 = sample_info1.y;
         float sample_z2 = sample_info2.y;
 
-        float2 sample_norm_mot1 = sample_info1.zw;
-        float2 sample_norm_mot2 = sample_info2.zw;
+        float2 sample_mot_norm1 = sample_info1.zw;
+        float2 sample_mot_norm2 = sample_info2.zw;
 
         // x = bg, y = fg
         float2 depth_cmp1 = saturate(0.5 + z_scales * (sample_z1 - cen_z));
@@ -285,9 +284,8 @@ float4 CalcBlur(VSOUT i)
         float2 spread_cmp2 = saturate(float2(cen_mot_len2, sample_mot_len2) - max(0.0, step.y - 1.0) * steps_to_px2);
 
         // check for mismatch between motion directions
-        // tested, don't change
-        float2 dir_w1 = float2(m1.z, abs(dot(sample_norm_mot1, m1.xy)));
-        float2 dir_w2 = float2(m2.z, abs(dot(sample_norm_mot2, m2.xy)));
+        float2 dir_w1 = float2(m1.z, abs(dot(sample_mot_norm1, m1.xy)));
+        float2 dir_w2 = float2(m2.z, abs(dot(sample_mot_norm2, m2.xy)));
 
         // x = bg weight, y = fg weight
         float2 sample_w1 = (depth_cmp1 * spread_cmp1) * dir_w1;
@@ -317,8 +315,6 @@ float4 CalcBlur(VSOUT i)
     bg_acc += float4(cen_color, 1.0) * cen_weight;
     total_samples += 1.0;
 
-    // (bg + center) for fill color produces some artifacts,
-    // which are less annoying than using only center
     float3 fill_col = bg_acc.rgb * RCP(bg_acc.w);
     float4 sum_acc = (bg_acc + fg_acc) * RCP(total_samples);
 
@@ -481,12 +477,12 @@ void PS_Info(VSOUT i, out PSOUT2 o)
     float prev_mot_len = length(prev_motion);
     float next_mot_len = length(next_motion);
 
-    float2 prev_norm_mot = prev_motion * RCP(prev_mot_len);
-    float2 next_norm_mot = next_motion * RCP(next_mot_len);
+    float2 prev_mot_norm = prev_motion * RCP(prev_mot_len);
+    float2 next_mot_norm = next_motion * RCP(next_mot_len);
 
     // x = motion px len, y = depth, zw = norm motion
-    o.t0 = float4(prev_mot_len, closest.z, prev_norm_mot);
-    o.t1 = float4(next_mot_len, closest.z, next_norm_mot);
+    o.t0 = float4(prev_mot_len, closest.z, prev_mot_norm);
+    o.t1 = float4(next_mot_len, closest.z, next_mot_norm);
 }
 
 void PS_TileDownHor(PS_ARGS2)  { o = CalcTileDownHor(i);  }

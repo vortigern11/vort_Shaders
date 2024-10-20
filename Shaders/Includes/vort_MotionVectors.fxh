@@ -49,10 +49,12 @@ texture2D MotionTexVort2 { TEX_SIZE(2) TEX_RG16 };
 texture2D MotionTexVortA { TEX_SIZE(3) TEX_RG16 };
 texture2D MotionTexVortB { TEX_SIZE(3) TEX_RG16 };
 
-sampler2D sMotionTexVort1 { Texture = MotionTexVort1; SAM_POINT };
-sampler2D sMotionTexVort2 { Texture = MotionTexVort2; SAM_POINT };
-sampler2D sMotionTexVortA { Texture = MotionTexVortA; SAM_POINT };
-sampler2D sMotionTexVortB { Texture = MotionTexVortB; SAM_POINT };
+// DON'T FUCKING USE POINT SAMPLERS HERE
+// only combining frames looks correct, frame by frame it doesn't
+sampler2D sMotionTexVort1 { Texture = MotionTexVort1; };
+sampler2D sMotionTexVort2 { Texture = MotionTexVort2; };
+sampler2D sMotionTexVortA { Texture = MotionTexVortA; };
+sampler2D sMotionTexVortB { Texture = MotionTexVortB; };
 
 /*******************************************************************************
     Functions
@@ -156,7 +158,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
 
     if(mip < MIN_MIP) center_z = GetDepth(i.uv);
 
-    float3 motion_acc = float3(0, 0, 1e-6);
+    float3 motion_acc = 0;
 
     [loop]for(uint j = 0; j < block_samples; j++)
     {
@@ -174,7 +176,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp)
         motion_acc += float3(sample_mot, 1.0) * weight;
     }
 
-    return motion_acc.xy / motion_acc.z;
+    return motion_acc.xy * RCP(motion_acc.z);
     /* return Sample(mot_samp, i.uv).xy; */
 }
 
@@ -207,17 +209,12 @@ void PS_WriteFeature(PS_ARGS4)
 }
 
 void PS_Motion6(PS_ARGS2) { o = EstimateMotion(i, 6, sMotionTexVortB); } // samp doesn't matter here
-void PS_Motion5(PS_ARGS2) { o = EstimateMotion(i, 5, sMotionTexVortB); }
+void PS_Motion5(PS_ARGS2) { o = EstimateMotion(i, 5, sMotionTexVortA); }
 void PS_Motion4(PS_ARGS2) { o = EstimateMotion(i, 4, sMotionTexVortB); }
-void PS_Motion3(PS_ARGS2) { o = EstimateMotion(i, 3, sMotionTexVortB); }
+void PS_Motion3(PS_ARGS2) { o = EstimateMotion(i, 3, sMotionTexVortA); }
 void PS_Motion2(PS_ARGS2) { o = EstimateMotion(i, 2, sMotionTexVortB); }
 void PS_Motion1(PS_ARGS2) { o = EstimateMotion(i, 1, sMotionTexVort2); }
 void PS_Motion0(PS_ARGS2) { o = EstimateMotion(i, 0, sMotionTexVort1); }
-
-void PS_Filter5(PS_ARGS2) { o = AtrousUpscale(i, 5, sMotionTexVortA); }
-void PS_Filter4(PS_ARGS2) { o = AtrousUpscale(i, 4, sMotionTexVortA); }
-void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 3, sMotionTexVortA); }
-void PS_Filter2(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
 
 /*******************************************************************************
     Passes
@@ -226,13 +223,9 @@ void PS_Filter2(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA); }
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatTexVort; RenderTargetWriteMask = 3; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter5;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter4;      RenderTarget = MotVect::MotionTexVortB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter3;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2;      RenderTarget = MotVect::MotionTexVort2; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVort1; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MotVectTexVort; } \

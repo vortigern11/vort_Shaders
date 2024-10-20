@@ -69,7 +69,7 @@ texture2D InfoTexVort     { TEX_SIZE(0) TEX_RGBA16 };
 sampler2D sTileFstTexVort  { Texture = TileFstTexVort; SAM_POINT };
 sampler2D sTileSndTexVort  { Texture = TileSndTexVort; SAM_POINT };
 sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
-sampler2D sInfoTexVort     { Texture = InfoTexVort; SAM_POINT };
+sampler2D sInfoTexVort     { Texture = InfoTexVort; };
 
 /*******************************************************************************
     Functions
@@ -146,7 +146,7 @@ float3 LimitMotionAndLen(float2 motion)
 
 float2 GetTileOffs(float2 pos)
 {
-    float tiles_noise = GetBlueNoise(pos).x * 0.5 - 0.25;
+    float tiles_noise = (GetBlueNoise(pos).x - 0.5) * 0.25; // -0.125 to 0.125
     float2 tiles_inv_size = K * BUFFER_PIXEL_SIZE;
     float2 tiles_uv_offs = tiles_noise * tiles_inv_size;
 
@@ -188,7 +188,6 @@ float4 CalcBlur(VSOUT i)
     float2 cen_mot_norm = cen_motion * RCP(cen_mot_len);
 
     // xy = norm motion (direction), z = how parallel to center dir
-    // tested, don't change
     float3 max_main = float3(max_mot_norm, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_mot_norm, max_mot_norm)));
 
     // don't lose half the samples when there is no center px motion
@@ -224,8 +223,8 @@ float4 CalcBlur(VSOUT i)
         float sample_z1 = sample_info1.y;
         float sample_z2 = sample_info2.y;
 
-        float2 sample_norm_mot1 = sample_info1.zw;
-        float2 sample_norm_mot2 = sample_info2.zw;
+        float2 sample_mot_norm1 = sample_info1.zw;
+        float2 sample_mot_norm2 = sample_info2.zw;
 
         // x = bg, y = fg
         float2 depth_cmp1 = saturate(0.5 + z_scales * (sample_z1 - cen_z));
@@ -236,9 +235,8 @@ float4 CalcBlur(VSOUT i)
         float2 spread_cmp2 = saturate(float2(cen_mot_len, sample_mot_len2) - max(0.0, step.y - 1.0) * steps_to_px);
 
         // check for mismatch between motion directions
-        // tested, don't change
-        float2 dir_w1 = float2(m.z, abs(dot(sample_norm_mot1, m.xy)));
-        float2 dir_w2 = float2(m.z, abs(dot(sample_norm_mot2, m.xy)));
+        float2 dir_w1 = float2(m.z, abs(dot(sample_mot_norm1, m.xy)));
+        float2 dir_w2 = float2(m.z, abs(dot(sample_mot_norm2, m.xy)));
 
         // x = bg weight, y = fg weight
         float2 sample_w1 = (depth_cmp1 * spread_cmp1) * dir_w1;
@@ -268,8 +266,6 @@ float4 CalcBlur(VSOUT i)
     bg_acc += float4(cen_color, 1.0) * cen_weight;
     total_samples += 1.0;
 
-    // (bg + center) for fill color produces some artifacts,
-    // which are less annoying than using only center
     float3 fill_col = bg_acc.rgb * RCP(bg_acc.w);
     float4 sum_acc = (bg_acc + fg_acc) * RCP(total_samples);
 

@@ -2,7 +2,7 @@
 #include "Includes/vort_Defs.fxh"
 
 texture2D DepthTexVort : DEPTH;
-sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
+sampler2D sDepthTexVort { Texture = DepthTexVort; };
 
 #define Z_FAR_PLANE RESHADE_DEPTH_LINEARIZATION_FAR_PLANE
 
