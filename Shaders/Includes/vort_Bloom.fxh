@@ -50,14 +50,14 @@ namespace Bloom {
 
 float4 Downsample(VSOUT i, sampler prev_samp, int prev_mip)
 {
-    float3 c = Filter13Taps(prev_samp, i.uv, prev_mip).rgb;
+    float3 c = Filters::DualKawase(prev_samp, i.uv, prev_mip).rgb;
 
     return float4(c, 1);
 }
 
 float4 Upsample(VSOUT i, sampler prev_samp, int curr_mip)
 {
-    float3 c = Filter9Taps(prev_samp, i.uv, curr_mip + 1).rgb;
+    float3 c = Filters::Tent(prev_samp, i.uv, curr_mip + 1).rgb;
 
     return float4(c * UI_Bloom_Radius, 1);
 }
