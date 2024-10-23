@@ -266,6 +266,15 @@ uniform float timer < source = "timer"; >;
         ui_type = "radio"; \
     >;
 
+#define UI_TIP(_category, _name, _descr) \
+    uniform int _name < \
+        ui_category = _category; \
+        ui_category_closed = true; \
+        ui_label = " "; \
+        ui_text = _descr; \
+        ui_type = "radio"; \
+    >;
+
 #define TEX_SIZE(_bit) Width = BUFFER_WIDTH >> _bit; Height = BUFFER_HEIGHT >> _bit;
 #define TEX_RGBA8 Format = RGBA8;
 #define TEX_RGBA16 Format = RGBA16F;
