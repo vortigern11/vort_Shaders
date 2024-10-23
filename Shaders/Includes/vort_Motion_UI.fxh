@@ -62,7 +62,19 @@
     #define CAT_MB "Motion Blur"
 
     UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 45, 9)
-    UI_FLOAT(CAT_MB, UI_MB_Mult, "Blur Mult", "Decrease/increase motion blur length", 0, 2, 1)
+    UI_TIP(CAT_MB, _vort_Blur_Help_, "WARNING: Read the tooltips if you want to change the below settings.")
+    UI_FLOAT(
+        CAT_MB, UI_MB_Mult, "Blur Multiplier",
+        "Set to 1.0 (default) to cover frame gaps exactly.\n"
+        "Otherwise, the motion blur will be shorter/longer than correct length.",
+        0, 2, 1
+    )
+    UI_INT(
+        CAT_MB, UI_MB_FPS, "Blur FPS Target",
+        "Set to 0 (default) to use the dynamic in-game FPS and blur between frames.\n"
+        "Otherwise, sets a target FPS for the blur. Lower FPS target means more blur (and vice versa).",
+        0, 120, 0
+    )
 
     #if USE_HQ_MB
         UI_FLOAT(CAT_MB, UI_MB_ThreshC, "MV Thresh Wrong Color", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
