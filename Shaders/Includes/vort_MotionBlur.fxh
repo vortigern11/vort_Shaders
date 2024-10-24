@@ -49,7 +49,9 @@ namespace MotBlur {
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
 // compute shaders group size
-#define GS 16 // best performance tested
+// better perf on my GPU than 16x16 or 8x8 groups
+#define GS_X 256
+#define GS_Y 1
 
 // tonemap modifier
 #define T_MOD 1.5
@@ -413,9 +415,12 @@ void StoreNextMV(uint2 id)
     float2 pos = id + 0.5;
     float2 uv = pos * BUFFER_PIXEL_SIZE;
 
-    float2 next_max_mot = Sample(sNeighMaxTexVort, uv + GetTileOffs(pos)).xy;
-    float2 next_cen_mot = GetMotion(uv);
-    float2 prev_uv = uv + (next_cen_mot * BUFFER_PIXEL_SIZE);
+    float4 next_mv; // xy = center, zw = max
+
+    next_mv.xy = GetMotion(uv);
+    next_mv.zw = Sample(sNeighMaxTexVort, uv + GetTileOffs(pos)).xy;
+
+    float2 prev_uv = uv + (next_mv.xy * BUFFER_PIXEL_SIZE);
 
 #if DEBUG_BLUR
     if(!UI_MB_DebugUseRepeat) prev_uv = uv;
@@ -424,21 +429,20 @@ void StoreNextMV(uint2 id)
     float4 prev_feat = Sample(sPrevFeatTexVort, prev_uv);
     float2 prev_cz = float2(dot(A_THIRD, OutColor(prev_feat.rgb)), prev_feat.a);
     float2 next_cz = float2(dot(A_THIRD, SampleGammaColor(uv)), GetDepth(uv));
-    bool is_wrong_c = abs(prev_cz.x - next_cz.x) > UI_MB_ThreshC;
-    bool is_wrong_z = abs(prev_cz.y - next_cz.y) > UI_MB_ThreshZ;
-    bool is_wrong_mv = is_wrong_c && is_wrong_z;
+    float2 diff = abs(prev_cz - next_cz);
+    bool is_correct_mv = min(diff.x, diff.y) < max(1e-8, UI_MB_Thresh);
 
-    if(!ValidateUV(prev_uv) || is_wrong_mv) return;
+    if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
+    {
+        next_mv.xy = LimitMotionAndLen(next_mv.xy).xy;
+        next_mv = -next_mv;
 
-    // reverse and scale if needed
-    next_cen_mot = -LimitMotionAndLen(next_cen_mot).xy;
-    next_max_mot = -next_max_mot;
+        // that `round` is mandatory, so much debugging....
+        uint2 new_id = round(prev_uv * BUFFER_SCREEN_SIZE - 0.5);
 
-    // that `round` is mandatory, so much debugging....
-    uint2 new_id = round(prev_uv * BUFFER_SCREEN_SIZE - 0.5);
-
-    // store next motion and max motion in px, scaled and correct direction
-    tex2Dstore(stNextMVTexVort, new_id, float4(next_cen_mot, next_max_mot));
+        // store next motion and max motion in px, scaled and correct direction
+        tex2Dstore(stNextMVTexVort, new_id, next_mv);
+    }
 }
 
 /*******************************************************************************
@@ -494,8 +498,10 @@ void PS_NeighbourMax(PS_ARGS2) { o = CalcNeighbourMax(i); }
 void CS_NextMV(CS_ARGS)        { StoreNextMV(i.id.xy); }
 void PS_Blur(PS_ARGS4)         { o = CalcBlur(i); }
 void PS_PrevFeat(PS_ARGS4)     { o = CalcPrevFeat(i); }
-void PS_PrevMV(VSOUT i, out PSOUT2 o) { o.t0 = CalcPrevMV(i); o.t1 = -o.t0; } // default to -prev_mv
 void PS_Draw(PS_ARGS3)         { o = Sample(sBlurTexVort, i.uv).rgb; }
+
+// reset next_mv to -prev_mv not 0 because of disocclusions
+void PS_PrevMV(VSOUT i, out PSOUT2 o) { o.t0 = CalcPrevMV(i); o.t1 = -o.t0; }
 
 /*******************************************************************************
     Passes
@@ -512,7 +518,7 @@ void PS_Draw(PS_ARGS3)         { o = Sample(sBlurTexVort, i.uv).rgb; }
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; } \
-    pass { ComputeShader = MotBlur::CS_NextMV<GS, GS>; DispatchSizeX = CEIL_DIV(BUFFER_WIDTH, GS); DispatchSizeY = CEIL_DIV(BUFFER_HEIGHT, GS); } \
+    pass { ComputeShader = MotBlur::CS_NextMV<GS_X, GS_Y>; DispatchSizeX = CEIL_DIV(BUFFER_WIDTH, GS_X); DispatchSizeY = CEIL_DIV(BUFFER_HEIGHT, GS_Y); } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Info; RenderTarget0 = MotBlur::PrevInfoTexVort; RenderTarget1 = MotBlur::NextInfoTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; RenderTarget = MotBlur::BlurTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevFeat; RenderTarget = MotBlur::PrevFeatTexVort; } \
