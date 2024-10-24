@@ -77,8 +77,12 @@
     )
 
     #if USE_HQ_MB
-        UI_FLOAT(CAT_MB, UI_MB_ThreshC, "MV Thresh Wrong Color", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
-        UI_FLOAT(CAT_MB, UI_MB_ThreshZ, "MV Thresh Wrong Depth", "Debug with V_ENABLE_MOT_BLUR = 7", 0, 1, 0)
+        UI_FLOAT(
+            CAT_MB, UI_MB_Thresh, "MV Threshold",
+            "Modifies which motion vectors to discard.\n"
+            "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
+            0, 1, 0.001
+        )
     #endif
 
     #if DEBUG_BLUR
