@@ -52,12 +52,6 @@
     #define V_ENABLE_TAA 0
 #endif
 
-#if V_MV_MODE == 1
-    #define CAT_MV "Motion Vectors"
-
-    UI_FLOAT(CAT_MV, UI_MV_Scale, "Filter Scale", "Small details vs smoothness", 1.0, 5.0, 2.0)
-#endif
-
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
