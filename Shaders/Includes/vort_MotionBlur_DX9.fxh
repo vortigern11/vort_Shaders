@@ -344,15 +344,18 @@ float2 CalcNeighbourMax(VSOUT i)
 
 void PS_Info(PS_ARGS4)
 {
-    float3 closest = float3(i.uv, 1.0);
+    float3 closest = float3(i.uv, GetDepth(i.uv));
 
-    // apply min filter to remove some artifacts
-    [loop]for(uint j = 0; j < S_BOX_OFFS1; j++)
+    if(UI_MB_UseMinFilter)
     {
-        float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-        float sample_z = GetDepth(sample_uv);
+        // apply min filter to remove some artifacts
+        [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
+        {
+            float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+            float sample_z = GetDepth(sample_uv);
 
-        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+            if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+        }
     }
 
     float3 mot_and_len = LimitMotionAndLen(GetMotion(closest.xy));

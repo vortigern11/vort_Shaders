@@ -44,26 +44,26 @@
 
 #if V_MV_MODE == 1
     texture2D MotVectTexVort { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotVectTexVort { Texture = MotVectTexVort; SAM_POINT };
+    sampler2D sMotVectTexVort { Texture = MotVectTexVort; };
 
     #define MV_SAMP sMotVectTexVort
 #elif V_MV_MODE == 2
     namespace Deferred {
         texture MotionVectorsTex { TEX_SIZE(0) TEX_RG16 };
-        sampler sMotionVectorsTex { Texture = MotionVectorsTex; SAM_POINT };
+        sampler sMotionVectorsTex { Texture = MotionVectorsTex; };
     }
 
     #define MV_SAMP Deferred::sMotionVectorsTex
 #elif V_MV_MODE == 3
     texture2D texMotionVectors { TEX_SIZE(0) TEX_RG16 };
-    sampler2D sMotionVectorTex { Texture = texMotionVectors; SAM_POINT };
+    sampler2D sMotionVectorTex { Texture = texMotionVectors; };
 
     #define MV_SAMP sMotionVectorTex
 #endif
 
 #if V_MV_USE_REST > 0
     texture2D RESTMVTexVort : MOTION;
-    sampler2D sRESTMVTexVort { Texture = RESTMVTexVort; SAM_POINT };
+    sampler2D sRESTMVTexVort { Texture = RESTMVTexVort; };
 #endif
 
 /*******************************************************************************

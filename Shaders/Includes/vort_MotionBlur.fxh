@@ -467,15 +467,18 @@ void PS_WriteNew(PS_ARGS3) {
 
 void PS_Info(VSOUT i, out PSOUT2 o)
 {
-    float3 closest = float3(i.uv, 1.0);
+    float3 closest = float3(i.uv, Sample(sPrevFeatTexVort, i.uv).a);
 
-    // apply min filter to remove some artifacts
-    [loop]for(uint j = 0; j < S_BOX_OFFS1; j++)
+    if(UI_MB_UseMinFilter)
     {
-        float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-        float sample_z = Sample(sPrevFeatTexVort, sample_uv).a;
+        // apply min filter to remove some artifacts
+        [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
+        {
+            float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+            float sample_z = Sample(sPrevFeatTexVort, sample_uv).a;
 
-        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+            if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+        }
     }
 
     float2 prev_motion = Sample(sPrevMVTexVort, closest.xy).xy;
