@@ -16,6 +16,7 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_BlueNoise.fxh"
+#include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 #include "Includes/vort_MotionUtils.fxh"
@@ -263,9 +264,7 @@ void PS_WriteFeature(PS_ARGS4)
 #endif
 
 #if !IS_SRGB
-    float2 range = GetHDRRange();
-
-    c = clamp(c, 0.0, range.y) / range.y;
+    c = Tonemap::ApplyReinhardMax(c, 1.04);
 #endif
 
     o = float2(dot(c, A_THIRD), GetDepth(i.uv)).xyxy;
