@@ -357,31 +357,31 @@ float3 LinToSRGB(float3 c)
     return (c < 0.0031308) ? 12.92 * c : 1.055 * POW(c, 0.41666666) - 0.055;
 }
 
-float3 PQToLin(float3 c, float white_lvl)
+float3 PQToLin(float3 c)
 {
-    static const float c1 = 107.0 / 128.0;
-    static const float c2 = 2413.0 / 128.0;
-    static const float c3 = 2392.0 / 128.0;
+    static const float c1 = 0.8359375;
+    static const float c2 = 18.8515625;
+    static const float c3 = 18.6875;
 
     c = POW(c, 32.0 / 2523.0);
-    c = max(c - c1, 0.0) * RCP(c2 - c3 * c);
+    c = max(0.0, c - c1) * RCP(c2 - c3 * c);
 
-    return POW(c, 8192.0 / 1305.0) * (1e4 / white_lvl);
+    return POW(c, 8192.0 / 1305.0);
 }
 
-float3 LinToPQ(float3 c, float white_lvl)
+float3 LinToPQ(float3 c)
 {
-    static const float c1 = 107.0 / 128.0;
-    static const float c2 = 2413.0 / 128.0;
-    static const float c3 = 2392.0 / 128.0;
+    static const float c1 = 0.8359375;
+    static const float c2 = 18.8515625;
+    static const float c3 = 18.6875;
 
-    c = POW(c, 1305.0 / 8192.0) * (white_lvl / 1e4);
-    c = (c1 + c2 * c) * RCP(1 + c3 * c);
+    c = POW(c, 1305.0 / 8192.0);
+    c = (c1 + c2 * c) * RCP(1.0 + c3 * c);
 
     return POW(c, 2523.0 / 32.0);
 }
 
-float3 HLGToLin(float3 c, float white_lvl)
+float3 HLGToLin(float3 c)
 {
     static const float c1 = 0.17883277;
     static const float c2 = 0.28466892;
@@ -389,18 +389,18 @@ float3 HLGToLin(float3 c, float white_lvl)
 
     c = c < 0.5 ? ((c * c) / 3.0) : ((exp((c - c3) / c1) + c2) / 12.0);
 
-    return c * (1e3 / white_lvl);
+    return c;
 }
 
-float3 LinToHLG(float3 c, float white_lvl)
+float3 LinToHLG(float3 c)
 {
     static const float c1 = 0.17883277;
     static const float c2 = 0.28466892;
     static const float c3 = 0.55991073;
 
-    c = sqrt(c * (white_lvl / 1e3) * 3);
+    c = c <= (1.0 / 12.0) ? sqrt(c * 3.0) : (LOG(c * 12 - c2) * c1 + c3);
 
-    return c < 0.5 ? c : (LOG(c * 12 - c2) * c1 + c3);
+    return c;
 }
 
 float3 ApplyLinCurve(float3 c)
@@ -410,9 +410,9 @@ float3 ApplyLinCurve(float3 c)
 #elif IS_SCRGB
     c = c * (80.0 / V_HDR_WHITE_LVL);
 #elif IS_HDR_PQ
-    c = PQToLin(c, V_HDR_WHITE_LVL);
+    c = PQToLin(c);
 #elif IS_HDR_HLG
-    c = HLGToLin(c, V_HDR_WHITE_LVL);
+    c = HLGToLin(c);
 #endif
 
     return c;
@@ -425,9 +425,9 @@ float3 ApplyGammaCurve(float3 c)
 #elif IS_SCRGB
     c = c * (V_HDR_WHITE_LVL / 80.0);
 #elif IS_HDR_PQ
-    c = LinToPQ(c, V_HDR_WHITE_LVL);
+    c = LinToPQ(c);
 #elif IS_HDR_HLG
-    c = LinToHLG(c, V_HDR_WHITE_LVL);
+    c = LinToHLG(c);
 #endif
 
     return c;

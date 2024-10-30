@@ -45,7 +45,7 @@ namespace TAA {
 texture TAAMVTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler sTAAMVTexVort { Texture = TAAMVTexVort; SAM_POINT };
 
-texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA8 };
+texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA16 };
 sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
 
 /*******************************************************************************
