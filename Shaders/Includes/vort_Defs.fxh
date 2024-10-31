@@ -646,7 +646,7 @@ float Halton1(uint i, uint b)
     {
         f /= float(b);
         r += f * float(i % b);
-        i = uint(floor(float(i) / float(b)));
+        i /= b;
     }
 
     return r;

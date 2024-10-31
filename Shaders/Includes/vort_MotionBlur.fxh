@@ -427,9 +427,17 @@ void StoreNextMV(uint2 id)
 #endif
 
     float4 prev_feat = Sample(sPrevFeatTexVort, prev_uv);
-    float2 prev_cz = float2(dot(A_THIRD, OutColor(prev_feat.rgb)), prev_feat.a);
-    float2 next_cz = float2(dot(A_THIRD, SampleGammaColor(uv)), GetDepth(uv));
-    float2 diff = abs(prev_cz - next_cz);
+    float3 prev_c = OutColor(prev_feat.rgb);
+    float3 next_c = SampleGammaColor(uv);
+
+#if !IS_SRGB
+    prev_c = Tonemap::ApplyReinhardMax(prev_c, 1.04);
+    next_c = Tonemap::ApplyReinhardMax(next_c, 1.04);
+#endif
+
+    float2 prev_gz = float2(dot(A_THIRD, prev_c), prev_feat.a);
+    float2 next_gz = float2(dot(A_THIRD, next_c), GetDepth(uv));
+    float2 diff = abs(prev_gz - next_gz);
     bool is_correct_mv = min(diff.x, diff.y) < max(1e-8, UI_MB_Thresh);
 
     if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
@@ -503,7 +511,11 @@ void PS_Blur(PS_ARGS4)         { o = CalcBlur(i); }
 void PS_PrevFeat(PS_ARGS4)     { o = CalcPrevFeat(i); }
 void PS_Draw(PS_ARGS3)         { o = Sample(sBlurTexVort, i.uv).rgb; }
 
-// reset next_mv to -prev_mv not 0 because of disocclusions
+// reset next_mv to -prev_mv not 0
+// because it's better to have wrong motion than no motion
+// already tested with custom reset logic:
+// in order to discard motion which is incorrect,
+// a whole lot of "correct" motion goes away with it
 void PS_PrevMV(VSOUT i, out PSOUT2 o) { o.t0 = CalcPrevMV(i); o.t1 = -o.t0; }
 
 /*******************************************************************************

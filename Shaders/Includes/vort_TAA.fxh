@@ -46,7 +46,7 @@ texture TAAMVTexVort { TEX_SIZE(0) TEX_RG16 };
 sampler sTAAMVTexVort { Texture = TAAMVTexVort; SAM_POINT };
 
 texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA16 };
-sampler sPrevColorTexVort { Texture = PrevColorTexVort; SRGB_READ_ENABLE };
+sampler sPrevColorTexVort { Texture = PrevColorTexVort; };
 
 /*******************************************************************************
     Functions
@@ -74,9 +74,8 @@ void PS_Main(PS_ARGS3)
     float2 motion = Sample(sTAAMVTexVort, i.uv).xy;
     float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
     float2 prev_uv = i.uv + motion;
-    bool is_outside_screen = !ValidateUV(prev_uv);
 
-    if(mot_px_len < 1.0 || is_outside_screen) discard;
+    if(mot_px_len < 1.0 || !ValidateUV(prev_uv)) discard;
 
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
     float3 avg_c = curr_c;
@@ -95,7 +94,7 @@ void PS_Main(PS_ARGS3)
     }
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
-    float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
+    float3 prev_c = RGBToYCoCg(ForceLinCurve(prev_info.rgb));
 
     avg_c *= inv_samples;
     var_c *= inv_samples;
@@ -116,27 +115,26 @@ void PS_Main(PS_ARGS3)
 
 void PS_WriteMV(PS_ARGS2)
 {
-    // xy = closest uv, z = closest depth
-    float3 closest = float3(i.uv, 1.0);
+    float3 closest = float3(i.uv, GetDepth(i.uv));
 
     // apply min filter to remove some artifacts
-    [loop]for(int x = -1; x <= 1; x++)
-    [loop]for(int y = -1; y <= 1; y++)
+    [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
     {
-        float2 sample_uv = i.uv + float2(x,y) * BUFFER_PIXEL_SIZE;
+        float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
         float sample_z = GetDepth(sample_uv);
 
         if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
     }
 
     float2 motion = SampleMotion(closest.xy);
-    float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
+    float2 px_motion = motion * BUFFER_SCREEN_SIZE;
+    float sq_len = dot(px_motion, px_motion);
 
     // remove subpixel results
-    o.xy = motion * (mot_px_len >= 1.0);
+    o.xy = motion * (sq_len >= 1.0);
 }
 
-void PS_WritePrevColor(PS_ARGS4) { o = float4(Sample(sColorTexVort, i.uv).rgb, 1.0); }
+void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv).rgb, 1.0); }
 
 /*******************************************************************************
     Passes
@@ -145,6 +143,6 @@ void PS_WritePrevColor(PS_ARGS4) { o = float4(Sample(sColorTexVort, i.uv).rgb, 1
 #define PASS_TAA \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteMV; RenderTarget = TAA::TAAMVTexVort; } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; SRGB_WRITE_ENABLE } \
-    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; SRGB_WRITE_ENABLE }
+    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; }
 
 } // namespace end
