@@ -258,7 +258,7 @@ void PS_DownFeat7(PS_ARGS4) { o = DownsampleFeature(i.uv, sFeatTexVort6); }
 void PS_WriteFeature(PS_ARGS4)
 {
 #if MIN_MIP > 0
-    float3 c = Filters::Wronski(sGammaColorTexVort, i.uv, 0).rgb;
+    float3 c = Filters::Wronski(sColorTexVort, i.uv, 0).rgb;
 #else
     float3 c = SampleGammaColor(i.uv);
 #endif

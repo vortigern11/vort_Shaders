@@ -131,8 +131,4 @@ _vort_MotionEffects_Help_,
 "\n"
 "V_ENABLE_TAA - 0 or 1\n"
 "1 - enable TAA\n"
-"\n"
-"V_USE_HW_LIN - 0 or 1\n"
-"Toggle hardware linearization (better performance).\n"
-"Disable if you have color issues due to some bug (like older REST versions).\n"
 )

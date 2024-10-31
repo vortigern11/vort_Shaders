@@ -94,7 +94,7 @@ void PS_Main(PS_ARGS3)
     }
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
-    float3 prev_c = RGBToYCoCg(ForceLinCurve(prev_info.rgb));
+    float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
 
     avg_c *= inv_samples;
     var_c *= inv_samples;
@@ -142,7 +142,7 @@ void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv).rgb, 1.0); 
 
 #define PASS_TAA \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteMV; RenderTarget = TAA::TAAMVTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; SRGB_WRITE_ENABLE } \
+    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; }
 
 } // namespace end

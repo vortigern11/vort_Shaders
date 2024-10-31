@@ -143,10 +143,6 @@ uniform uint frame_count < source = "framecount"; >;
 uniform float frame_time < source = "frametime"; >;
 uniform float timer < source = "timer"; >;
 
-#ifndef V_USE_HW_LIN
-    #define V_USE_HW_LIN 0
-#endif
-
 #if !IS_SRGB
     #ifndef V_HDR_WHITE_LVL
         #define V_HDR_WHITE_LVL 203
@@ -321,10 +317,6 @@ struct CSIN {
     uv.y = (id == 1) ? 1.0 : (1 - k); \
     VS_VPOS_FROM_UV
 
-#define HW_LIN_IS_USED IS_SRGB && IS_8BIT && V_USE_HW_LIN
-#define SRGB_READ_ENABLE SRGBTexture = HW_LIN_IS_USED;
-#define SRGB_WRITE_ENABLE SRGBWriteEnable = HW_LIN_IS_USED;
-
 /*******************************************************************************
     Functions
 *******************************************************************************/
@@ -405,7 +397,7 @@ float3 LinToHLG(float3 c)
 
 float3 ApplyLinCurve(float3 c)
 {
-#if IS_SRGB && (!IS_8BIT || !V_USE_HW_LIN)
+#if IS_SRGB
     c = SRGBToLin(c);
 #elif IS_SCRGB
     c = c * (80.0 / V_HDR_WHITE_LVL);
@@ -420,7 +412,7 @@ float3 ApplyLinCurve(float3 c)
 
 float3 ApplyGammaCurve(float3 c)
 {
-#if IS_SRGB && (!IS_8BIT || !V_USE_HW_LIN)
+#if IS_SRGB
     c = LinToSRGB(c);
 #elif IS_SCRGB
     c = c * (V_HDR_WHITE_LVL / 80.0);
@@ -428,28 +420,6 @@ float3 ApplyGammaCurve(float3 c)
     c = LinToPQ(c);
 #elif IS_HDR_HLG
     c = LinToHLG(c);
-#endif
-
-    return c;
-}
-
-float3 ForceLinCurve(float3 c)
-{
-#if IS_SRGB
-    c = SRGBToLin(c);
-#else
-    c = ApplyLinCurve(c);
-#endif
-
-    return c;
-}
-
-float3 ForceGammaCurve(float3 c)
-{
-#if IS_SRGB
-    c = LinToSRGB(c);
-#else
-    c = ApplyGammaCurve(c);
 #endif
 
     return c;

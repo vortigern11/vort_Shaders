@@ -92,7 +92,7 @@ float3 OutColor(float3 c)
     c = Tonemap::ApplyReinhardMax(c, T_MOD);
 #endif
 
-    return ForceGammaCurve(c);
+    return ApplyGammaCurve(c);
 }
 
 #if DEBUG_BLUR

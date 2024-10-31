@@ -413,6 +413,6 @@ void PS_End(PS_ARGS3)
     pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Start; RenderTarget = CC_OUT_TEX; }
 
 #define PASS_END \
-    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; SRGB_WRITE_ENABLE }
+    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; }
 
 } // namespace end
