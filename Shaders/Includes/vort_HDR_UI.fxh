@@ -108,10 +108,10 @@ UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range
     UI_COLOR(CAT_CC, UI_CC_RGBMixerGreen, "RGB Mixer Green", "Modifies the greens", float3(0.5, 0.75, 0.5))
     UI_COLOR(CAT_CC, UI_CC_RGBMixerBlue, "RGB Mixer Blue", "Modifies the blues", float3(0.5, 0.5, 0.75))
 
-    UI_FLOAT(CAT_CC, UI_CC_ShadowsLumi, "Shadows Luminance", "Changes the luminance of the shadows mainly.", -0.5, 0.5, 0.0)
-    UI_FLOAT(CAT_CC, UI_CC_MidtonesLumi, "Midtones Luminance", "Change the luminance of the midtones mainly.", -0.5, 0.5, 0.0)
-    UI_FLOAT(CAT_CC, UI_CC_HighlightsLumi, "Highlights Luminance", "Changes the luminance of the highlights mainly.", -0.5, 0.5, 0.0)
-    UI_FLOAT(CAT_CC, UI_CC_OffsetLumi, "Offset Luminance", "Changes the luminance of whole curve.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_ShadowsLuma, "Shadows Luma", "Changes the luma of the shadows mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_MidtonesLuma, "Midtones Luma", "Change the luma of the midtones mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_HighlightsLuma, "Highlights Luma", "Changes the luma of the highlights mainly.", -0.5, 0.5, 0.0)
+    UI_FLOAT(CAT_CC, UI_CC_OffsetLuma, "Offset Luma", "Changes the luma of whole curve.", -0.5, 0.5, 0.0)
 
     UI_COLOR(CAT_CC, UI_CC_ShadowsColor, "Shadows Color", "Changes the color of the shadows mainly.", 0.5)
     UI_COLOR(CAT_CC, UI_CC_MidtonesColor, "Midtones Color", "Changes the color of the midtones mainly.", 0.5)

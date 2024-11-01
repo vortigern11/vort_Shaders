@@ -67,10 +67,11 @@ static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
 };
 
 // safer versions of built-in functions
-#define RCP(_x) (rcp(max(EPSILON, (_x))))
+// https://www.hillelwayne.com/post/divide-by-zero/
+#define RCP(_x) (_x == 0.0 ? 0.0 : rcp(_x))
+#define RSQRT(_x) (_x == 0.0 ? 0.0 : rsqrt(_x))
 #define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
-#define RSQRT(_x) (rsqrt(max(EPSILON, _x)))
 #define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
 #define LOG(_x) (log(max(EPSILON, (_x))))
 #define LOG2(_x) (log2(max(EPSILON, (_x))))
@@ -425,12 +426,12 @@ float3 ApplyGammaCurve(float3 c)
     return c;
 }
 
-float RGBToYCbCrLumi(float3 c)
+float RGBToYCbCrLuma(float3 c)
 {
     return dot(c, float3(0.2126, 0.7152, 0.0722));
 }
 
-float RGBToYCoCgLumi(float3 c)
+float RGBToYCoCgLuma(float3 c)
 {
     return dot(c, float3(0.25, 0.5, 0.25));
 }
@@ -438,7 +439,7 @@ float RGBToYCoCgLumi(float3 c)
 float3 RGBToYCoCg(float3 rgb)
 {
     return float3(
-        RGBToYCoCgLumi(rgb),
+        RGBToYCoCgLuma(rgb),
         dot(rgb, float3(0.5, 0.0, -0.5)),
         dot(rgb, float3(-0.25, 0.5, -0.25))
     );
@@ -455,7 +456,7 @@ float3 YCoCgToRGB(float3 ycc)
 
 float3 RGBToYCbCr(float3 rgb)
 {
-    float y = RGBToYCbCrLumi(rgb);
+    float y = RGBToYCbCrLuma(rgb);
 
     return float3(y, (rgb.b - y) * 0.565, (rgb.r - y) * 0.713);
 }
@@ -575,6 +576,7 @@ float3 SoftLightBlend(float3 a, float3 b)
 
 float Max2(float2 f) { return max(f.x, f.y); }
 float Max3(float3 f) { return max(f.x, max(f.y, f.z)); }
+float Max4(float4 f) { return max(f.x, max(f.y, max(f.z, f.w))); }
 float Max3(float a, float b, float c) { return max(a, max(b, c)); }
 float2 Max3(float2 a, float2 b, float2 c) { return max(a, max(b, c)); }
 float3 Max3(float3 a, float3 b, float3 c) { return max(a, max(b, c)); }
@@ -582,6 +584,7 @@ float4 Max3(float4 a, float4 b, float4 c) { return max(a, max(b, c)); }
 
 float Min2(float2 f) { return min(f.x, f.y); }
 float Min3(float3 f) { return min(f.x, min(f.y, f.z)); }
+float Min4(float4 f) { return min(f.x, min(f.y, min(f.z, f.w))); }
 float Min3(float a, float b, float c) { return min(a, min(b, c)); }
 float2 Min3(float2 a, float2 b, float2 c) { return min(a, min(b, c)); }
 float3 Min3(float3 a, float3 b, float3 c) { return min(a, min(b, c)); }
@@ -706,7 +709,7 @@ float2 Rotate(float2 v, float4 rot)
 float GetCosAngle(float2 v1, float2 v2)
 {
     // var. 1: dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2))
-    // var. 2: dot(v1, v2) * RCP(length(v1) * length(v2)
+    // var. 2: dot(v1, v2) * RCP(length(v1) * length(v2))
     // var. 3: dot(NORM(v1), NORM(v2))
 
     return dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2));

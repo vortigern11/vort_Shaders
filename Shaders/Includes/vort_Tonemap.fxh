@@ -51,7 +51,7 @@ float3 InverseReinhardMax(float3 c, float t_k)
 
 float3 ApplyReinhardLuma(float3 c, float t_k)
 {
-    c = (t_k * c) * RCP(1.0 + RGBToYCbCrLumi(c));
+    c = (t_k * c) * RCP(1.0 + RGBToYCbCrLuma(c));
     c = saturate(c);
 
     return c;
@@ -60,7 +60,7 @@ float3 ApplyReinhardLuma(float3 c, float t_k)
 float3 InverseReinhardLuma(float3 c, float t_k)
 {
     c = saturate(c);
-    c = c * RCP(t_k - RGBToYCbCrLumi(c));
+    c = c * RCP(t_k - RGBToYCbCrLuma(c));
 
     return c;
 }
@@ -88,7 +88,7 @@ float3 ApplyStanard(float3 c)
 
     c = min(50.0, c);
     c = c * sqrt(c);
-    c = c * RCP(k + RGBToYCbCrLumi(c));
+    c = c * RCP(k + RGBToYCbCrLuma(c));
     c = saturate(c);
 
     return c;
@@ -101,7 +101,7 @@ float3 InverseStanard(float3 c)
     static const float tt = 2.0 / 3.0;
 
     c = saturate(c);
-    c = (k * c) * RCP(1.0 - RGBToYCbCrLumi(c));
+    c = (k * c) * RCP(1.0 - RGBToYCbCrLuma(c));
     c = POW(c, tt);
     c = min(50.0, c);
 

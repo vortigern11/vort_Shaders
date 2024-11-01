@@ -1009,7 +1009,7 @@ float3 ACESccToACEScg(float3 c)
     return c < -0.3013699 ? (exp2(c * 17.52 - 9.72) * 2.0 - 0.0000306) : c < 1.4680365 ? exp2(c * 17.52 - 9.72) : FLOAT_MAX;
 }
 
-float ACESToLumi(float3 c)
+float ACESToLuma(float3 c)
 {
     return dot(c, float3(0.272229, 0.674082, 0.0536895));
 }

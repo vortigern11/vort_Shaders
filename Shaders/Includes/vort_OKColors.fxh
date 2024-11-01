@@ -66,6 +66,28 @@ namespace OKColors
         );
     }
 
+    float3 RGBToOKLCH(float3 c)
+    {
+        float3 lab = RGBToOKLAB(c);
+        float chroma = length(lab.yz);
+        float hue = chroma > 0.0 ? atan2(lab.z, lab.y) : 0.0;
+
+        hue = (hue + PI) / DOUBLE_PI; // custom
+
+        return float3(lab.x, chroma, hue);
+    }
+
+    float3 OKLCHToRGB(float3 lch)
+    {
+        float hue = lch.z * DOUBLE_PI - PI; // custom
+        float chroma = lch.y;
+
+        float a = chroma * cos(hue);
+        float b = chroma * sin(hue);
+
+        return OKLABToRGB(float3(lch.x, a, b));
+    }
+
     /*******************************************************************************
        Color spaces for 1:1 conversion to sRGB and back
 
@@ -271,14 +293,14 @@ namespace OKColors
         C_a = L * ST_mid.x;
         C_b = (1.0 - L) * ST_mid.y;
 
-        float C_mid = 0.9 * k * sqrt(sqrt(1.0 / (1.0 / (C_a * C_a * C_a * C_a) + 1.0 / (C_b * C_b * C_b * C_b))));
+        float C_mid = 0.9 * k * sqrt(RSQRT(RCP(C_a * C_a * C_a * C_a) + RCP(C_b * C_b * C_b * C_b)));
 
         // for C_0, the shape is independent of hue, so ST are constant. Values picked to roughly be the average values of ST.
         C_a = L * 0.4;
         C_b = (1.0 - L) * 0.8;
 
         // Use a soft minimum function, instead of a sharp triangle shape to get a smooth value for chroma.
-        float C_0 = sqrt(1.0 / (1.0 / (C_a * C_a) + 1.0 / (C_b * C_b)));
+        float C_0 = RSQRT(RCP(C_a * C_a) + RCP(C_b * C_b));
 
         return float3(C_0, C_mid, C_max);
     }
@@ -326,7 +348,7 @@ namespace OKColors
     {
         float3 lab = RGBToOKLAB(rgb);
 
-        float C = sqrt(lab.y * lab.y + lab.z * lab.z);
+        float C = length(lab.yz);
         float a_pre = lab.y / C;
         float b_pre = lab.z / C;
 
@@ -396,7 +418,7 @@ namespace OKColors
         L = L_new;
 
         float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
-        float scale_L = pow(rcp(max(EPSILON, Max3(rgb_scale))), A_THIRD);
+        float scale_L = POW(RCP(max(0.0, Max3(rgb_scale))), A_THIRD);
 
         L = L * scale_L;
         C = C * scale_L;
@@ -408,7 +430,7 @@ namespace OKColors
     {
         float3 lab = RGBToOKLAB(rgb);
 
-        float C = sqrt(lab.y * lab.y + lab.z * lab.z);
+        float C = length(lab.yz);
         float a_pre = lab.y / C;
         float b_pre = lab.z / C;
 
@@ -431,7 +453,7 @@ namespace OKColors
 
         // we can then use these to invert the step that compensates for the toe and the curved top part of the triangle:
         float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
-        float scale_L = pow(rcp(max(EPSILON, Max3(rgb_scale))), A_THIRD);
+        float scale_L = POW(RCP(max(0.0, Max3(rgb_scale))), A_THIRD);
 
         L = L / scale_L;
         C = C / scale_L;

@@ -77,19 +77,8 @@ namespace ColorChanges {
     #define CC_IN_SAMP sHDRTexVortA
 #endif
 
-#if V_USE_ACES
-    #define TO_LOG_CS(_x) ACEScgToACEScct(_x)
-    #define TO_LINEAR_CS(_x) ACEScctToACEScg(_x)
-    #define GET_LUMI(_x) ACESToLumi(_x)
-    #define LINEAR_MID_GRAY 0.18
-    #define LOG_MID_GRAY ACES_LOG_MID_GRAY
-#else
-    #define TO_LOG_CS(_x) LOG2(_x)
-    #define TO_LINEAR_CS(_x) exp2(_x)
-    #define GET_LUMI(_x) RGBToYCbCrLumi(_x)
-    #define LINEAR_MID_GRAY 0.18
-    #define LOG_MID_GRAY 0.18
-#endif
+#define GET_LUMA(_x) RGBToYCbCrLuma(_x)
+#define LOG_MID_GRAY 0.18
 
 #define MLUT_TileSizeXY 33
 #define MLUT_TileAmount 33
@@ -113,7 +102,7 @@ namespace ColorChanges {
 float3 ApplySharpen(float3 c, float2 uv)
 {
     float3 blurred = Filters::DualKawase(CC_IN_SAMP, uv, 0).rgb;
-    float3 sharp = GET_LUMI(c - blurred);
+    float3 sharp = GET_LUMA(c - blurred);
     float depth = GetDepth(uv);
     float limit = abs(dot(sharp, A_THIRD));
 
@@ -179,7 +168,7 @@ float3 ApplyColorGrading(float3 c)
     );
 
     // saturation
-    float lumi = GET_LUMI(c);
+    float lumi = GET_LUMA(c);
     c = lerp(lumi.xxx, c, UI_CC_Saturation + 1.0);
 
     // Hue Shift
@@ -188,23 +177,23 @@ float3 ApplyColorGrading(float3 c)
     c = HSVToRGB(hsv);
 
     // start grading in log space
-    c = TO_LOG_CS(c);
+    c = LOG2(c);
 
     // contrast in log space
     float contrast = UI_CC_Contrast + 1.0;
     c = lerp(LOG_MID_GRAY.xxx, c, contrast.xxx);
 
     // end grading in log space
-    c = TO_LINEAR_CS(c);
+    c = exp2(c);
 
     // Shadows,Midtones,Highlights,Offset in linear space
     // My calculations were done in desmos: https://www.desmos.com/calculator/vvur0dzia9
 
     // affect the color and luminance seperately
-    float3 shadows = UI_CC_ShadowsColor - GET_LUMI(UI_CC_ShadowsColor) + UI_CC_ShadowsLumi + 0.5;
-    float3 midtones = UI_CC_MidtonesColor - GET_LUMI(UI_CC_MidtonesColor) + UI_CC_MidtonesLumi + 0.5;
-    float3 highlights = UI_CC_HighlightsColor - GET_LUMI(UI_CC_HighlightsColor) + UI_CC_HighlightsLumi + 0.5;
-    float3 offset = UI_CC_OffsetColor - GET_LUMI(UI_CC_OffsetColor) + UI_CC_OffsetLumi + 0.5;
+    float3 shadows = UI_CC_ShadowsColor - GET_LUMA(UI_CC_ShadowsColor) + UI_CC_ShadowsLuma + 0.5;
+    float3 midtones = UI_CC_MidtonesColor - GET_LUMA(UI_CC_MidtonesColor) + UI_CC_MidtonesLuma + 0.5;
+    float3 highlights = UI_CC_HighlightsColor - GET_LUMA(UI_CC_HighlightsColor) + UI_CC_HighlightsLuma + 0.5;
+    float3 offset = UI_CC_OffsetColor - GET_LUMA(UI_CC_OffsetColor) + UI_CC_OffsetLuma + 0.5;
 
     static const float shadows_str = 0.5;
     static const float midtones_str = 1.0;
@@ -218,12 +207,12 @@ float3 ApplyColorGrading(float3 c)
     offset = (offset - 0.5) * offset_str;
 
     // apply shadows, highlights, offset, midtones
-    c = (c <= 1) ? (c * (1.0 - shadows) + shadows) : c;
-    c = (c >= 0) ? (c * highlights) : c;
+    c = c * (1.0 - shadows) + shadows;
+    c = c * highlights;
     c = c + offset;
-    c = (c >= 0 && c <= 1.0) ? POW(c, midtones) : c;
+    c = POW(c, midtones);
 
-    return c;
+    return saturate(c);
 }
 #endif
 
@@ -328,7 +317,7 @@ float3 ApplyPalette(float3 c, float2 vpos)
 
     if(!c_has_changed)
     {
-        float lumi = RGBToYCbCrLumi(c);
+        float lumi = RGBToYCbCrLuma(c);
         int idx = lumi * float(max_idx);
         int s_idx = idx < mid_idx ? idx : max_idx - idx;
         float3 shadows_c = colors[s_idx];
@@ -389,15 +378,14 @@ void PS_End(PS_ARGS3)
     c = clamp(c, range.x, range.y);
 #endif
 
-#if V_ENABLE_COLOR_GRADING
-    c = ApplyColorGrading(c);
-    c = clamp(c, range.x, range.y);
-#endif
-
 #if V_USE_ACES
     c = ApplyACESFull(c);
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);
+#endif
+
+#if V_ENABLE_COLOR_GRADING
+    c = ApplyColorGrading(c);
 #endif
 
     // dither
