@@ -37,8 +37,8 @@ namespace MotVect {
 
 #define MIN_MIP 1
 
-static const uint BLOCK_SAMPLES = 9;
-static const float2 BLOCK_OFFS[BLOCK_SAMPLES] =
+static const uint DIAMOND_S = 9;
+static const float2 DIAMOND_OFFS[DIAMOND_S] =
 {
     float2(0, 0),
     float2(-1, -1), float2(1, 1), float2(-1, 1), float2(1, -1),
@@ -58,7 +58,7 @@ static const float2 BLOCK_OFFS[BLOCK_SAMPLES] =
     #define FeatTexVort6 FeatTexVort1
     #define FeatTexVort7 FeatTexVort1
 
-    sampler2D sFeatTexVort1 { Texture = FeatTexVort; SAM_MIRROR };
+    sampler2D sFeatTexVort1 { Texture = FeatTexVort1; SAM_MIRROR };
     #define sFeatTexVort2 sFeatTexVort1
     #define sFeatTexVort3 sFeatTexVort1
     #define sFeatTexVort4 sFeatTexVort1
@@ -89,7 +89,6 @@ texture2D MotionTexVortA { TEX_SIZE(3) TEX_RG16 };
 texture2D MotionTexVortB { TEX_SIZE(3) TEX_RG16 };
 
 // DON'T FUCKING USE POINT SAMPLERS HERE
-// only combining frames looks correct, frame by frame it doesn't
 sampler2D sMotionTexVort1 { Texture = MotionTexVort1; };
 sampler2D sMotionTexVort2 { Texture = MotionTexVort2; };
 sampler2D sMotionTexVortA { Texture = MotionTexVortA; };
@@ -112,9 +111,9 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
     float2 moments_search = eps;
     float2 moments_cov = eps;
 
-    [loop]for(uint j = 0; j < BLOCK_SAMPLES; j++)
+    [loop]for(uint j = 0; j < DIAMOND_S; j++)
     {
-        float2 tuv = i.uv + BLOCK_OFFS[j] * texelsize;
+        float2 tuv = i.uv + DIAMOND_OFFS[j] * texelsize;
         float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
         float2 t_search = Sample(feat_samp, tuv + total_motion, feature_mip).zw;
 
@@ -147,9 +146,9 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
             moments_search = eps;
             moments_cov = eps;
 
-            [loop]for(uint j = 0; j < BLOCK_SAMPLES; j++)
+            [loop]for(uint j = 0; j < DIAMOND_S; j++)
             {
-                float2 tuv = i.uv + BLOCK_OFFS[j] * texelsize;
+                float2 tuv = i.uv + DIAMOND_OFFS[j] * texelsize;
                 float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
                 float2 t_search = Sample(feat_samp, tuv + total_motion + search_offset, feature_mip).zw;
 
@@ -181,26 +180,22 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
 
     uint feature_mip = IS_DX9 ? max(0, mip - MIN_MIP) : 0; // better results
     float2 qrand = GetR2(GetBlueNoise(i.vpos.xy).xy, mip + 1) - 0.5;
-    float2 cen_motion = Sample(mot_samp, i.uv).xy;
-    float cen_sq_len = dot(cen_motion, cen_motion);
     float center_z = Sample(feat_samp, i.uv, feature_mip).y;
 
     if(mip < MIN_MIP) center_z = GetDepth(i.uv);
 
     float3 motion_acc = 0;
 
-    [loop]for(uint j = 0; j < BLOCK_SAMPLES; j++)
+    [loop]for(uint j = 0; j < DIAMOND_S; j++)
     {
-        float2 sample_uv = i.uv + (BLOCK_OFFS[j] + qrand) * scale;
+        float2 sample_uv = i.uv + (DIAMOND_OFFS[j] + qrand) * scale;
         float2 sample_mot = Sample(mot_samp, sample_uv).xy;
         float sample_z = Sample(feat_samp, sample_uv, feature_mip).y;
         float sample_sq_len = dot(sample_mot, sample_mot);
-        float cos_angle = dot(cen_motion, sample_mot) * RSQRT(cen_sq_len * sample_sq_len);
 
         float wz = abs(center_z - sample_z) * RCP(min(center_z, sample_z)) * 20.0;
         float wm = sample_sq_len * BUFFER_WIDTH; // don't change this, can notice the diff when using MB
-        float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // tested - opposite gives better results
-        float weight = max(1e-8, exp2(-(wz + wm + wd))); // don't change the min value
+        float weight = max(1e-8, exp2(-(wz + wm))); // don't change the min value
 
         // don't use samples without motion or outside screen
         weight *= (sample_sq_len > 0.0) * ValidateUV(sample_uv);
@@ -258,9 +253,9 @@ void PS_DownFeat7(PS_ARGS4) { o = DownsampleFeature(i.uv, sFeatTexVort6); }
 void PS_WriteFeature(PS_ARGS4)
 {
 #if MIN_MIP > 0
-    float3 c = Filters::Wronski(sColorTexVort, i.uv, 0).rgb;
+    float3 c = ApplyLinCurve(Filters::Wronski(sColorTexVort, i.uv, 0).rgb);
 #else
-    float3 c = SampleGammaColor(i.uv);
+    float3 c = SampleLinColor(i.uv);
 #endif
 
 #if !IS_SRGB
@@ -281,12 +276,12 @@ void PS_Motion1(PS_ARGS2) { o = EstimateMotion(i, 1, sMotionTexVort2, sFeatTexVo
 void PS_Motion0(PS_ARGS2) { o = EstimateMotion(i, 0, sMotionTexVort1, sFeatTexVort1); }
 
 // slight quality increase for nearly no perf cost
-void PS_Filter8(PS_ARGS2) { o = AtrousUpscale(i, 7, sMotionTexVortA, sFeatTexVort7); }
-void PS_Filter7(PS_ARGS2) { o = AtrousUpscale(i, 6, sMotionTexVortA, sFeatTexVort6); }
-void PS_Filter6(PS_ARGS2) { o = AtrousUpscale(i, 5, sMotionTexVortA, sFeatTexVort5); }
-void PS_Filter5(PS_ARGS2) { o = AtrousUpscale(i, 4, sMotionTexVortA, sFeatTexVort4); }
-void PS_Filter4(PS_ARGS2) { o = AtrousUpscale(i, 3, sMotionTexVortA, sFeatTexVort3); }
-void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA, sFeatTexVort2); }
+void PS_Filter7(PS_ARGS2) { o = AtrousUpscale(i, 7, sMotionTexVortA, sFeatTexVort7); }
+void PS_Filter6(PS_ARGS2) { o = AtrousUpscale(i, 6, sMotionTexVortA, sFeatTexVort6); }
+void PS_Filter5(PS_ARGS2) { o = AtrousUpscale(i, 5, sMotionTexVortA, sFeatTexVort5); }
+void PS_Filter4(PS_ARGS2) { o = AtrousUpscale(i, 4, sMotionTexVortA, sFeatTexVort4); }
+void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 3, sMotionTexVortA, sFeatTexVort3); }
+void PS_Filter2(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA, sFeatTexVort2); }
 
 /*******************************************************************************
     Passes
@@ -315,7 +310,7 @@ void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA, sFeatTexVor
 #else
     #define PASS_MV_EXTRA_3 \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = MotVect::MotionTexVortA; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter8; RenderTarget = MotVect::MotionTexVortB; }
+        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter7; RenderTarget = MotVect::MotionTexVortB; }
 #endif
 
 #define PASS_MV \
@@ -324,15 +319,15 @@ void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA, sFeatTexVor
     PASS_MV_EXTRA_2 \
     PASS_MV_EXTRA_3 \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion7;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter7;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter6;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter5;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4;      RenderTarget = MotVect::MotionTexVortA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter4;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3;      RenderTarget = MotVect::MotionTexVortA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter3;      RenderTarget = MotVect::MotionTexVortB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3;      RenderTarget = MotVect::MotionTexVortA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2;      RenderTarget = MotVect::MotionTexVort2; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVort1; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MotVectTexVort; } \

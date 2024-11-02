@@ -427,17 +427,16 @@ void StoreNextMV(uint2 id)
 #endif
 
     float4 prev_feat = Sample(sPrevFeatTexVort, prev_uv);
-    float3 prev_c = OutColor(prev_feat.rgb);
-    float3 next_c = SampleGammaColor(uv);
+    float3 prev_c = prev_feat.rgb;
+    float3 next_c = SampleLinColor(uv);
 
-#if !IS_SRGB
-    prev_c = Tonemap::ApplyReinhardMax(prev_c, 1.04);
-    next_c = Tonemap::ApplyReinhardMax(next_c, 1.04);
+#if IS_SRGB
+    prev_c = Tonemap::ApplyReinhardMax(prev_c, T_MOD);
 #endif
 
-    float2 prev_gz = float2(dot(A_THIRD, prev_c), prev_feat.a);
-    float2 next_gz = float2(dot(A_THIRD, next_c), GetDepth(uv));
-    float2 diff = abs(prev_gz - next_gz);
+    float2 prev_cz = float2(dot(A_THIRD, prev_c), prev_feat.a);
+    float2 next_cz = float2(dot(A_THIRD, next_c), GetDepth(uv));
+    float2 diff = abs(prev_cz - next_cz);
     bool is_correct_mv = min(diff.x, diff.y) < max(1e-8, UI_MB_Thresh);
 
     if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
