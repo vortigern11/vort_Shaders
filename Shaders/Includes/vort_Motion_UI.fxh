@@ -100,6 +100,7 @@
 #if V_ENABLE_TAA
     #define CAT_TAA "Temporal AA"
 
+    UI_FLOAT(CAT_TAA, UI_TAA_Jitter, "Jitter Amount", "How much to shift every pixel position each frame", 0.0, 1.0, 0.0)
     UI_FLOAT(CAT_TAA, UI_TAA_Alpha, "Frame Blend", "Higher values reduce blur, but reduce AA as well", 0.05, 1.0, 0.2)
     UI_FLOAT(CAT_TAA, UI_TAA_Sharpen, "Sharpening", "The amount of sharpening applied", 0.0, 1.0, 0.5)
 #endif

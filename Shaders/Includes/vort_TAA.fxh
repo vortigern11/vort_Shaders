@@ -52,6 +52,12 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; };
     Functions
 *******************************************************************************/
 
+// completely wrong, but users keep asking for it, so I guess it stays.
+float2 GetJitter()
+{
+    return (Halton2(frame_count % 16) * BUFFER_PIXEL_SIZE) * UI_TAA_Jitter;
+}
+
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 {
     float3 r = old_c - new_c;
@@ -71,12 +77,6 @@ float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
 
 void PS_Main(PS_ARGS3)
 {
-    float2 motion = Sample(sTAAMVTexVort, i.uv).xy;
-    float mot_px_len = length(motion * BUFFER_SCREEN_SIZE);
-    float2 prev_uv = i.uv + motion;
-
-    if(mot_px_len < 1.0 || !ValidateUV(prev_uv)) discard;
-
     float3 curr_c = RGBToYCoCg(SampleLinColor(i.uv));
     float3 avg_c = curr_c;
     float3 var_c = curr_c * curr_c;
@@ -92,6 +92,11 @@ void PS_Main(PS_ARGS3)
         avg_c += sample_c;
         var_c += sample_c * sample_c;
     }
+
+    float2 prev_uv = i.uv + Sample(sTAAMVTexVort, i.uv).xy;
+    bool is_first_frame = Sample(sPrevColorTexVort, prev_uv).a < 1.0;
+
+    if(is_first_frame || !ValidateUV(prev_uv)) discard;
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
     float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
@@ -134,7 +139,7 @@ void PS_WriteMV(PS_ARGS2)
     o.xy = motion * (sq_len >= 1.0);
 }
 
-void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv).rgb, 1.0); }
+void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv + GetJitter().xy).rgb, 1.0); }
 
 /*******************************************************************************
     Passes
