@@ -257,13 +257,14 @@ void PS_DownFeat7(PS_ARGS4) { o = DownsampleFeature(i.uv, sFeatTexVort6); }
 void PS_WriteFeature(PS_ARGS4)
 {
 #if MIN_MIP > 0
-    float3 c = ApplyLinCurve(Filters::Wronski(sColorTexVort, i.uv, 0).rgb);
+    float3 c = Filters::Wronski(sColorTexVort, i.uv, 0).rgb;
 #else
-    float3 c = SampleLinColor(i.uv);
+    float3 c = SampleGammaColor(i.uv);
 #endif
 
 #if !IS_SRGB
-    c = Tonemap::ApplyReinhardMax(c, 1.04);
+    c = ApplyLinCurve(c);
+    c = Tonemap::ApplyReinhardMax(c, 1.0);
 #endif
 
     o = float2(dot(c, A_THIRD), GetDepth(i.uv)).xyxy;
