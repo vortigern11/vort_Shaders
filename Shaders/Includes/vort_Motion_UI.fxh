@@ -59,7 +59,7 @@
     UI_TIP(CAT_MB, _vort_Blur_Help_, "WARNING: Read the tooltips if you want to change the below settings.")
     UI_BOOL(
         CAT_MB, UI_MB_UseMinFilter, "Use Depth Offset",
-        "Most games don't have correct depth on object outlines.\n"
+        "Many games don't have correct depth on object outlines.\n"
         "Enable if you notice with the background blurred, but static character,\n"
         "that the blur is using pixels from the character.", false
     )

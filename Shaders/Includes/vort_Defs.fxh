@@ -706,6 +706,7 @@ float2 Rotate(float2 v, float4 rot)
     return float2(dot(v, rot.xy), dot(v, rot.zw));
 }
 
+// check beforehand if both vectors are not 0
 float GetCosAngle(float2 v1, float2 v2)
 {
     // var. 1: dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2))

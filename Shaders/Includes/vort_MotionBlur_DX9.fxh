@@ -324,12 +324,16 @@ float2 CalcNeighbourMax(VSOUT i)
 
         if(sq_len > max_motion.z)
         {
-            float rel_angle = ACOS(GetCosAngle(-offs, motion));
             bool is_diag = (offs.x * offs.y) != 0;
             bool should_contrib = true;
 
-            // 45 and 135 deg
-            if(is_diag) should_contrib = rel_angle < 0.7854 || rel_angle > 2.3561;
+            if(is_diag)
+            {
+                float rel_angle = ACOS(GetCosAngle(-offs, motion));
+
+                // 45 and 135 deg
+                should_contrib = rel_angle < 0.7854 || rel_angle > 2.3561;
+            }
 
             if(should_contrib) max_motion = float3(motion, sq_len);
         }

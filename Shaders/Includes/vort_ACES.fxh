@@ -260,16 +260,16 @@ float segmented_spline_c5_fwd(float x)
     // set to ACESMIN.1
     float xCheck = x <= 0 ? exp2(-14.0) : x;
 
-    float logx = log10(xCheck);
+    float logx = LOG10(xCheck);
     float logy;
 
-    if (logx <= log10(minPoint.x))
+    if (logx <= LOG10(minPoint.x))
     {
-        logy = logx * slopeLow + (log10(minPoint.y) - slopeLow * log10(minPoint.x));
+        logy = logx * slopeLow + (LOG10(minPoint.y) - slopeLow * LOG10(minPoint.x));
     }
-    else if ((logx > log10(minPoint.x)) && (logx < log10(midPoint.x)))
+    else if ((logx > LOG10(minPoint.x)) && (logx < LOG10(midPoint.x)))
     {
-        float knot_coord = (N_KNOTS_LOW-1) * (logx-log10(minPoint.x))/(log10(midPoint.x)-log10(minPoint.x));
+        float knot_coord = (N_KNOTS_LOW-1) * (logx-LOG10(minPoint.x))/(LOG10(midPoint.x)-LOG10(minPoint.x));
         int j = knot_coord;
         float t = knot_coord - j;
 
@@ -278,9 +278,9 @@ float segmented_spline_c5_fwd(float x)
 
         logy = dot(monomials, mul(cf, M));
     }
-    else if ((logx >= log10(midPoint.x)) && (logx < log10(maxPoint.x)))
+    else if ((logx >= LOG10(midPoint.x)) && (logx < LOG10(maxPoint.x)))
     {
-        float knot_coord = (N_KNOTS_HIGH-1) * (logx-log10(midPoint.x))/(log10(maxPoint.x)-log10(midPoint.x));
+        float knot_coord = (N_KNOTS_HIGH-1) * (logx-LOG10(midPoint.x))/(LOG10(maxPoint.x)-LOG10(midPoint.x));
         int j = knot_coord;
         float t = knot_coord - j;
 
@@ -290,11 +290,11 @@ float segmented_spline_c5_fwd(float x)
         logy = dot(monomials, mul(cf, M));
     }
     else
-    { //if (logIn >= log10(maxPoint.x)) {
-        logy = logx * slopeHigh + (log10(maxPoint.y) - slopeHigh * log10(maxPoint.x));
+    { //if (logIn >= LOG10(maxPoint.x)) {
+        logy = logx * slopeHigh + (LOG10(maxPoint.y) - slopeHigh * LOG10(maxPoint.x));
     }
 
-    return pow(10, logy);
+    return POW(10, logy);
 }
 
 float segmented_spline_c5_rev(float y)
@@ -311,8 +311,8 @@ float segmented_spline_c5_rev(float y)
     static const int N_KNOTS_LOW = 4;
     static const int N_KNOTS_HIGH = 4;
 
-    static const float KNOT_INC_LOW = (log10(midPoint.x) - log10(minPoint.x)) / (N_KNOTS_LOW - 1.);
-    static const float KNOT_INC_HIGH = (log10(maxPoint.x) - log10(midPoint.x)) / (N_KNOTS_HIGH - 1.);
+    static const float KNOT_INC_LOW = (LOG10(midPoint.x) - LOG10(minPoint.x)) / (N_KNOTS_LOW - 1.);
+    static const float KNOT_INC_HIGH = (LOG10(maxPoint.x) - LOG10(midPoint.x)) / (N_KNOTS_HIGH - 1.);
 
     int i;
 
@@ -329,14 +329,14 @@ float segmented_spline_c5_rev(float y)
         KNOT_Y_HIGH[i] = (coefsHigh[i] + coefsHigh[i+1]) / 2.;
     };
 
-    float logy = log10(max(y,1e-10));
+    float logy = LOG10(max(y,1e-10));
 
     float logx;
-    if (logy <= log10(minPoint.y))
+    if (logy <= LOG10(minPoint.y))
     {
-        logx = log10(minPoint.x);
+        logx = LOG10(minPoint.x);
     }
-    else if ((logy > log10(minPoint.y)) && (logy <= log10(midPoint.y)))
+    else if ((logy > LOG10(minPoint.y)) && (logy <= LOG10(midPoint.y)))
     {
         uint j;
         float3 cf;
@@ -359,9 +359,9 @@ float segmented_spline_c5_rev(float y)
 
         const float t = (2. * c) / (-d - b);
 
-        logx = log10(minPoint.x) + (t + j) * KNOT_INC_LOW;
+        logx = LOG10(minPoint.x) + (t + j) * KNOT_INC_LOW;
     }
-    else if ((logy > log10(midPoint.y)) && (logy < log10(maxPoint.y)))
+    else if ((logy > LOG10(midPoint.y)) && (logy < LOG10(maxPoint.y)))
     {
         uint j;
         float3 cf;
@@ -384,14 +384,14 @@ float segmented_spline_c5_rev(float y)
 
         const float t = (2. * c) / (-d - b);
 
-        logx = log10(midPoint.x) + (t + j) * KNOT_INC_HIGH;
+        logx = LOG10(midPoint.x) + (t + j) * KNOT_INC_HIGH;
     }
     else
-    { //if (logy >= log10(maxPoint.y)) {
-        logx = log10(maxPoint.x);
+    { //if (logy >= LOG10(maxPoint.y)) {
+        logx = LOG10(maxPoint.x);
     }
 
-    return pow(10, logx);
+    return POW(10, logx);
 }
 
 float segmented_spline_c9_fwd(float x)
@@ -411,16 +411,16 @@ float segmented_spline_c9_fwd(float x)
     // set to OCESMIN.
     float xCheck = x <= 0 ? 1e-4 : x;
 
-    float logx = log10(xCheck);
+    float logx = LOG10(xCheck);
     float logy;
 
-    if (logx <= log10(minPoint.x))
+    if (logx <= LOG10(minPoint.x))
     {
-        logy = logx * slopeLow + (log10(minPoint.y) - slopeLow * log10(minPoint.x));
+        logy = logx * slopeLow + (LOG10(minPoint.y) - slopeLow * LOG10(minPoint.x));
     }
-    else if ((logx > log10(minPoint.x)) && (logx < log10(midPoint.x)))
+    else if ((logx > LOG10(minPoint.x)) && (logx < LOG10(midPoint.x)))
     {
-        float knot_coord = (N_KNOTS_LOW - 1) * (logx - log10(minPoint.x)) / (log10(midPoint.x) - log10(minPoint.x));
+        float knot_coord = (N_KNOTS_LOW - 1) * (logx - LOG10(minPoint.x)) / (LOG10(midPoint.x) - LOG10(minPoint.x));
         int j = knot_coord;
         float t = knot_coord - j;
 
@@ -429,9 +429,9 @@ float segmented_spline_c9_fwd(float x)
 
         logy = dot(monomials, mul(cf, M));
     }
-    else if ((logx >= log10(midPoint.x)) && (logx < log10(maxPoint.x)))
+    else if ((logx >= LOG10(midPoint.x)) && (logx < LOG10(maxPoint.x)))
     {
-        float knot_coord = (N_KNOTS_HIGH - 1) * (logx - log10(midPoint.x)) / (log10(maxPoint.x) - log10(midPoint.x));
+        float knot_coord = (N_KNOTS_HIGH - 1) * (logx - LOG10(midPoint.x)) / (LOG10(maxPoint.x) - LOG10(midPoint.x));
         int j = knot_coord;
         float t = knot_coord - j;
 
@@ -440,12 +440,12 @@ float segmented_spline_c9_fwd(float x)
 
         logy = dot(monomials, mul(cf, M));
     }
-    else//if (logIn >= log10(maxPoint.x))
+    else//if (logIn >= LOG10(maxPoint.x))
     {
-        logy = logx * slopeHigh + (log10(maxPoint.y) - slopeHigh * log10(maxPoint.x));
+        logy = logx * slopeHigh + (LOG10(maxPoint.y) - slopeHigh * LOG10(maxPoint.x));
     }
 
-    return pow(10, logy);
+    return POW(10, logy);
 }
 
 float segmented_spline_c9_rev(float y)
@@ -461,8 +461,8 @@ float segmented_spline_c9_rev(float y)
     static const int N_KNOTS_LOW = 8;
     static const int N_KNOTS_HIGH = 8;
 
-    static const float KNOT_INC_LOW = (log10(midPoint.x) - log10(minPoint.x)) / (N_KNOTS_LOW - 1.);
-    static const float KNOT_INC_HIGH = (log10(maxPoint.x) - log10(midPoint.x)) / (N_KNOTS_HIGH - 1.);
+    static const float KNOT_INC_LOW = (LOG10(midPoint.x) - LOG10(minPoint.x)) / (N_KNOTS_LOW - 1.);
+    static const float KNOT_INC_HIGH = (LOG10(maxPoint.x) - LOG10(midPoint.x)) / (N_KNOTS_HIGH - 1.);
 
     int i;
 
@@ -477,12 +477,12 @@ float segmented_spline_c9_rev(float y)
         KNOT_Y_HIGH[ i] = (coefsHigh[i] + coefsHigh[i+1]) / 2.;
     };
 
-    float logy = log10(max(y, 1e-10));
+    float logy = LOG10(max(y, 1e-10));
 
     float logx;
-    if (logy <= log10(minPoint.y)) {
-        logx = log10(minPoint.x);
-    } else if ((logy > log10(minPoint.y)) && (logy <= log10(midPoint.y))) {
+    if (logy <= LOG10(minPoint.y)) {
+        logx = LOG10(minPoint.x);
+    } else if ((logy > LOG10(minPoint.y)) && (logy <= LOG10(midPoint.y))) {
         uint j;
         float3 cf;
         if (logy > KNOT_Y_LOW[ 0] && logy <= KNOT_Y_LOW[ 1]) {
@@ -512,8 +512,8 @@ float segmented_spline_c9_rev(float y)
 
         const float t = (2. * c) / (-d - b);
 
-        logx = log10(minPoint.x) + (t + j) * KNOT_INC_LOW;
-    } else if ((logy > log10(midPoint.y)) && (logy < log10(maxPoint.y))) {
+        logx = LOG10(minPoint.x) + (t + j) * KNOT_INC_LOW;
+    } else if ((logy > LOG10(midPoint.y)) && (logy < LOG10(maxPoint.y))) {
         uint j;
         float3 cf;
         if (logy > KNOT_Y_HIGH[ 0] && logy <= KNOT_Y_HIGH[ 1]) {
@@ -543,14 +543,14 @@ float segmented_spline_c9_rev(float y)
 
         const float t = (2. * c) / (-d - b);
 
-        logx = log10(midPoint.x) + (t + j) * KNOT_INC_HIGH;
+        logx = LOG10(midPoint.x) + (t + j) * KNOT_INC_HIGH;
     }
     else
-    { //if (logy >= log10(maxPoint.y)) {
-        logx = log10(maxPoint.x);
+    { //if (logy >= LOG10(maxPoint.y)) {
+        logx = LOG10(maxPoint.x);
     }
 
-    return pow(10, logx);
+    return POW(10, logx);
 }
 
 // Transformations from RGB to other color representations
@@ -799,7 +799,7 @@ float3 darkSurround_to_dimSurround(float3 linearCV)
 
     float3 xyY = XYZ_2_xyY(XYZ);
     xyY.z = clamp(xyY.z, 0, 65535);
-    xyY.z = pow(xyY.z, DIM_SURROUND_GAMMA);
+    xyY.z = POW(xyY.z, DIM_SURROUND_GAMMA);
     XYZ = xyY_2_XYZ(xyY);
 
     return mul(XYZ_2_AP1_MAT, XYZ);
@@ -811,7 +811,7 @@ float3 dimSurround_to_darkSurround(float3 linearCV)
 
   float3 xyY = XYZ_2_xyY(XYZ);
   xyY.z = clamp(xyY.z, 0., 65535);
-  xyY.z = pow(xyY.z, 1./DIM_SURROUND_GAMMA);
+  xyY.z = POW(xyY.z, 1./DIM_SURROUND_GAMMA);
   XYZ = xyY_2_XYZ(xyY);
 
   return mul(XYZ, XYZ_2_AP1_MAT);
@@ -991,7 +991,7 @@ float3 ApplyACESFull(float3 c)
 
 float3 ACEScgToACEScct(float3 c)
 {
-    return c < 0.0078125 ? (10.5402377 * c + 0.0729055) : ((log2(c) + 9.72) / 17.52);
+    return c < 0.0078125 ? (10.5402377 * c + 0.0729055) : ((LOG2(c) + 9.72) / 17.52);
 }
 
 float3 ACEScctToACEScg(float3 c)
@@ -1001,7 +1001,7 @@ float3 ACEScctToACEScg(float3 c)
 
 float3 ACEScgToACEScc(float3 c)
 {
-    return c <= 0 ? -0.3584475 : c < 0.0000305 ? ((log2(0.0000153 + c * 0.5) + 9.72) / 17.52) : (log2(c) + 9.72) / 17.52;
+    return c <= 0 ? -0.3584475 : c < 0.0000305 ? ((LOG2(0.0000153 + c * 0.5) + 9.72) / 17.52) : (LOG2(c) + 9.72) / 17.52;
 }
 
 float3 ACESccToACEScg(float3 c)

@@ -167,7 +167,7 @@ namespace OKColors
         float S_cusp = ComputeMaxSaturation(a, b);
 
         float3 rgb_at_max = OKLABToRGB(float3(1, S_cusp * a, S_cusp * b));
-        float L_cusp = pow(RCP(Max3(rgb_at_max)), A_THIRD);
+        float L_cusp = POW(RCP(Max3(rgb_at_max)), A_THIRD);
 
         return float2(L_cusp, L_cusp * S_cusp);
     }
