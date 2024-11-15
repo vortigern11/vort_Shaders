@@ -69,12 +69,6 @@
         "Otherwise, the blur will be shorter than the correct length.",
         0, 1, 1
     )
-    UI_INT(
-        CAT_MB, UI_MB_FPS, "Blur FPS Target",
-        "Set to 0 (default) to use the dynamic in-game FPS and blur between frames.\n"
-        "Otherwise, sets a target FPS for the blur. Lower FPS target means more blur (and vice versa).",
-        0, 120, 0
-    )
 
     #if USE_HQ_MB
         UI_FLOAT(

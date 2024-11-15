@@ -159,9 +159,7 @@ float2 GetMotion(float2 uv)
 
 float3 LimitMotionAndLen(float2 motion)
 {
-    float target_fps = UI_MB_FPS;
-    float fps_ratio = target_fps > 0.0 ? rcp(frame_time * 0.001 * target_fps) : 1.0;
-    float blur_mod = 0.5 * UI_MB_Mult * fps_ratio; // halve, because we sample in 2 dirs
+    float blur_mod = 0.5 * UI_MB_Mult; // halve, because we sample in 2 dirs
 
     // limit the motion like in the paper
     float old_mot_len = length(motion);

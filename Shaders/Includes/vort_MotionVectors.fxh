@@ -176,7 +176,7 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
 float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
 {
     // tested in lots of scenarios, in different games, with and without MB
-    float2 scale = rcp(tex2Dsize(mot_samp)) * (mip > 1 ? 4.0 : 2.0);
+    float2 scale = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 4.0 : 2.0);
 
     uint feature_mip = IS_DX9 ? max(0, mip - MIN_MIP) : 0; // better results
     float2 qrand = GetR2(GetBlueNoise(i.vpos.xy).xy, mip + 1) - 0.5;
