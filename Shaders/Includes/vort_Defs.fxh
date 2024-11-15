@@ -66,21 +66,29 @@ static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
     float2(2, 2), float2(-2, -2), float2(-2,  2), float2( 2, -2)
 };
 
+// Check out a bunch of possible substitutions on:
+// https://github.com/crosire/reshade-shaders/wiki/Shader-Tips,-Tricks-and-Optimizations
+
+// There is no point in manually typing out substitutions of built-in functions.
+// The compiler already does it and no performance will be saved unless in very rare cases,
+// where part of the computation is already done for something else.
+
 // safer versions of built-in functions
 // https://www.hillelwayne.com/post/divide-by-zero/
-#define RCP(_x) (_x == 0.0 ? 0.0 : rcp(_x))
-#define RSQRT(_x) (_x == 0.0 ? 0.0 : rsqrt(_x))
-#define CEIL_DIV(x, y) ((((x) - 1) / (y)) + 1)
+#define RCP(_x) ((_x) == 0.0 ? 0.0 : rcp(_x))
+#define RSQRT(_x) ((_x) == 0.0 ? 0.0 : rsqrt(_x))
 #define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
 #define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
 #define LOG(_x) (log(max(EPSILON, (_x))))
 #define LOG2(_x) (log2(max(EPSILON, (_x))))
 #define LOG10(_x) (log10(max(EPSILON, (_x))))
-#define exp10(_x) (exp2(3.3219281 * (_x)))
+#define exp10(_x) (exp2(3.3219281 * (_x))) // approximate
 
 // call TO_STR(ANOTHER_MACRO)
 #define _TO_STR(x) #x
 #define TO_STR(x) _TO_STR(x)
+
+#define CEIL_DIV(_x, _y) ((((_x) - 1) / (_y)) + 1)
 
 #if !defined(__RESHADE__) || __RESHADE__ < 30000
     #error "ReShade 3.0+ is required to use this header file"
@@ -724,4 +732,9 @@ float ACOS(float cos_rads)
     return cos_rads < 0.0 ? PI - rads : rads;
 }
 
-bool ValidateUV(float2 uv) { return all(saturate(uv - uv * uv)); }
+bool ValidateUV(float2 uv)
+{
+    float2 range = saturate(uv * uv - uv);
+
+    return range.x == -range.y;
+}
