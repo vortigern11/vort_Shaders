@@ -53,9 +53,19 @@ sampler sPrevColorTexVort { Texture = PrevColorTexVort; };
 *******************************************************************************/
 
 // completely wrong, but users keep asking for it, so I guess it stays.
-float2 GetJitter()
+float4 GetJitter()
 {
-    return (Halton2(frame_count % 16) * BUFFER_PIXEL_SIZE) * UI_TAA_Jitter;
+    static const float2 offs[4] = {
+        float2(-0.5, -0.25), float2(-0.25, 0.5), float2(0.5, 0.25), float2(0.25, -0.5)
+    };
+
+    float4 jitter = 0;
+
+    if(frame_count > 0)
+        jitter = float4(offs[frame_count % 4], offs[(frame_count - 1) % 4]) * BUFFER_PIXEL_SIZE.xyxy;
+
+    // reduce jitter to make it unnoticable and to have sharper result
+    return jitter * UI_TAA_Jitter;
 }
 
 float3 ClipToAABB(float3 old_c, float3 new_c, float3 avg, float3 sigma)
@@ -93,10 +103,15 @@ void PS_Main(PS_ARGS3)
         var_c += sample_c * sample_c;
     }
 
-    float2 prev_uv = i.uv + Sample(sTAAMVTexVort, i.uv).xy;
-    bool is_first_frame = Sample(sPrevColorTexVort, prev_uv).a < 1.0;
+    float2 prev_uv = i.uv - GetJitter().zw;
+    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
 
-    if(is_first_frame || !ValidateUV(prev_uv)) discard;
+    prev_uv += motion;
+
+    bool is_first = Sample(sPrevColorTexVort, prev_uv).a < 1.0;
+
+    // no prev color yet or motion leads to outside of screen coords
+    if(is_first || !ValidateUV(prev_uv)) discard;
 
     float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
     float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
