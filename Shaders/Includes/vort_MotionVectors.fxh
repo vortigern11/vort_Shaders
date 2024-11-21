@@ -199,7 +199,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
         float wz = abs(center_z - sample_z) * RCP(min(center_z, sample_z)) * 20.0;
         float wm = sample_sq_len * BUFFER_WIDTH; // don't change this, can notice the diff when using MB
         float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // tested - opposite gives better results
-        float weight = max(1e-8, exp2(-(wz + wm + wd))); // don't change the min value
+        float weight = max(EPSILON, exp2(-(wz + wm + wd))); // don't change the min value
 
         // don't use samples without motion or outside screen
         weight *= (sample_sq_len > 0.0) * ValidateUV(sample_uv);

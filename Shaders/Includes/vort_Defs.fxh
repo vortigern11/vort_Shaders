@@ -77,7 +77,7 @@ static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
 // https://www.hillelwayne.com/post/divide-by-zero/
 #define RCP(_x) ((_x) == 0.0 ? 0.0 : rcp(_x))
 #define RSQRT(_x) ((_x) == 0.0 ? 0.0 : rsqrt(_x))
-#define POW(_b, _e) (pow(max(EPSILON, (_b)), (_e)))
+#define POW(_b, _e) (pow(max(0.0, (_b)), (_e))) // doesn't handle both inputs being 0
 #define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
 #define LOG(_x) (log(max(EPSILON, (_x))))
 #define LOG2(_x) (log2(max(EPSILON, (_x))))
@@ -433,6 +433,10 @@ float3 ApplyGammaCurve(float3 c)
 
     return c;
 }
+
+// gamma color -> luma
+// linear color -> luminance
+// same fuction, just different input
 
 float RGBToYCbCrLuma(float3 c)
 {
