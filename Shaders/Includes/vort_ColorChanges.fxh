@@ -101,16 +101,24 @@ namespace ColorChanges {
 #if V_ENABLE_SHARPEN
 float3 ApplySharpen(float3 c, float2 uv)
 {
-    float3 blurred = Filters::DualKawase(CC_IN_SAMP, uv, 0).rgb;
-    float3 sharp = GET_LUMA(c - blurred);
-    float depth = GetDepth(uv);
-    float limit = abs(dot(sharp, A_THIRD));
+    float3 blurred = 0;
+    float3 edges = 0;
 
-    sharp = sharp * UI_CC_SharpenStrength * (1.0 - depth) * (limit < UI_CC_SharpenLimit);
+    // manual dual kawase filter, because we need edges too
+    [loop]for(int j = 0; j < 13; j++)
+    {
+        float2 offset = Filters::OFFS_DK[j] * BUFFER_PIXEL_SIZE;
+        float2 tap_uv = uv + offset;
+        float3 tap_color = Sample(CC_IN_SAMP, tap_uv).rgb;
 
-    if (UI_CC_ShowSharpening) return sharp;
+        blurred += Filters::WEIGHTS_DK[j] * tap_color;
+        edges += Filters::WEIGHTS_DK[j] * abs(tap_color - c);
+    }
 
-    return c + sharp;
+    float sharp_amount = 1.0 - saturate(1.0 - 1e-4 * RCP(dot(edges, edges)));
+    float3 sharp = GET_LUMA(c - blurred) * sharp_amount * UI_CC_SharpenStrength * (1.0 - GetDepth(uv));
+
+    return UI_CC_ShowSharpening ? sharp : c + sharp;
 }
 #endif
 
@@ -207,12 +215,12 @@ float3 ApplyColorGrading(float3 c)
     offset = (offset - 0.5) * offset_str;
 
     // apply shadows, highlights, offset, midtones
-    c = c * (1.0 - shadows) + shadows;
-    c = c * highlights;
+    c = (c <= 1.0) ? (c * (1.0 - shadows) + shadows) : c;
+    c = (c >= 0.0) ? (c * highlights) : c;
     c = c + offset;
-    c = POW(c, midtones);
+    c = (c >= 0.0 && c <= 1.0) ? POW(c, midtones) : c;
 
-    return saturate(c);
+    return c;
 }
 #endif
 
@@ -378,14 +386,15 @@ void PS_End(PS_ARGS3)
     c = clamp(c, range.x, range.y);
 #endif
 
+#if V_ENABLE_COLOR_GRADING
+    c = ApplyColorGrading(c);
+    c = clamp(c, range.x, range.y);
+#endif
+
 #if V_USE_ACES
     c = ApplyACESFull(c);
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);
-#endif
-
-#if V_ENABLE_COLOR_GRADING
-    c = ApplyColorGrading(c);
 #endif
 
     // dither
