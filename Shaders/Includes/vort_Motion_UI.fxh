@@ -75,7 +75,7 @@
             CAT_MB, UI_MB_Thresh, "MV Threshold",
             "Modifies which motion vectors to discard.\n"
             "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
-            0, 1, 0.001
+            0, 1, 0.0003
         )
     #endif
 
