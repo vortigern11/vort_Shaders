@@ -25,14 +25,19 @@
 *******************************************************************************/
 
 #include "Includes/vort_Defs.fxh"
-#include "Includes/vort_HDR_UI.fxh"
+#include "Includes/vort_Static_UI.fxh"
 #include "Includes/vort_ColorChanges.fxh"
 
 #if V_ENABLE_BLOOM
     #include "Includes/vort_Bloom.fxh"
 #endif
 
-technique vort_HDR
+technique vort_StaticEffects
+< ui_tooltip =
+    "Static Effects by Vortigern\n"
+    "---------------------------\n"
+    "Includes: Bloom, Sharpening, LUTs, Color Grading, etc."
+;>
 {
     PASS_START
 

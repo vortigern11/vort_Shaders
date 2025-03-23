@@ -264,8 +264,8 @@ uniform float timer < source = "timer"; >;
 
 #define UI_HELP(_name, _descr) \
     uniform int _name < \
-        ui_category = "Preprocessor Help"; \
-        ui_category_closed = true; \
+        ui_category = "! HELP GUIDE !"; \
+        ui_category_closed = false; \
         ui_label = " "; \
         ui_text = _descr; \
         ui_type = "radio"; \

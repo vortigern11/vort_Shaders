@@ -101,7 +101,7 @@ sampler2D sMotionTexVortB { Texture = MotionTexVortB; };
 float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
 {
     // one mip lower on purpose for better results
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(max(0, mip - 1));
+    float2 texel_size = BUFFER_PIXEL_SIZE * exp2(max(0, mip - 1));
     uint feature_mip = IS_DX9 ? max(0, mip - (MIN_MIP + 1)) : 0; // better results
 
     static const float eps = 1e-6;
@@ -113,7 +113,7 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
 
     [loop]for(uint j = 0; j < DIAMOND_S; j++)
     {
-        float2 tuv = i.uv + DIAMOND_OFFS[j] * texelsize;
+        float2 tuv = i.uv + DIAMOND_OFFS[j] * texel_size;
         float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
         float2 t_search = Sample(feat_samp, tuv + total_motion, feature_mip).zw;
 
@@ -141,14 +141,14 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
             //rotate by 90 degrees
             randdir = float2(randdir.y, -randdir.x);
 
-            float2 search_offset = randdir * texelsize;
+            float2 search_offset = randdir * texel_size;
 
             moments_search = eps;
             moments_cov = eps;
 
             [loop]for(uint j = 0; j < DIAMOND_S; j++)
             {
-                float2 tuv = i.uv + DIAMOND_OFFS[j] * texelsize;
+                float2 tuv = i.uv + DIAMOND_OFFS[j] * texel_size;
                 float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
                 float2 t_search = Sample(feat_samp, tuv + total_motion + search_offset, feature_mip).zw;
 
@@ -182,7 +182,7 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
     float2 qrand = GetR2(GetBlueNoise(i.vpos.xy).xy, mip + 1) - 0.5;
     float center_z = Sample(feat_samp, i.uv, feature_mip).y;
     float2 cen_motion = Sample(mot_samp, i.uv).xy;
-    float cen_sq_len = dot(cen_motion, cen_motion);
+    float cen_mot_sq_len = dot(cen_motion, cen_motion);
 
     if(mip < MIN_MIP) center_z = GetDepth(i.uv);
 
@@ -193,16 +193,14 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
         float2 sample_uv = i.uv + (DIAMOND_OFFS[j] + qrand) * scale;
         float2 sample_mot = Sample(mot_samp, sample_uv).xy;
         float sample_z = Sample(feat_samp, sample_uv, feature_mip).y;
-        float sample_sq_len = dot(sample_mot, sample_mot);
-        float cos_angle = dot(cen_motion, sample_mot) * RSQRT(cen_sq_len * sample_sq_len);
+        float sample_mot_sq_len = dot(sample_mot, sample_mot);
+        float cos_angle = dot(cen_motion, sample_mot) * RSQRT(cen_mot_sq_len * sample_mot_sq_len);
 
         float wz = abs(center_z - sample_z) * RCP(min(center_z, sample_z)) * 20.0;
-        float wm = sample_sq_len * BUFFER_WIDTH; // don't change this, can notice the diff when using MB
+        float wm = sample_mot_sq_len * BUFFER_WIDTH; // don't change this, can notice the diff when using MB
         float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // tested - opposite gives better results
-        float weight = max(EPSILON, exp2(-(wz + wm + wd))); // don't change the min value
+        float weight = max(EPSILON, exp2(-(wz + wm + wd))) * ValidateUV(sample_uv); // don't change the min value
 
-        // don't use samples without motion or outside screen
-        weight *= (sample_sq_len > 0.0) * ValidateUV(sample_uv);
         motion_acc += float3(sample_mot, 1.0) * weight;
     }
 
@@ -225,7 +223,7 @@ float2 EstimateMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
 
 float4 DownsampleFeature(float2 uv, sampler feat_samp)
 {
-    float2 texelsize = rcp(tex2Dsize(feat_samp));
+    float2 texel_size = rcp(tex2Dsize(feat_samp));
     float4 acc = 0;
     float acc_w = 0;
 
@@ -233,7 +231,7 @@ float4 DownsampleFeature(float2 uv, sampler feat_samp)
     [loop]for(int y = 0; y <= 3; y++)
     {
         float2 offs = float2(x, y) - 1.5;
-        float4 sample_feat = Sample(feat_samp, uv + offs * texelsize);
+        float4 sample_feat = Sample(feat_samp, uv + offs * texel_size);
         float weight = exp(-0.1 * dot(offs, offs));
 
         acc += sample_feat * weight;

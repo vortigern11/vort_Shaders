@@ -28,7 +28,7 @@
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
-#include "Includes/vort_HDR_UI.fxh"
+#include "Includes/vort_Static_UI.fxh"
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_DownTex.fxh"
 #include "Includes/vort_HDRTexA.fxh"

@@ -97,12 +97,12 @@ static const float WEIGHTS_W[8] = {
 
 float4 DualKawase(sampler samp, float2 uv, int mip)
 {
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
+    float2 texel_size = BUFFER_PIXEL_SIZE * exp2(mip);
     float4 color = 0;
 
     [loop]for(int j = 0; j < 13; j++)
     {
-        float2 offset = OFFS_DK[j] * texelsize;
+        float2 offset = OFFS_DK[j] * texel_size;
         float2 tap_uv = uv + offset;
 
         // repeat
@@ -130,12 +130,12 @@ float4 DualKawase(sampler samp, float2 uv, int mip)
 
 float4 Tent(sampler samp, float2 uv, int mip)
 {
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
+    float2 texel_size = BUFFER_PIXEL_SIZE * exp2(mip);
     float4 color = 0;
 
     [loop]for(int j = 0; j < 9; j++)
     {
-        float2 offset = OFFS_TENT[j] * texelsize;
+        float2 offset = OFFS_TENT[j] * texel_size;
         float2 tap_uv = uv + offset;
 
         // repeat
@@ -158,12 +158,12 @@ float4 Tent(sampler samp, float2 uv, int mip)
 
 float4 Wronski(sampler samp, float2 uv, int mip)
 {
-    float2 texelsize = BUFFER_PIXEL_SIZE * exp2(mip);
+    float2 texel_size = BUFFER_PIXEL_SIZE * exp2(mip);
     float4 color = 0;
 
     [loop]for(int j = 0; j < 8; j++)
     {
-        float2 offset = OFFS_W[j] * texelsize;
+        float2 offset = OFFS_W[j] * texel_size;
         float2 tap_uv = uv + offset;
 
         // repeat

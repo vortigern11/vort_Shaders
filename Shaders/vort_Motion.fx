@@ -36,7 +36,7 @@
     #if USE_HQ_MB
         #include "Includes/vort_MotionBlur.fxh"
     #else
-        #include "Includes/vort_MotionBlur_DX9.fxh"
+        #include "Includes/vort_MotionBlur_Cheap.fxh"
     #endif
 #endif
 
@@ -48,7 +48,12 @@
     Techniques
 *******************************************************************************/
 
-technique vort_Motion
+technique vort_MotionEffects
+< ui_tooltip =
+    "Motion Effects by Vortigern\n"
+    "---------------------------\n"
+    "Includes: Motion Blur, TAA and Motion Estimation."
+;>
 {
     #if V_MV_MODE == 1
         PASS_MV

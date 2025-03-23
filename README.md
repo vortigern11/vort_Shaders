@@ -1,10 +1,10 @@
 # vort_Shaders - for use with ReShade
 
-TL;DR; \
-HDR Effects: Tonemapping, Bloom, Sharpening, LUTs, Color Palette Generation, Color Grading \
-Motion Effects: Motion Vectors, Temporal AA, Per-pixel Motion Blur
+Static Effects: Bloom, Sharpening, LUTs, Color Palette Generation, Color Grading \
+Motion Effects: Motion Blur, Temporal AA, Motion Vectors
 
 I strongly recommend that you use [REST addon](https://github.com/4lex4nder/ReshadeEffectShaderToggler/releases) \
-in order to ignore the UI of the game.
+in order to ignore the UI of the game. \
+Watch my [Video Guide](https://www.youtube.com/watch?v=uoSA9_xGiZM) to learn how to set it up.
 
-If you need help, join the [ReShade discord](https://discord.com/invite/PrwndfH)
+If you need further help, join the [ReShade discord](https://discord.com/invite/PrwndfH).
