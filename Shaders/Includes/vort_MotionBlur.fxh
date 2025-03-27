@@ -439,7 +439,7 @@ void StoreNextMV(uint2 id)
     float2 prev_cz = float2(dot(A_THIRD, prev_c), prev_feat.a);
     float2 next_cz = float2(dot(A_THIRD, next_c), GetDepth(uv));
     float2 diff = abs(prev_cz - next_cz);
-    bool is_correct_mv = min(diff.x, diff.y) < max(EPSILON, UI_MB_Thresh);
+    bool is_correct_mv = min(diff.x, diff.y) < max(1e-8, UI_MB_Thresh);
 
     if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
     {

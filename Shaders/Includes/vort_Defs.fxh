@@ -32,7 +32,6 @@
 
 #define PHI (1.6180339887498)
 #define INV_PHI (0.6180339887498)
-#define EPSILON (1e-8)
 #define PI (3.14159265359)
 #define HALF_PI (1.57079632679)
 #define DOUBLE_PI (6.28318530718)
@@ -79,9 +78,9 @@ static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
 #define RSQRT(_x) ((_x) == 0.0 ? 0.0 : rsqrt(_x))
 #define POW(_b, _e) (pow(max(0.0, (_b)), (_e))) // doesn't handle both inputs being 0
 #define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
-#define LOG(_x) (log(max(EPSILON, (_x))))
-#define LOG2(_x) (log2(max(EPSILON, (_x))))
-#define LOG10(_x) (log10(max(EPSILON, (_x))))
+#define LOG(_x) (log(max(1e-15, (_x))))
+#define LOG2(_x) (log2(max(1e-15, (_x))))
+#define LOG10(_x) (log10(max(1e-15, (_x))))
 #define exp10(_x) (exp2(3.3219281 * (_x))) // approximate
 
 // call TO_STR(ANOTHER_MACRO)
@@ -489,7 +488,7 @@ float3 RGBToHSV(float3 c)
     float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
     float d = q.x - min(q.w, q.y);
 
-    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + EPSILON)), d / (q.x + EPSILON), q.x);
+    return float3(abs(q.z + (q.w - q.y) * RCP(6.0 * d)), d * RCP(q.x), q.x);
 }
 
 float3 HSVToRGB(float3 c)

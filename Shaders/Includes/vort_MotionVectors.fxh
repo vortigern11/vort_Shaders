@@ -49,39 +49,21 @@ static const float2 DIAMOND_OFFS[DIAMOND_S] =
     Textures, Samplers
 *******************************************************************************/
 
-#if IS_DX9
-    texture2D FeatTexVort1 { TEX_SIZE(MIN_MIP) TEX_RGBA16 MipLevels = 1 + MAX_MIP - MIN_MIP; };
-    #define FeatTexVort2 FeatTexVort1
-    #define FeatTexVort3 FeatTexVort1
-    #define FeatTexVort4 FeatTexVort1
-    #define FeatTexVort5 FeatTexVort1
-    #define FeatTexVort6 FeatTexVort1
-    #define FeatTexVort7 FeatTexVort1
+texture2D FeatTexVort1 { TEX_SIZE(1) TEX_RGBA16 };
+texture2D FeatTexVort2 { TEX_SIZE(2) TEX_RGBA16 };
+texture2D FeatTexVort3 { TEX_SIZE(3) TEX_RGBA16 };
+texture2D FeatTexVort4 { TEX_SIZE(4) TEX_RGBA16 };
+texture2D FeatTexVort5 { TEX_SIZE(5) TEX_RGBA16 };
+texture2D FeatTexVort6 { TEX_SIZE(6) TEX_RGBA16 };
+texture2D FeatTexVort7 { TEX_SIZE(7) TEX_RGBA16 };
 
-    sampler2D sFeatTexVort1 { Texture = FeatTexVort1; SAM_MIRROR };
-    #define sFeatTexVort2 sFeatTexVort1
-    #define sFeatTexVort3 sFeatTexVort1
-    #define sFeatTexVort4 sFeatTexVort1
-    #define sFeatTexVort5 sFeatTexVort1
-    #define sFeatTexVort6 sFeatTexVort1
-    #define sFeatTexVort7 sFeatTexVort1
-#else
-    texture2D FeatTexVort1 { TEX_SIZE(1) TEX_RGBA16 };
-    texture2D FeatTexVort2 { TEX_SIZE(2) TEX_RGBA16 };
-    texture2D FeatTexVort3 { TEX_SIZE(3) TEX_RGBA16 };
-    texture2D FeatTexVort4 { TEX_SIZE(4) TEX_RGBA16 };
-    texture2D FeatTexVort5 { TEX_SIZE(5) TEX_RGBA16 };
-    texture2D FeatTexVort6 { TEX_SIZE(6) TEX_RGBA16 };
-    texture2D FeatTexVort7 { TEX_SIZE(7) TEX_RGBA16 };
-
-    sampler2D sFeatTexVort1  { Texture = FeatTexVort1; SAM_MIRROR };
-    sampler2D sFeatTexVort2  { Texture = FeatTexVort2; SAM_MIRROR };
-    sampler2D sFeatTexVort3  { Texture = FeatTexVort3; SAM_MIRROR };
-    sampler2D sFeatTexVort4  { Texture = FeatTexVort4; SAM_MIRROR };
-    sampler2D sFeatTexVort5  { Texture = FeatTexVort5; SAM_MIRROR };
-    sampler2D sFeatTexVort6  { Texture = FeatTexVort6; SAM_MIRROR };
-    sampler2D sFeatTexVort7  { Texture = FeatTexVort7; SAM_MIRROR };
-#endif
+sampler2D sFeatTexVort1  { Texture = FeatTexVort1; SAM_MIRROR };
+sampler2D sFeatTexVort2  { Texture = FeatTexVort2; SAM_MIRROR };
+sampler2D sFeatTexVort3  { Texture = FeatTexVort3; SAM_MIRROR };
+sampler2D sFeatTexVort4  { Texture = FeatTexVort4; SAM_MIRROR };
+sampler2D sFeatTexVort5  { Texture = FeatTexVort5; SAM_MIRROR };
+sampler2D sFeatTexVort6  { Texture = FeatTexVort6; SAM_MIRROR };
+sampler2D sFeatTexVort7  { Texture = FeatTexVort7; SAM_MIRROR };
 
 texture2D MotionTexVort1 { TEX_SIZE(1) TEX_RG16 };
 texture2D MotionTexVort2 { TEX_SIZE(2) TEX_RG16 };
@@ -98,11 +80,10 @@ sampler2D sMotionTexVortB { Texture = MotionTexVortB; };
     Functions
 *******************************************************************************/
 
-float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
+float2 CalcMotion(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
 {
     // one mip lower on purpose for better results
     float2 texel_size = BUFFER_PIXEL_SIZE * exp2(max(0, mip - 1));
-    uint feature_mip = IS_DX9 ? max(0, mip - (MIN_MIP + 1)) : 0; // better results
 
     static const float eps = 1e-6;
     static const float max_sim = 1.0 - eps;
@@ -114,8 +95,8 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
     [loop]for(uint j = 0; j < DIAMOND_S; j++)
     {
         float2 tuv = i.uv + DIAMOND_OFFS[j] * texel_size;
-        float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
-        float2 t_search = Sample(feat_samp, tuv + total_motion, feature_mip).zw;
+        float2 t_local = Sample(feat_samp, tuv).xy;
+        float2 t_search = Sample(feat_samp, tuv + total_motion).zw;
 
         moments_local += t_local * t_local;
         moments_search += t_search * t_search;
@@ -149,8 +130,8 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
             [loop]for(uint j = 0; j < DIAMOND_S; j++)
             {
                 float2 tuv = i.uv + DIAMOND_OFFS[j] * texel_size;
-                float2 t_local = Sample(feat_samp, tuv, feature_mip).xy;
-                float2 t_search = Sample(feat_samp, tuv + total_motion + search_offset, feature_mip).zw;
+                float2 t_local = Sample(feat_samp, tuv).xy;
+                float2 t_search = Sample(feat_samp, tuv + total_motion + search_offset).zw;
 
                 moments_search += t_search * t_search;
                 moments_cov += t_search * t_local;
@@ -173,14 +154,13 @@ float2 CalcLayer(VSOUT i, int mip, float2 total_motion, sampler feat_samp)
     return total_motion;
 }
 
-float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
+float2 FilterMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
 {
     // tested in lots of scenarios, in different games, with and without MB
     float2 scale = rcp(tex2Dsize(mot_samp)) * (mip > 1 ? 4.0 : 2.0);
 
-    uint feature_mip = IS_DX9 ? max(0, mip - MIN_MIP) : 0; // better results
     float2 qrand = GetR2(GetBlueNoise(i.vpos.xy).xy, mip + 1) - 0.5;
-    float center_z = Sample(feat_samp, i.uv, feature_mip).y;
+    float center_z = Sample(feat_samp, i.uv).y;
     float2 cen_motion = Sample(mot_samp, i.uv).xy;
     float cen_mot_sq_len = dot(cen_motion, cen_motion);
 
@@ -192,14 +172,14 @@ float2 AtrousUpscale(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
     {
         float2 sample_uv = i.uv + (DIAMOND_OFFS[j] + qrand) * scale;
         float2 sample_mot = Sample(mot_samp, sample_uv).xy;
-        float sample_z = Sample(feat_samp, sample_uv, feature_mip).y;
+        float sample_z = Sample(feat_samp, sample_uv).y;
         float sample_mot_sq_len = dot(sample_mot, sample_mot);
         float cos_angle = dot(cen_motion, sample_mot) * RSQRT(cen_mot_sq_len * sample_mot_sq_len);
 
         float wz = abs(center_z - sample_z) * RCP(min(center_z, sample_z)) * 20.0;
         float wm = sample_mot_sq_len * BUFFER_WIDTH; // don't change this, can notice the diff when using MB
         float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // tested - opposite gives better results
-        float weight = max(EPSILON, exp2(-(wz + wm + wd))) * ValidateUV(sample_uv); // don't change the min value
+        float weight = max(1e-8, exp2(-(wz + wm + wd))) * ValidateUV(sample_uv); // don't change the min value
 
         motion_acc += float3(sample_mot, 1.0) * weight;
     }
@@ -213,10 +193,10 @@ float2 EstimateMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
     float2 motion = 0;
 
     if(mip < MAX_MIP)
-        motion = AtrousUpscale(i, mip, mot_samp, feat_samp);
+        motion = FilterMotion(i, mip, mot_samp, feat_samp);
 
     if(mip >= MIN_MIP)
-        motion = CalcLayer(i, mip, motion, feat_samp);
+        motion = CalcMotion(i, mip, motion, feat_samp);
 
     return motion;
 }
@@ -279,48 +259,34 @@ void PS_Motion1(PS_ARGS2) { o = EstimateMotion(i, 1, sMotionTexVort2, sFeatTexVo
 void PS_Motion0(PS_ARGS2) { o = EstimateMotion(i, 0, sMotionTexVort1, sFeatTexVort1); }
 
 // slight quality increase for nearly no perf cost
-void PS_Filter7(PS_ARGS2) { o = AtrousUpscale(i, 7, sMotionTexVortA, sFeatTexVort7); }
-void PS_Filter6(PS_ARGS2) { o = AtrousUpscale(i, 6, sMotionTexVortA, sFeatTexVort6); }
-void PS_Filter5(PS_ARGS2) { o = AtrousUpscale(i, 5, sMotionTexVortA, sFeatTexVort5); }
-void PS_Filter4(PS_ARGS2) { o = AtrousUpscale(i, 4, sMotionTexVortA, sFeatTexVort4); }
-void PS_Filter3(PS_ARGS2) { o = AtrousUpscale(i, 3, sMotionTexVortA, sFeatTexVort3); }
-void PS_Filter2(PS_ARGS2) { o = AtrousUpscale(i, 2, sMotionTexVortA, sFeatTexVort2); }
+void PS_Filter7(PS_ARGS2) { o = FilterMotion(i, 7, sMotionTexVortA, sFeatTexVort7); }
+void PS_Filter6(PS_ARGS2) { o = FilterMotion(i, 6, sMotionTexVortA, sFeatTexVort6); }
+void PS_Filter5(PS_ARGS2) { o = FilterMotion(i, 5, sMotionTexVortA, sFeatTexVort5); }
+void PS_Filter4(PS_ARGS2) { o = FilterMotion(i, 4, sMotionTexVortA, sFeatTexVort4); }
+void PS_Filter3(PS_ARGS2) { o = FilterMotion(i, 3, sMotionTexVortA, sFeatTexVort3); }
+void PS_Filter2(PS_ARGS2) { o = FilterMotion(i, 2, sMotionTexVortA, sFeatTexVort2); }
 
 /*******************************************************************************
     Passes
 *******************************************************************************/
 
-#if IS_DX9
-    #define PASS_MV_EXTRA_1
-#else
-    #define PASS_MV_EXTRA_1 \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat2; RenderTarget = MotVect::FeatTexVort2; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat3; RenderTarget = MotVect::FeatTexVort3; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat4; RenderTarget = MotVect::FeatTexVort4; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat5; RenderTarget = MotVect::FeatTexVort5; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat6; RenderTarget = MotVect::FeatTexVort6; }
-#endif
-
-#if (IS_DX9) || (BUFFER_HEIGHT < 2160)
-    #define PASS_MV_EXTRA_2
-#else
-    #define PASS_MV_EXTRA_2 \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat7; RenderTarget = MotVect::FeatTexVort7; }
-#endif
-
 #if BUFFER_HEIGHT < 2160
-    #define PASS_MV_EXTRA_3
+    #define PASS_MV_EXTRA
 #else
-    #define PASS_MV_EXTRA_3 \
+    #define PASS_MV_EXTRA \
+        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat7; RenderTarget = MotVect::FeatTexVort7; } \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = MotVect::MotionTexVortA; } \
         pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter7; RenderTarget = MotVect::MotionTexVortB; }
 #endif
 
 #define PASS_MV \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::FeatTexVort1; RenderTargetWriteMask = 3; } \
-    PASS_MV_EXTRA_1 \
-    PASS_MV_EXTRA_2 \
-    PASS_MV_EXTRA_3 \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat2;    RenderTarget = MotVect::FeatTexVort2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat3;    RenderTarget = MotVect::FeatTexVort3; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat4;    RenderTarget = MotVect::FeatTexVort4; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat5;    RenderTarget = MotVect::FeatTexVort5; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat6;    RenderTarget = MotVect::FeatTexVort6; } \
+    PASS_MV_EXTRA \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion7;      RenderTarget = MotVect::MotionTexVortA; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter6;      RenderTarget = MotVect::MotionTexVortB; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
