@@ -49,7 +49,9 @@ namespace MotBlur {
 #define TILE_HEIGHT (BUFFER_HEIGHT / K)
 
 // compute shaders group size
-#define GS 16 // best performance tested
+// better perf on my GPU than 16x16 or 8x8 groups
+#define GS_X 256
+#define GS_Y 1
 
 // tonemap modifier
 #define T_MOD 1.5
@@ -180,6 +182,7 @@ float4 CalcBlur(VSOUT i)
     // early out when less than 2px movement
     if(max_mot_len < 1.0) return float4(OutColor(cen_color), 1.0);
 
+    // don't change without solid reason
     uint half_samples = clamp(ceil(max_mot_len), 3, max(3, UI_MB_MaxSamples));
 
     // odd amount of samples so max motion gets 1 more sample than center motion
