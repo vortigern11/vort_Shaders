@@ -104,12 +104,12 @@ float3 OutColor(float3 c)
 }
 
 #if DEBUG_BLUR
-static const float2 circle_offs[8] = {
+static const float2 CIRCLE_OFFS[8] = {
     float2(1, 0), float2(1, 1), float2(0, 1), float2(-1, 1),
     float2(-1, 0), float2(-1, -1), float2(0, -1), float2(1, -1)
 };
-static const float2 line_offs[2] = { float2(1, 0), float2(-1, 0) };
-static const float2 long_line_offs[4] = { float2(1, 0), float2(1, 0), float2(-1, 0), float2(-1, 0) };
+static const float2 LINE_OFFS[2] = { float2(1, 0), float2(-1, 0) };
+static const float2 LONG_LINE_OFFS[4] = { float2(1, 0), float2(1, 0), float2(-1, 0), float2(-1, 0) };
 
 float2 GetDebugMotion(float2 uv)
 {
@@ -122,9 +122,9 @@ float2 GetDebugMotion(float2 uv)
 
         switch(UI_MB_DebugUseRepeat)
         {
-            case 1: { curr_offs = circle_offs[frame_count % 8]; break; }
-            case 2: { curr_offs = long_line_offs[frame_count % 4]; break; }
-            case 3: { curr_offs = line_offs[frame_count % 2]; break; }
+            case 1: { curr_offs = CIRCLE_OFFS[frame_count % 8]; break; }
+            case 2: { curr_offs = LONG_LINE_OFFS[frame_count % 4]; break; }
+            case 3: { curr_offs = LINE_OFFS[frame_count % 2]; break; }
         }
 
         motion = motion.xx * curr_offs;
