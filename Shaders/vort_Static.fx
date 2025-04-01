@@ -42,7 +42,7 @@ technique vort_StaticEffects
     PASS_START
 
 #if V_ENABLE_BLOOM
-    #if V_ENABLE_BLOOM == 9
+    #if DEBUG_BLOOM
         PASS_BLOOM_DEBUG
     #endif
 

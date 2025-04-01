@@ -53,8 +53,7 @@
 #include "Includes/vort_Depth.fxh"
 #include "Includes/vort_Filters.fxh"
 #include "Includes/vort_ColorTex.fxh"
-#include "Includes/vort_HDRTexA.fxh"
-#include "Includes/vort_HDRTexB.fxh"
+#include "Includes/vort_HDRTex.fxh"
 #include "Includes/vort_Tonemap.fxh"
 #include "Includes/vort_OKColors.fxh"
 #include "Includes/vort_BlueNoise.fxh"
@@ -63,18 +62,20 @@
     #include "Includes/vort_ACES.fxh"
 #endif
 
+#if V_ENABLE_BLOOM
+    #include "Includes/vort_Bloom.fxh"
+#endif
+
 namespace ColorChanges {
 
 /*******************************************************************************
     Globals
 *******************************************************************************/
 
-#define CC_OUT_TEX HDRTexVortA
-
 #if V_ENABLE_BLOOM
-    #define CC_IN_SAMP sHDRTexVortB
+    #define CC_IN_SAMP Bloom::sBloomTex
 #else
-    #define CC_IN_SAMP sHDRTexVortA
+    #define CC_IN_SAMP HDR::sColorTex
 #endif
 
 #define GET_LUMA(_x) RGBToYCbCrLuma(_x)
@@ -89,9 +90,9 @@ namespace ColorChanges {
 *******************************************************************************/
 
 #if V_ENABLE_LUT
-    texture MLUTTexVort <source = "vort_MLUT.png";>
+    texture2D MLUTTex <source = "vort_MLUT.png";>
     { Width = MLUT_TileSizeXY * MLUT_TileAmount; Height = MLUT_TileSizeXY * MLUT_LutAmount; TEX_RGBA8 };
-    sampler sMLUTTexVort { Texture = MLUTTexVort; };
+    sampler2D sMLUTTex { Texture = MLUTTex; };
 #endif
 
 /*******************************************************************************
@@ -108,8 +109,7 @@ float3 ApplySharpen(float3 c, float2 uv)
     [loop]for(int j = 0; j < 13; j++)
     {
         float2 offset = Filters::OFFS_DK[j] * BUFFER_PIXEL_SIZE;
-        float2 tap_uv = uv + offset;
-        float3 tap_color = Sample(CC_IN_SAMP, tap_uv).rgb;
+        float3 tap_color = Sample(CC_IN_SAMP, uv + offset).rgb;
 
         blurred += Filters::WEIGHTS_DK[j] * tap_color;
         edges += Filters::WEIGHTS_DK[j] * abs(tap_color - c);
@@ -240,8 +240,8 @@ float3 ApplyLUT(float3 c)
     lut_uv.y = (lut_uv.y / MLUT_LutAmount) + (float(UI_CC_LUTNum) / MLUT_LutAmount);
 
     c = lerp(
-        Sample(sMLUTTexVort, lut_uv.xy).rgb,
-        Sample(sMLUTTexVort, float2(lut_uv.x + lut_ps.y, lut_uv.y)).rgb,
+        Sample(sMLUTTex, lut_uv.xy).rgb,
+        Sample(sMLUTTex, float2(lut_uv.x + lut_ps.y, lut_uv.y)).rgb,
         lerpfact
     );
 
@@ -392,7 +392,7 @@ void PS_End(PS_ARGS3)
 #endif
 
 #if V_USE_ACES
-    c = ApplyACESFull(c);
+    c = ACES::ApplyACESFull(c);
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);
 #endif
@@ -407,7 +407,7 @@ void PS_End(PS_ARGS3)
     Passes
 *******************************************************************************/
 #define PASS_START \
-    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Start; RenderTarget = CC_OUT_TEX; }
+    pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_Start; RenderTarget = HDR::ColorTex; }
 
 #define PASS_END \
     pass { VertexShader = PostProcessVS; PixelShader = ColorChanges::PS_End; }

@@ -63,15 +63,15 @@ static const float ML = float(K * 2);
     Textures, Samplers
 *******************************************************************************/
 
-texture2D TileFstTexVort  { Width = TILE_WIDTH; Height = BUFFER_HEIGHT; TEX_RG16 };
-texture2D TileSndTexVort  { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
-texture2D NeighMaxTexVort { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
-texture2D InfoTexVort     { TEX_SIZE(0) TEX_RGBA16 };
+texture2D TileFstTex  { Width = TILE_WIDTH; Height = BUFFER_HEIGHT; TEX_RG16 };
+texture2D TileSndTex  { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
+texture2D NeighMaxTex { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
+texture2D InfoTex     { TEX_SIZE(0) TEX_RGBA16 };
 
-sampler2D sTileFstTexVort  { Texture = TileFstTexVort; SAM_POINT };
-sampler2D sTileSndTexVort  { Texture = TileSndTexVort; SAM_POINT };
-sampler2D sNeighMaxTexVort { Texture = NeighMaxTexVort; SAM_POINT };
-sampler2D sInfoTexVort     { Texture = InfoTexVort; };
+sampler2D sTileFstTex  { Texture = TileFstTex; SAM_POINT };
+sampler2D sTileSndTex  { Texture = TileSndTex; SAM_POINT };
+sampler2D sNeighMaxTex { Texture = NeighMaxTex; SAM_POINT };
+sampler2D sInfoTex     { Texture = InfoTex; };
 
 /*******************************************************************************
     Functions
@@ -162,12 +162,12 @@ float2 GetTileOffs(float2 pos)
 float4 CalcBlur(VSOUT i)
 {
     float3 cen_color = InColor(i.uv);
-    float2 max_motion = Sample(sNeighMaxTexVort, i.uv + GetTileOffs(i.vpos.xy)).xy;
+    float2 max_motion = Sample(sNeighMaxTex, i.uv + GetTileOffs(i.vpos.xy)).xy;
     float max_mot_len = length(max_motion);
 
     // must use the same uv here as the samples in the loop
     // x = motion px len, y = depth, zw = normalized motion
-    float4 cen_info = Sample(sInfoTexVort, i.uv);
+    float4 cen_info = Sample(sInfoTex, i.uv);
     float cen_mot_len = cen_info.x;
     float cen_z = cen_info.y;
     float2 cen_motion = cen_info.zw * cen_mot_len;
@@ -199,7 +199,7 @@ float4 CalcBlur(VSOUT i)
     float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_mot_norm, 1.0);
 
     // dither looks better than IGN
-    float2 sample_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1); // negated in second direction to remove visible gap
+    float2 tap_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1); // negated in second direction to remove visible gap
     float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px = inv_half_samples * max_mot_len;
@@ -212,52 +212,52 @@ float4 CalcBlur(VSOUT i)
         // switch between max and center
         float3 m = j % 2 == 0 ? max_main : cen_main;
 
-        float2 step = float(j) + 0.5 + sample_noise;
+        float2 step = float(j) + 0.5 + tap_noise;
         float2 pn = m.xy * BUFFER_PIXEL_SIZE;
-        float2 sample_uv1 = i.uv - (step.x * steps_to_px) * pn;
-        float2 sample_uv2 = i.uv + (step.y * steps_to_px) * pn;
+        float2 tap_uv1 = i.uv - (step.x * steps_to_px) * pn;
+        float2 tap_uv2 = i.uv + (step.y * steps_to_px) * pn;
 
         // x = motion px len, y = depth, zw = norm motion
-        float4 sample_info1 = Sample(sInfoTexVort, sample_uv1);
-        float4 sample_info2 = Sample(sInfoTexVort, sample_uv2);
+        float4 tap_info1 = Sample(sInfoTex, tap_uv1);
+        float4 tap_info2 = Sample(sInfoTex, tap_uv2);
 
-        float sample_mot_len1 = sample_info1.x;
-        float sample_mot_len2 = sample_info2.x;
+        float tap_mot_len1 = tap_info1.x;
+        float tap_mot_len2 = tap_info2.x;
 
-        float sample_z1 = sample_info1.y;
-        float sample_z2 = sample_info2.y;
+        float tap_z1 = tap_info1.y;
+        float tap_z2 = tap_info2.y;
 
-        float2 sample_mot_norm1 = sample_info1.zw;
-        float2 sample_mot_norm2 = sample_info2.zw;
+        float2 tap_mot_norm1 = tap_info1.zw;
+        float2 tap_mot_norm2 = tap_info2.zw;
 
         // x = bg, y = fg
-        float2 depth_cmp1 = saturate(0.5 + z_scales * (sample_z1 - cen_z));
-        float2 depth_cmp2 = saturate(0.5 + z_scales * (sample_z2 - cen_z));
+        float2 depth_cmp1 = saturate(0.5 + z_scales * (tap_z1 - cen_z));
+        float2 depth_cmp2 = saturate(0.5 + z_scales * (tap_z2 - cen_z));
 
         // the `max` is to remove potential artifacts
-        float2 spread_cmp1 = saturate(float2(cen_mot_len, sample_mot_len1) - max(0.0, step.x - 1.0) * steps_to_px);
-        float2 spread_cmp2 = saturate(float2(cen_mot_len, sample_mot_len2) - max(0.0, step.y - 1.0) * steps_to_px);
+        float2 spread_cmp1 = saturate(float2(cen_mot_len, tap_mot_len1) - max(0.0, step.x - 1.0) * steps_to_px);
+        float2 spread_cmp2 = saturate(float2(cen_mot_len, tap_mot_len2) - max(0.0, step.y - 1.0) * steps_to_px);
 
         // check for mismatch between motion directions
-        float2 dir_w1 = float2(m.z, abs(dot(sample_mot_norm1, m.xy)));
-        float2 dir_w2 = float2(m.z, abs(dot(sample_mot_norm2, m.xy)));
+        float2 dir_w1 = float2(m.z, abs(dot(tap_mot_norm1, m.xy)));
+        float2 dir_w2 = float2(m.z, abs(dot(tap_mot_norm2, m.xy)));
 
         // x = bg weight, y = fg weight
-        float2 sample_w1 = (depth_cmp1 * spread_cmp1) * dir_w1;
-        float2 sample_w2 = (depth_cmp2 * spread_cmp2) * dir_w2;
+        float2 tap_w1 = (depth_cmp1 * spread_cmp1) * dir_w1;
+        float2 tap_w2 = (depth_cmp2 * spread_cmp2) * dir_w2;
 
-        float3 sample_color1 = InColor(sample_uv1);
-        float3 sample_color2 = InColor(sample_uv2);
+        float3 tap_color1 = InColor(tap_uv1);
+        float3 tap_color2 = InColor(tap_uv2);
 
-        bool2 mir = bool2(sample_z1 > sample_z2, sample_mot_len2 > sample_mot_len1);
-        sample_w1 = all(mir) ? sample_w2 : sample_w1;
-        sample_w2 = any(mir) ? sample_w2 : sample_w1;
+        bool2 mir = bool2(tap_z1 > tap_z2, tap_mot_len2 > tap_mot_len1);
+        tap_w1 = all(mir) ? tap_w2 : tap_w1;
+        tap_w2 = any(mir) ? tap_w2 : tap_w1;
 
-        bg_acc += float4(sample_color1, 1.0) * sample_w1.x;
-        fg_acc += float4(sample_color1, 1.0) * sample_w1.y;
+        bg_acc += float4(tap_color1, 1.0) * tap_w1.x;
+        fg_acc += float4(tap_color1, 1.0) * tap_w1.y;
 
-        bg_acc += float4(sample_color2, 1.0) * sample_w2.x;
-        fg_acc += float4(sample_color2, 1.0) * sample_w2.y;
+        bg_acc += float4(tap_color2, 1.0) * tap_w2.x;
+        fg_acc += float4(tap_color2, 1.0) * tap_w2.y;
     }
 
     // don't sum total weight, use total samples to prevent artifacts
@@ -286,8 +286,8 @@ float2 CalcTileDownHor(VSOUT i)
 
     [loop]for(uint x = 0; x < K; x++)
     {
-        float2 sample_uv = float2(floor(i.vpos.x) * K + 0.5 + x, i.vpos.y) * BUFFER_PIXEL_SIZE;
-        float2 motion = GetMotion(sample_uv);
+        float2 tap_uv = float2(floor(i.vpos.x) * K + 0.5 + x, i.vpos.y) * BUFFER_PIXEL_SIZE;
+        float2 motion = GetMotion(tap_uv);
         float sq_len = dot(motion, motion);
 
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
@@ -302,8 +302,8 @@ float2 CalcTileDownVert(VSOUT i)
 
     [loop]for(uint y = 0; y < K; y++)
     {
-        float2 sample_pos = float2(i.vpos.x, floor(i.vpos.y) * K + 0.5 + y);
-        float2 motion = Fetch(sTileFstTexVort, sample_pos).xy;
+        float2 tap_pos = float2(i.vpos.x, floor(i.vpos.y) * K + 0.5 + y);
+        float2 motion = Fetch(sTileFstTex, tap_pos).xy;
         float sq_len = dot(motion, motion);
 
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
@@ -319,8 +319,8 @@ float2 CalcNeighbourMax(VSOUT i)
     [loop]for(uint j = 0; j < S_BOX_OFFS2; j++)
     {
         float2 offs = BOX_OFFS2[j];
-        float2 sample_pos = i.vpos.xy + offs;
-        float2 motion = Fetch(sTileSndTexVort, sample_pos).xy;
+        float2 tap_pos = i.vpos.xy + offs;
+        float2 motion = Fetch(sTileSndTex, tap_pos).xy;
         float sq_len = dot(motion, motion);
 
         if(sq_len > max_motion.z)
@@ -356,10 +356,10 @@ void PS_Info(PS_ARGS4)
         // apply min filter to remove some artifacts
         [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
         {
-            float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-            float sample_z = GetDepth(sample_uv);
+            float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+            float tap_z = GetDepth(tap_uv);
 
-            if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+            if(tap_z < closest.z) closest = float3(tap_uv, tap_z);
         }
     }
 
@@ -380,10 +380,10 @@ void PS_BlurAndDraw(PS_ARGS3)  { o = CalcBlur(i).rgb; }
 *******************************************************************************/
 
 #define PASS_MOT_BLUR \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor;  RenderTarget = MotBlur::TileFstTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Info;         RenderTarget = MotBlur::InfoTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor;  RenderTarget = MotBlur::TileFstTex; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTex; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTex; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Info;         RenderTarget = MotBlur::InfoTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_BlurAndDraw; }
 
 } // namespace end

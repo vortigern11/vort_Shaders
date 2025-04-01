@@ -21,7 +21,7 @@
 #include "Includes/vort_Motion_UI.fxh"
 #include "Includes/vort_MotionUtils.fxh"
 
-namespace MotVect {
+namespace MV {
 
 /*******************************************************************************
     Globals
@@ -47,47 +47,47 @@ static const float2 DIAMOND_OFFS[DIAMOND_S] =
     Textures, Samplers
 *******************************************************************************/
 
-texture2D CurrFeatTexVort1 { TEX_SIZE(1) TEX_RG16 };
-texture2D CurrFeatTexVort2 { TEX_SIZE(2) TEX_RG16 };
-texture2D CurrFeatTexVort3 { TEX_SIZE(3) TEX_RG16 };
-texture2D CurrFeatTexVort4 { TEX_SIZE(4) TEX_RG16 };
-texture2D CurrFeatTexVort5 { TEX_SIZE(5) TEX_RG16 };
-texture2D CurrFeatTexVort6 { TEX_SIZE(6) TEX_RG16 };
-texture2D CurrFeatTexVort7 { TEX_SIZE(7) TEX_RG16 };
+texture2D CurrFeatTex1 { TEX_SIZE(1) TEX_RG16 };
+texture2D CurrFeatTex2 { TEX_SIZE(2) TEX_RG16 };
+texture2D CurrFeatTex3 { TEX_SIZE(3) TEX_RG16 };
+texture2D CurrFeatTex4 { TEX_SIZE(4) TEX_RG16 };
+texture2D CurrFeatTex5 { TEX_SIZE(5) TEX_RG16 };
+texture2D CurrFeatTex6 { TEX_SIZE(6) TEX_RG16 };
+texture2D CurrFeatTex7 { TEX_SIZE(7) TEX_RG16 };
 
-texture2D PrevFeatTexVort1 { TEX_SIZE(1) TEX_RG16 };
-texture2D PrevFeatTexVort2 { TEX_SIZE(2) TEX_RG16 };
-texture2D PrevFeatTexVort3 { TEX_SIZE(3) TEX_RG16 };
-texture2D PrevFeatTexVort4 { TEX_SIZE(4) TEX_RG16 };
-texture2D PrevFeatTexVort5 { TEX_SIZE(5) TEX_RG16 };
-texture2D PrevFeatTexVort6 { TEX_SIZE(6) TEX_RG16 };
-texture2D PrevFeatTexVort7 { TEX_SIZE(7) TEX_RG16 };
+texture2D PrevFeatTex1 { TEX_SIZE(1) TEX_RG16 };
+texture2D PrevFeatTex2 { TEX_SIZE(2) TEX_RG16 };
+texture2D PrevFeatTex3 { TEX_SIZE(3) TEX_RG16 };
+texture2D PrevFeatTex4 { TEX_SIZE(4) TEX_RG16 };
+texture2D PrevFeatTex5 { TEX_SIZE(5) TEX_RG16 };
+texture2D PrevFeatTex6 { TEX_SIZE(6) TEX_RG16 };
+texture2D PrevFeatTex7 { TEX_SIZE(7) TEX_RG16 };
 
-sampler2D sCurrFeatTexVort1 { Texture = CurrFeatTexVort1; SAM_MIRROR };
-sampler2D sCurrFeatTexVort2 { Texture = CurrFeatTexVort2; SAM_MIRROR };
-sampler2D sCurrFeatTexVort3 { Texture = CurrFeatTexVort3; SAM_MIRROR };
-sampler2D sCurrFeatTexVort4 { Texture = CurrFeatTexVort4; SAM_MIRROR };
-sampler2D sCurrFeatTexVort5 { Texture = CurrFeatTexVort5; SAM_MIRROR };
-sampler2D sCurrFeatTexVort6 { Texture = CurrFeatTexVort6; SAM_MIRROR };
-sampler2D sCurrFeatTexVort7 { Texture = CurrFeatTexVort7; SAM_MIRROR };
+sampler2D sCurrFeatTex1 { Texture = CurrFeatTex1; SAM_MIRROR };
+sampler2D sCurrFeatTex2 { Texture = CurrFeatTex2; SAM_MIRROR };
+sampler2D sCurrFeatTex3 { Texture = CurrFeatTex3; SAM_MIRROR };
+sampler2D sCurrFeatTex4 { Texture = CurrFeatTex4; SAM_MIRROR };
+sampler2D sCurrFeatTex5 { Texture = CurrFeatTex5; SAM_MIRROR };
+sampler2D sCurrFeatTex6 { Texture = CurrFeatTex6; SAM_MIRROR };
+sampler2D sCurrFeatTex7 { Texture = CurrFeatTex7; SAM_MIRROR };
 
-sampler2D sPrevFeatTexVort1 { Texture = PrevFeatTexVort1; SAM_MIRROR };
-sampler2D sPrevFeatTexVort2 { Texture = PrevFeatTexVort2; SAM_MIRROR };
-sampler2D sPrevFeatTexVort3 { Texture = PrevFeatTexVort3; SAM_MIRROR };
-sampler2D sPrevFeatTexVort4 { Texture = PrevFeatTexVort4; SAM_MIRROR };
-sampler2D sPrevFeatTexVort5 { Texture = PrevFeatTexVort5; SAM_MIRROR };
-sampler2D sPrevFeatTexVort6 { Texture = PrevFeatTexVort6; SAM_MIRROR };
-sampler2D sPrevFeatTexVort7 { Texture = PrevFeatTexVort7; SAM_MIRROR };
+sampler2D sPrevFeatTex1 { Texture = PrevFeatTex1; SAM_MIRROR };
+sampler2D sPrevFeatTex2 { Texture = PrevFeatTex2; SAM_MIRROR };
+sampler2D sPrevFeatTex3 { Texture = PrevFeatTex3; SAM_MIRROR };
+sampler2D sPrevFeatTex4 { Texture = PrevFeatTex4; SAM_MIRROR };
+sampler2D sPrevFeatTex5 { Texture = PrevFeatTex5; SAM_MIRROR };
+sampler2D sPrevFeatTex6 { Texture = PrevFeatTex6; SAM_MIRROR };
+sampler2D sPrevFeatTex7 { Texture = PrevFeatTex7; SAM_MIRROR };
 
-texture2D MotionTexVort1 { TEX_SIZE(1) TEX_RGBA16 };
-texture2D MotionTexVort2 { TEX_SIZE(2) TEX_RGBA16 };
-texture2D MotionTexVortA { TEX_SIZE(3) TEX_RGBA16 };
-texture2D MotionTexVortB { TEX_SIZE(3) TEX_RGBA16 };
+texture2D MotionTex1 { TEX_SIZE(1) TEX_RGBA16 };
+texture2D MotionTex2 { TEX_SIZE(2) TEX_RGBA16 };
+texture2D MotionTexA { TEX_SIZE(3) TEX_RGBA16 };
+texture2D MotionTexB { TEX_SIZE(3) TEX_RGBA16 };
 
-sampler2D sMotionTexVort1 { Texture = MotionTexVort1; SAM_POINT };
-sampler2D sMotionTexVort2 { Texture = MotionTexVort2; SAM_POINT };
-sampler2D sMotionTexVortA { Texture = MotionTexVortA; SAM_POINT };
-sampler2D sMotionTexVortB { Texture = MotionTexVortB; SAM_POINT };
+sampler2D sMotionTex1 { Texture = MotionTex1; SAM_POINT };
+sampler2D sMotionTex2 { Texture = MotionTex2; SAM_POINT };
+sampler2D sMotionTexA { Texture = MotionTexA; SAM_POINT };
+sampler2D sMotionTexB { Texture = MotionTexB; SAM_POINT };
 
 /*******************************************************************************
     Functions
@@ -112,17 +112,17 @@ float4 FilterMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
     [loop]for(int x = -r; x <= r; x++)
     [loop]for(int y = -r; y <= r; y++)
     {
-        float2 sample_uv = i.uv + Rotate(float2(x, y), rot) * scale;
-        float4 sample_mot = Sample(mot_samp, sample_uv);
-        float sample_mot_sq_len = dot(sample_mot.xy, sample_mot.xy);
-        float cos_angle = dot(cen_motion.xy, sample_mot.xy) * RSQRT(cen_mot_sq_len * sample_mot_sq_len);
+        float2 tap_uv = i.uv + Rotate(float2(x, y), rot) * scale;
+        float4 tap_mot = Sample(mot_samp, tap_uv);
+        float tap_mot_sq_len = dot(tap_mot.xy, tap_mot.xy);
+        float cos_angle = dot(cen_motion.xy, tap_mot.xy) * RSQRT(cen_mot_sq_len * tap_mot_sq_len);
 
-        float wz = abs(center_z - sample_mot.z) * RCP(min(center_z, sample_mot.z)) * 20.0;
-        float wm = 0.25 * sample_mot_sq_len * BUFFER_WIDTH; // notice the diff when using MB
+        float wz = abs(center_z - tap_mot.z) * RCP(min(center_z, tap_mot.z)) * 20.0;
+        float wm = 0.25 * tap_mot_sq_len * BUFFER_WIDTH; // notice the diff when using MB
         float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // tested - opposite gives better results
-        float weight = max(1e-8, exp2(-(wz + wm + wd))) * ValidateUV(sample_uv); // don't change the min value
+        float weight = max(1e-8, exp2(-(wz + wm + wd))) * ValidateUV(tap_uv); // don't change the min value
 
-        motion_acc += float3(sample_mot.xy, 1.0) * weight;
+        motion_acc += float3(tap_mot.xy, 1.0) * weight;
     }
 
     return float4(motion_acc.xy * RCP(motion_acc.z), center_z, 1.0);
@@ -152,14 +152,14 @@ float4 CalcMotion(VSOUT i, int mip, sampler mot_samp, sampler curr_feat_samp, sa
 #endif
     for(uint j = 0; j < DIAMOND_S; j++)
     {
-        float2 sample_uv = i.uv + DIAMOND_OFFS[j] * texel_size;
-        float2 sample_l = Sample(curr_feat_samp, sample_uv).xy;
-        float2 sample_s = Sample(prev_feat_samp, sample_uv + total_motion).xy;
+        float2 tap_uv = i.uv + DIAMOND_OFFS[j] * texel_size;
+        float2 tap_l = Sample(curr_feat_samp, tap_uv).xy;
+        float2 tap_s = Sample(prev_feat_samp, tap_uv + total_motion).xy;
 
-        local_samples[j] = sample_l;
-        moments_local += sample_l * sample_l;
-        moments_search += sample_s * sample_s;
-        moments_cov += sample_s * sample_l;
+        local_samples[j] = tap_l;
+        moments_local += tap_l * tap_l;
+        moments_search += tap_s * tap_s;
+        moments_cov += tap_s * tap_l;
     }
 
     float2 cossim = moments_cov * rsqrt(moments_local * moments_search);
@@ -183,12 +183,12 @@ float4 CalcMotion(VSOUT i, int mip, sampler mot_samp, sampler curr_feat_samp, sa
 
             [loop]for(uint j = 0; j < DIAMOND_S; j++)
             {
-                float2 sample_uv = i.uv + DIAMOND_OFFS[j] * texel_size + total_motion + search_offs;
-                float2 sample_s = Sample(prev_feat_samp, sample_uv).xy;
-                float2 sample_l = local_samples[j];
+                float2 tap_uv = i.uv + DIAMOND_OFFS[j] * texel_size + total_motion + search_offs;
+                float2 tap_s = Sample(prev_feat_samp, tap_uv).xy;
+                float2 tap_l = local_samples[j];
 
-                moments_search += sample_s * sample_s;
-                moments_cov += sample_s * sample_l;
+                moments_search += tap_s * tap_s;
+                moments_cov += tap_s * tap_l;
             }
 
             cossim = moments_cov * rsqrt(moments_local * moments_search);
@@ -235,17 +235,17 @@ void DownsampleFeature(float2 uv, out PSOUT2 o, sampler feat_samp0, sampler feat
     Shaders
 *******************************************************************************/
 
-void PS_DownFeat2(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort1, sPrevFeatTexVort1); }
-void PS_DownFeat3(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort2, sPrevFeatTexVort2); }
-void PS_DownFeat4(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort3, sPrevFeatTexVort3); }
-void PS_DownFeat5(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort4, sPrevFeatTexVort4); }
-void PS_DownFeat6(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort5, sPrevFeatTexVort5); }
-void PS_DownFeat7(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTexVort6, sPrevFeatTexVort6); }
+void PS_DownFeat2(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex1, sPrevFeatTex1); }
+void PS_DownFeat3(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex2, sPrevFeatTex2); }
+void PS_DownFeat4(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex3, sPrevFeatTex3); }
+void PS_DownFeat5(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex4, sPrevFeatTex4); }
+void PS_DownFeat6(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex5, sPrevFeatTex5); }
+void PS_DownFeat7(VSOUT i, out PSOUT2 o) { DownsampleFeature(i.uv, o, sCurrFeatTex6, sPrevFeatTex6); }
 
 void PS_WriteFeature(PS_ARGS2)
 {
 #if MIN_MIP > 0
-    float3 c = Filters::Wronski(sColorTexVort, i.uv, 0).rgb;
+    float3 c = Filters::Wronski(Color::sColorTex, i.uv, 0).rgb;
 #else
     float3 c = SampleGammaColor(i.uv);
 #endif
@@ -259,23 +259,23 @@ void PS_WriteFeature(PS_ARGS2)
 }
 
 // feature samplers are 1 mip higher for better quality
-void PS_Motion8(PS_ARGS4) { o =   CalcMotion(i, 8, sMotionTexVortB, sCurrFeatTexVort7, sPrevFeatTexVort7); }
-void PS_Motion7(PS_ARGS4) { o =   CalcMotion(i, 7, sMotionTexVortB, sCurrFeatTexVort6, sPrevFeatTexVort6); }
-void PS_Motion6(PS_ARGS4) { o =   CalcMotion(i, 6, sMotionTexVortB, sCurrFeatTexVort5, sPrevFeatTexVort5); }
-void PS_Motion5(PS_ARGS4) { o =   CalcMotion(i, 5, sMotionTexVortB, sCurrFeatTexVort4, sPrevFeatTexVort4); }
-void PS_Motion4(PS_ARGS4) { o =   CalcMotion(i, 4, sMotionTexVortB, sCurrFeatTexVort3, sPrevFeatTexVort3); }
-void PS_Motion3(PS_ARGS4) { o =   CalcMotion(i, 3, sMotionTexVortB, sCurrFeatTexVort2, sPrevFeatTexVort2); }
-void PS_Motion2(PS_ARGS4) { o =   CalcMotion(i, 2, sMotionTexVortB, sCurrFeatTexVort1, sPrevFeatTexVort1); }
-void PS_Motion1(PS_ARGS4) { o =   CalcMotion(i, 1, sMotionTexVort2, sCurrFeatTexVort1, sPrevFeatTexVort1); }
-void PS_Motion0(PS_ARGS4) { o = FilterMotion(i, 0, sMotionTexVort1, sCurrFeatTexVort1); }
+void PS_Motion8(PS_ARGS4) { o =   CalcMotion(i, 8, sMotionTexB, sCurrFeatTex7, sPrevFeatTex7); }
+void PS_Motion7(PS_ARGS4) { o =   CalcMotion(i, 7, sMotionTexB, sCurrFeatTex6, sPrevFeatTex6); }
+void PS_Motion6(PS_ARGS4) { o =   CalcMotion(i, 6, sMotionTexB, sCurrFeatTex5, sPrevFeatTex5); }
+void PS_Motion5(PS_ARGS4) { o =   CalcMotion(i, 5, sMotionTexB, sCurrFeatTex4, sPrevFeatTex4); }
+void PS_Motion4(PS_ARGS4) { o =   CalcMotion(i, 4, sMotionTexB, sCurrFeatTex3, sPrevFeatTex3); }
+void PS_Motion3(PS_ARGS4) { o =   CalcMotion(i, 3, sMotionTexB, sCurrFeatTex2, sPrevFeatTex2); }
+void PS_Motion2(PS_ARGS4) { o =   CalcMotion(i, 2, sMotionTexB, sCurrFeatTex1, sPrevFeatTex1); }
+void PS_Motion1(PS_ARGS4) { o =   CalcMotion(i, 1, sMotionTex2, sCurrFeatTex1, sPrevFeatTex1); }
+void PS_Motion0(PS_ARGS4) { o = FilterMotion(i, 0, sMotionTex1, sCurrFeatTex1); }
 
 // slight quality increase for nearly no perf cost
-void PS_Filter7(PS_ARGS4) { o = FilterMotion(i, 7, sMotionTexVortA, sCurrFeatTexVort6); }
-void PS_Filter6(PS_ARGS4) { o = FilterMotion(i, 6, sMotionTexVortA, sCurrFeatTexVort5); }
-void PS_Filter5(PS_ARGS4) { o = FilterMotion(i, 5, sMotionTexVortA, sCurrFeatTexVort4); }
-void PS_Filter4(PS_ARGS4) { o = FilterMotion(i, 4, sMotionTexVortA, sCurrFeatTexVort3); }
-void PS_Filter3(PS_ARGS4) { o = FilterMotion(i, 3, sMotionTexVortA, sCurrFeatTexVort2); }
-void PS_Filter2(PS_ARGS4) { o = FilterMotion(i, 2, sMotionTexVortA, sCurrFeatTexVort1); }
+void PS_Filter7(PS_ARGS4) { o = FilterMotion(i, 7, sMotionTexA, sCurrFeatTex6); }
+void PS_Filter6(PS_ARGS4) { o = FilterMotion(i, 6, sMotionTexA, sCurrFeatTex5); }
+void PS_Filter5(PS_ARGS4) { o = FilterMotion(i, 5, sMotionTexA, sCurrFeatTex4); }
+void PS_Filter4(PS_ARGS4) { o = FilterMotion(i, 4, sMotionTexA, sCurrFeatTex3); }
+void PS_Filter3(PS_ARGS4) { o = FilterMotion(i, 3, sMotionTexA, sCurrFeatTex2); }
+void PS_Filter2(PS_ARGS4) { o = FilterMotion(i, 2, sMotionTexA, sCurrFeatTex1); }
 
 /*******************************************************************************
     Passes
@@ -285,32 +285,32 @@ void PS_Filter2(PS_ARGS4) { o = FilterMotion(i, 2, sMotionTexVortA, sCurrFeatTex
     #define PASS_MV_EXTRA
 #else
     #define PASS_MV_EXTRA \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat7; RenderTarget0 = MotVect::CurrFeatTexVort7; RenderTarget1 = MotVect::PrevFeatTexVort7; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion8; RenderTarget = MotVect::MotionTexVortA; } \
-        pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter7; RenderTarget = MotVect::MotionTexVortB; }
+        pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat7; RenderTarget0 = MV::CurrFeatTex7; RenderTarget1 = MV::PrevFeatTex7; } \
+        pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion8; RenderTarget = MV::MotionTexA; } \
+        pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter7; RenderTarget = MV::MotionTexB; }
 #endif
 
 #define PASS_MV \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::CurrFeatTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat2;    RenderTarget0 = MotVect::CurrFeatTexVort2; RenderTarget1 = MotVect::PrevFeatTexVort2; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat3;    RenderTarget0 = MotVect::CurrFeatTexVort3; RenderTarget1 = MotVect::PrevFeatTexVort3; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat4;    RenderTarget0 = MotVect::CurrFeatTexVort4; RenderTarget1 = MotVect::PrevFeatTexVort4; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat5;    RenderTarget0 = MotVect::CurrFeatTexVort5; RenderTarget1 = MotVect::PrevFeatTexVort5; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_DownFeat6;    RenderTarget0 = MotVect::CurrFeatTexVort6; RenderTarget1 = MotVect::PrevFeatTexVort6; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_WriteFeature; RenderTarget = MV::CurrFeatTex1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat2;    RenderTarget0 = MV::CurrFeatTex2; RenderTarget1 = MV::PrevFeatTex2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat3;    RenderTarget0 = MV::CurrFeatTex3; RenderTarget1 = MV::PrevFeatTex3; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat4;    RenderTarget0 = MV::CurrFeatTex4; RenderTarget1 = MV::PrevFeatTex4; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat5;    RenderTarget0 = MV::CurrFeatTex5; RenderTarget1 = MV::PrevFeatTex5; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_DownFeat6;    RenderTarget0 = MV::CurrFeatTex6; RenderTarget1 = MV::PrevFeatTex6; } \
     PASS_MV_EXTRA \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion7;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter6;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion6;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter5;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion5;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter4;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion4;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter3;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion3;      RenderTarget = MotVect::MotionTexVortA; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Filter2;      RenderTarget = MotVect::MotionTexVortB; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion2;      RenderTarget = MotVect::MotionTexVort2; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion1;      RenderTarget = MotVect::MotionTexVort1; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_Motion0;      RenderTarget = MotVectTexVort; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotVect::PS_WriteFeature; RenderTarget = MotVect::PrevFeatTexVort1; }
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion7;      RenderTarget = MV::MotionTexA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter6;      RenderTarget = MV::MotionTexB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion6;      RenderTarget = MV::MotionTexA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter5;      RenderTarget = MV::MotionTexB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion5;      RenderTarget = MV::MotionTexA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter4;      RenderTarget = MV::MotionTexB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion4;      RenderTarget = MV::MotionTexA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter3;      RenderTarget = MV::MotionTexB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion3;      RenderTarget = MV::MotionTexA; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Filter2;      RenderTarget = MV::MotionTexB; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion2;      RenderTarget = MV::MotionTex2; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion1;      RenderTarget = MV::MotionTex1; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_Motion0;      RenderTarget = MotVectTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MV::PS_WriteFeature; RenderTarget = MV::PrevFeatTex1; }
 
 } // namespace end

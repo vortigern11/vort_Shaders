@@ -653,9 +653,9 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
     float2 tex_size = tex2Dsize(lin_samp);
     float2 pix_size = rcp(tex_size);
 
-    float2 sample_pos = uv * tex_size;
-    float2 center_pos = floor(sample_pos - 0.5) + 0.5;
-    float2 f = sample_pos - center_pos;
+    float2 tap_pos = uv * tex_size;
+    float2 center_pos = floor(tap_pos - 0.5) + 0.5;
+    float2 f = tap_pos - center_pos;
     float2 f2 = f * f;
     float2 f3 = f2 * f;
 

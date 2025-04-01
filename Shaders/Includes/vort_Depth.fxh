@@ -1,8 +1,10 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 
-texture2D DepthTexVort : DEPTH;
-sampler2D sDepthTexVort { Texture = DepthTexVort; SAM_POINT };
+namespace Depth {
+    texture2D DepthTex : DEPTH;
+    sampler2D sDepthTex { Texture = DepthTex; SAM_POINT };
+}
 
 #define Z_FAR_PLANE RESHADE_DEPTH_LINEARIZATION_FAR_PLANE
 
@@ -27,7 +29,7 @@ float GetRawDepth(float2 uv)
     uv.y += RESHADE_DEPTH_INPUT_Y_OFFSET / 2.000000001;
 #endif
 
-    return Sample(sDepthTexVort, uv).x;
+    return Sample(Depth::sDepthTex, uv).x;
 }
 
 float GetDepth(float2 uv)

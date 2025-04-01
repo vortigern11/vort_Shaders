@@ -52,10 +52,12 @@
     OTHER INTELLECTUAL PROPERTY RIGHTS IN THE ACADEMY COLOR ENCODING SYSTEM, OR
     APPLICATIONS THEREOF, HELD BY PARTIES OTHER THAN A.M.P.A.S.,WHETHER DISCLOSED OR
     UNDISCLOSED.
-*******************************************************************************
+*******************************************************************************/
 
 #pragma once
 #include "Includes/vort_Defs.fxh"
+
+namespace ACES {
 
 /*******************************************************************************
     Globals
@@ -1082,3 +1084,5 @@ float3 InverseACESNarkowicz(float3 x)
 
     return (sqrt(2.0*(2.0*a*e - b*d)*x + b*b - (4.0*c*e - d*d) * x*x) + d*x - b) * RCP(2.0*(a - c*x));
 }
+
+} // namespace end

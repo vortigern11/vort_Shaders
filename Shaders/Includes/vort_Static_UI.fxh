@@ -61,7 +61,9 @@
     #define V_USE_ACES 0
 #endif
 
-UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range", 1.001, 1.5, 1.04)
+#define DEBUG_BLOOM (V_ENABLE_BLOOM == 9)
+
+UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range", 1.0001, 1.5, 1.04)
 
 #if V_ENABLE_LUT
     #define CAT_LUT "LUT Settings"
@@ -83,15 +85,19 @@ UI_FLOAT("", UI_Tonemap_Mod, "Tonemap Mod", "Lower values increase the HDR range
 #if V_ENABLE_BLOOM
     #define CAT_BLOOM "Bloom"
 
-    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.02)
+    UI_FLOAT(CAT_BLOOM, UI_Bloom_Intensity, "Bloom Intensity", "Controls the amount of bloom", 0.0, 1.0, 0.005)
     UI_FLOAT(CAT_BLOOM, UI_Bloom_Radius, "Bloom Radius", "Affects the size/scale of the bloom", 0.0, 1.0, 0.8)
+
+    #if DEBUG_BLOOM
+        UI_FLOAT(CAT_BLOOM, UI_Bloom_MaxC, "Bloom Max Color", "Percentage of brightest color", 0.0, 1.0, 1.0)
+    #endif
 #endif
 
 #if V_ENABLE_SHARPEN
     #define CAT_SHARP "Sharpening"
 
     UI_BOOL(CAT_SHARP, UI_CC_ShowSharpening, "Show only Sharpening", "", false)
-    UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 1.0)
+    UI_FLOAT(CAT_SHARP, UI_CC_SharpenStrength, "Sharpening Strength", "Controls the shaprening strength.", 0.0, 2.0, 0.7)
 #endif
 
 #if V_ENABLE_COLOR_GRADING

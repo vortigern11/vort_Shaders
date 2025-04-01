@@ -42,11 +42,11 @@ namespace TAA {
     Textures, Samplers
 *******************************************************************************/
 
-texture TAAMVTexVort { TEX_SIZE(0) TEX_RG16 };
-sampler sTAAMVTexVort { Texture = TAAMVTexVort; SAM_POINT };
+texture TAAMVTex { TEX_SIZE(0) TEX_RG16 };
+sampler sTAAMVTex { Texture = TAAMVTex; SAM_POINT };
 
-texture PrevColorTexVort { TEX_SIZE(0) TEX_RGBA16 };
-sampler sPrevColorTexVort { Texture = PrevColorTexVort; };
+texture PrevColorTex { TEX_SIZE(0) TEX_RGBA16 };
+sampler sPrevColorTex { Texture = PrevColorTex; };
 
 /*******************************************************************************
     Functions
@@ -97,23 +97,23 @@ void PS_Main(PS_ARGS3)
     [loop]for(int j = 0; j < 4; j++)
     {
         float2 uv_offs = offs[j] * BUFFER_PIXEL_SIZE;
-        float3 sample_c = RGBToYCoCg(SampleLinColor(i.uv + uv_offs));
+        float3 tap_c = RGBToYCoCg(SampleLinColor(i.uv + uv_offs));
 
-        avg_c += sample_c;
-        var_c += sample_c * sample_c;
+        avg_c += tap_c;
+        var_c += tap_c * tap_c;
     }
 
     float2 prev_uv = i.uv - GetJitter().zw;
-    float2 motion = Sample(sTAAMVTexVort, prev_uv).xy;
+    float2 motion = Sample(sTAAMVTex, prev_uv).xy;
 
     prev_uv += motion;
 
-    bool is_first = Sample(sPrevColorTexVort, prev_uv).a < 1.0;
+    bool is_first = Sample(sPrevColorTex, prev_uv).a < 1.0;
 
     // no prev color yet or motion leads to outside of screen coords
     if(is_first || !ValidateUV(prev_uv)) discard;
 
-    float4 prev_info = SampleBicubic(sPrevColorTexVort, prev_uv);
+    float4 prev_info = SampleBicubic(sPrevColorTex, prev_uv);
     float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
 
     avg_c *= inv_samples;
@@ -140,10 +140,10 @@ void PS_WriteMV(PS_ARGS2)
     // apply min filter to remove some artifacts
     [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
     {
-        float2 sample_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-        float sample_z = GetDepth(sample_uv);
+        float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+        float tap_z = GetDepth(tap_uv);
 
-        if(sample_z < closest.z) closest = float3(sample_uv, sample_z);
+        if(tap_z < closest.z) closest = float3(tap_uv, tap_z);
     }
 
     float2 motion = SampleMotion(closest.xy);
@@ -161,8 +161,8 @@ void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv + GetJitter(
 *******************************************************************************/
 
 #define PASS_TAA \
-    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteMV; RenderTarget = TAA::TAAMVTexVort; } \
+    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WriteMV; RenderTarget = TAA::TAAMVTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_Main; } \
-    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTexVort; }
+    pass { VertexShader = PostProcessVS; PixelShader = TAA::PS_WritePrevColor; RenderTarget = TAA::PrevColorTex; }
 
 } // namespace end
