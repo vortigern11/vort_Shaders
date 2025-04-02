@@ -74,8 +74,11 @@
         UI_FLOAT(
             CAT_MB, UI_MB_Thresh, "MV Threshold",
             "Modifies which motion vectors to discard.\n"
+            "Before changing this slider try setting\n"
+            "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 500, 5000 or 10000.\n"
+            "Only very distant pixels should be gray or white.\n"
             "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
-            0, 1, 0.0003
+            0, 1, 3e-4
         )
     #endif
 

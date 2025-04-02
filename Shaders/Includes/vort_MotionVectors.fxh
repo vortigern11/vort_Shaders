@@ -98,7 +98,7 @@ float4 FilterMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
     float4 cen_motion = Sample(mot_samp, i.uv);
     /* return cen_motion; */
 
-    float2 scale = rcp(tex2Dsize(mot_samp)) * 4.0;
+    float2 scale = rcp(tex2Dsize(mot_samp)) * (mip > 0 ? 4.0 : 2.0);
     float rand = GetR1(GetBlueNoise(i.vpos.xy).x, mip + 1);
     float4 rot = GetRotator(rand * HALF_PI);
     float center_z = Sample(feat_samp, i.uv).y;
