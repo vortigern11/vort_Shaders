@@ -183,7 +183,7 @@ float4 CalcBlur(VSOUT i)
     if(max_mot_len < 1.0) return float4(OutColor(cen_color), 1.0);
 
     // don't change without solid reason
-    uint half_samples = clamp(ceil(max_mot_len), 3, max(3, UI_MB_MaxSamples));
+    uint half_samples = clamp(ceil(max_mot_len * 0.5), 3, max(3, UI_MB_MaxSamples));
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;

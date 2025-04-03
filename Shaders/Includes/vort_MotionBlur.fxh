@@ -224,7 +224,7 @@ float4 CalcBlur(VSOUT i)
     if(max_mot_len1 < 1.0 && max_mot_len2 < 1.0) return float4(OutColor(cen_color), 1.0);
 
     // don't change without solid reason
-    uint half_samples = clamp(ceil(max(max_mot_len1, max_mot_len2)), 3, max(3, UI_MB_MaxSamples));
+    uint half_samples = clamp(ceil(max(max_mot_len1, max_mot_len2) * 0.5), 3, max(3, UI_MB_MaxSamples));
 
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
@@ -459,7 +459,8 @@ void StoreNextMV(uint2 id)
 *******************************************************************************/
 
 #if DEBUG_BLUR
-void PS_WriteNew(PS_ARGS3) {
+void PS_WriteNew(PS_ARGS3)
+{
     float3 result = SampleGammaColor(i.uv);
 
     if(UI_MB_DebugUseRepeat)
