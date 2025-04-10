@@ -43,6 +43,10 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
+#ifndef V_MB_USE_MIN_FILTER
+    #define V_MB_USE_MIN_FILTER 0
+#endif
+
 #define USE_HQ_MB CAN_COMPUTE && V_ENABLE_MOT_BLUR != 1
 #define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
 #define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
@@ -57,12 +61,6 @@
 
     UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 100, 13)
     UI_TIP(CAT_MB, _vort_Blur_Help_, "WARNING: Read the tooltips if you want to change the below settings.")
-    UI_BOOL(
-        CAT_MB, UI_MB_UseMinFilter, "Use Depth Offset",
-        "Many games don't have correct depth on object outlines.\n"
-        "Enable if you notice with the background blurred, but static character,\n"
-        "that the blur is using pixels from the character.", false
-    )
     UI_FLOAT(
         CAT_MB, UI_MB_Mult, "Blur Multiplier",
         "Set to 1.0 (default) to cover frame gaps exactly.\n"
@@ -74,9 +72,8 @@
         UI_FLOAT(
             CAT_MB, UI_MB_Thresh, "MV Threshold",
             "Modifies which motion vectors to discard.\n"
-            "Before changing this slider try setting\n"
+            "Before changing this slider try to set\n"
             "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 500, 5000 or 10000.\n"
-            "Only very distant pixels should be gray or white.\n"
             "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
             0, 1, 3e-4
         )
@@ -111,6 +108,13 @@ _vort_MotionEffects_Help_,
 "7 - debug next motion\n"
 "8 - debug tiles\n"
 "9 - debug motion blur\n"
+"\n"
+"V_MB_USE_MIN_FILTER\n"
+"0 - disabled\n"
+"1 - enabled\n"
+"Many games don't have correct depth on object outlines.\n"
+"Enable if you notice with the background blurred, but static character,\n"
+"that the background blur is using pixels from the character.\n"
 "\n"
 "V_ENABLE_TAA\n"
 "0 - disabled\n"

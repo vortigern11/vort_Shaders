@@ -288,6 +288,8 @@ uniform float timer < source = "timer"; >;
 #define TEX_RG8 Format = RG8;
 #define TEX_R16 Format = R16F;
 #define TEX_R32 Format = R32F;
+#define TEX_R32I Format = R32I;
+#define TEX_R32U Format = R32U;
 #define TEX_RG16 Format = RG16F;
 #define TEX_RG32 Format = RG32F;
 
@@ -299,6 +301,11 @@ uniform float timer < source = "timer"; >;
 
 struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
 struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
+struct PSOUT3 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
+struct PSOUT4 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
+struct PSOUT2I { int t0 : SV_Target0, t1 : SV_Target1; };
+struct PSOUT3I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
+struct PSOUT4I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
 struct CSIN {
     uint3 id : SV_DispatchThreadID; // range [0 .. groups * threads).xyz
     uint3 gid : SV_GroupID;         // range [0 .. groups).xyz
@@ -338,6 +345,7 @@ void PostProcessVS(in uint id : SV_VertexID, out float4 position : SV_Position, 
 }
 
 // to be used instead of tex2D and tex2Dlod
+uint Sample(sampler2D<uint> samp, float2 uv)               { return tex2Dlod(samp, float4(uv, 0, 0)).x; }
 float4 Sample(sampler samp, float2 uv)                     { return tex2Dlod(samp, float4(uv, 0, 0)); }
 float4 Sample(sampler samp, float2 uv, int mip)            { return tex2Dlod(samp, float4(uv, 0, mip)); }
 float4 Sample(sampler samp, float2 uv, int2 offs)          { return tex2Dlod(samp, float4(uv, 0, 0), offs); }
