@@ -49,20 +49,20 @@ static const float A_THIRD = 1.0 / 3.0;
 
 // ordering matters in some situations
 static const uint S_BOX_OFFS1 = 9;
-static const float2 BOX_OFFS1[S_BOX_OFFS1] = {
-    float2(0, 0),
-    float2(1, 0), float2( 0, 1), float2(-1, 0), float2(0, -1),
-    float2(1, 1), float2(-1,-1), float2(-1, 1), float2(1, -1)
+static const int2 BOX_OFFS1[S_BOX_OFFS1] = {
+    int2(0, 0),
+    int2(1, 0), int2( 0, 1), int2(-1, 0), int2(0, -1),
+    int2(1, 1), int2(-1,-1), int2(-1, 1), int2(1, -1)
 };
 static const uint S_BOX_OFFS2 = 25;
-static const float2 BOX_OFFS2[S_BOX_OFFS2] = {
-    float2(0, 0),
-    float2(1, 0), float2( 0,  1), float2(-1,  0), float2( 0, -1),
-    float2(1, 1), float2(-1, -1), float2(-1,  1), float2( 1, -1),
-    float2(2, 0), float2( 0,  2), float2(-2,  0), float2( 0, -2),
-    float2(2, 1), float2( 2, -1), float2(-2,  1), float2(-2, -1),
-    float2(1, 2), float2(-1,  2), float2( 1, -2), float2(-1, -2),
-    float2(2, 2), float2(-2, -2), float2(-2,  2), float2( 2, -2)
+static const int2 BOX_OFFS2[S_BOX_OFFS2] = {
+    int2(0, 0),
+    int2(1, 0), int2( 0,  1), int2(-1,  0), int2( 0, -1),
+    int2(1, 1), int2(-1, -1), int2(-1,  1), int2( 1, -1),
+    int2(2, 0), int2( 0,  2), int2(-2,  0), int2( 0, -2),
+    int2(2, 1), int2( 2, -1), int2(-2,  1), int2(-2, -1),
+    int2(1, 2), int2(-1,  2), int2( 1, -2), int2(-1, -2),
+    int2(2, 2), int2(-2, -2), int2(-2,  2), int2( 2, -2)
 };
 
 // Check out a bunch of possible substitutions on:
@@ -288,6 +288,8 @@ uniform float timer < source = "timer"; >;
 #define TEX_RG8 Format = RG8;
 #define TEX_R16 Format = R16F;
 #define TEX_R32 Format = R32F;
+#define TEX_R32I Format = R32I;
+#define TEX_R32U Format = R32U;
 #define TEX_RG16 Format = RG16F;
 #define TEX_RG32 Format = RG32F;
 
@@ -299,6 +301,11 @@ uniform float timer < source = "timer"; >;
 
 struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
 struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
+struct PSOUT3 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
+struct PSOUT4 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
+struct PSOUT2I { int t0 : SV_Target0, t1 : SV_Target1; };
+struct PSOUT3I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
+struct PSOUT4I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
 struct CSIN {
     uint3 id : SV_DispatchThreadID; // range [0 .. groups * threads).xyz
     uint3 gid : SV_GroupID;         // range [0 .. groups).xyz
@@ -338,6 +345,7 @@ void PostProcessVS(in uint id : SV_VertexID, out float4 position : SV_Position, 
 }
 
 // to be used instead of tex2D and tex2Dlod
+uint Sample(sampler2D<uint> samp, float2 uv)               { return tex2Dlod(samp, float4(uv, 0, 0)).x; }
 float4 Sample(sampler samp, float2 uv)                     { return tex2Dlod(samp, float4(uv, 0, 0)); }
 float4 Sample(sampler samp, float2 uv, int mip)            { return tex2Dlod(samp, float4(uv, 0, mip)); }
 float4 Sample(sampler samp, float2 uv, int2 offs)          { return tex2Dlod(samp, float4(uv, 0, 0), offs); }
@@ -603,9 +611,10 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 
 // interleaved gradiant noise from:
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
-float GetIGN(float2 pos, uint seed)
+float GetIGN(float2 pos, uint mod)
 {
-    float idx = 5.588238 * float(min(seed, 63));
+    uint seed = mod == 0 ? 0 : uint(timer) % min(mod, 63);
+    float idx = 5.588238 * float(seed);
 
     return frac(52.9829189 * frac(dot(pos + idx, float2(0.06711056, 0.00583715))));
 }
@@ -636,8 +645,10 @@ float Halton1(uint i, uint b)
     return r;
 }
 
-float2 Halton2(uint seed)
+float2 Halton2(uint mod)
 {
+    uint seed = mod == 0 ? 0 : uint(timer) % mod;
+
     return float2(Halton1(seed, 2), Halton1(seed, 3));
 }
 

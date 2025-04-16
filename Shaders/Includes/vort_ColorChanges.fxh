@@ -398,7 +398,7 @@ void PS_End(PS_ARGS3)
 #endif
 
     // dither
-    c += (GetR3(GetBlueNoise(i.vpos.xy).rgb, frame_count % 16) - 0.5) * 0.001;
+    c += (GetR3(GetBlueNoise(i.vpos.xy).rgb, uint(timer) % 16) - 0.5) * 0.001;
 
     o = ApplyGammaCurve(c);
 }
