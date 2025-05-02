@@ -115,7 +115,7 @@ float3 ApplySharpen(float3 c, float2 uv)
         edges += Filters::WEIGHTS_DK[j] * abs(tap_color - c);
     }
 
-    float sharp_amount = 1.0 - saturate(1.0 - 1e-4 * RCP(dot(edges, edges)));
+    float sharp_amount = 1.0 - saturate(1.0 - 1e-4 * rcp(max(1e-8, dot(edges, edges))));
     float3 sharp = GET_LUMA(c - blurred) * sharp_amount * UI_CC_SharpenStrength * (1.0 - GetDepth(uv));
 
     return UI_CC_ShowSharpening ? sharp : c + sharp;
@@ -391,14 +391,15 @@ void PS_End(PS_ARGS3)
     c = clamp(c, range.x, range.y);
 #endif
 
+    // dither
+    c += (GetR3(GetBlueNoise(i.vpos.xy).rgb, 16) - 0.5) * 0.001;
+    c = clamp(c, range.x, range.y);
+
 #if V_USE_ACES
     c = ACES::ApplyACESFull(c);
 #elif IS_SRGB
     c = Tonemap::ApplyReinhardMax(c, UI_Tonemap_Mod);
 #endif
-
-    // dither
-    c += (GetR3(GetBlueNoise(i.vpos.xy).rgb, uint(timer) % 16) - 0.5) * 0.001;
 
     o = ApplyGammaCurve(c);
 }

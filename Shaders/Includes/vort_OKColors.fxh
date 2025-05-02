@@ -167,7 +167,7 @@ namespace OKColors
         float S_cusp = ComputeMaxSaturation(a, b);
 
         float3 rgb_at_max = OKLABToRGB(float3(1, S_cusp * a, S_cusp * b));
-        float L_cusp = POW(RCP(Max3(rgb_at_max)), A_THIRD);
+        float L_cusp = POW(rcp(max(1e-15, Max3(rgb_at_max))), A_THIRD);
 
         return float2(L_cusp, L_cusp * S_cusp);
     }
@@ -293,14 +293,14 @@ namespace OKColors
         C_a = L * ST_mid.x;
         C_b = (1.0 - L) * ST_mid.y;
 
-        float C_mid = 0.9 * k * sqrt(RSQRT(RCP(C_a * C_a * C_a * C_a) + RCP(C_b * C_b * C_b * C_b)));
+        float C_mid = 0.9 * k * sqrt(rsqrt(rcp(C_a * C_a * C_a * C_a + 1e-15) + rcp(C_b * C_b * C_b * C_b + 1e-15)));
 
         // for C_0, the shape is independent of hue, so ST are constant. Values picked to roughly be the average values of ST.
         C_a = L * 0.4;
         C_b = (1.0 - L) * 0.8;
 
         // Use a soft minimum function, instead of a sharp triangle shape to get a smooth value for chroma.
-        float C_0 = RSQRT(RCP(C_a * C_a) + RCP(C_b * C_b));
+        float C_0 = rsqrt(rcp(C_a * C_a + 1e-15) + rcp(C_b * C_b + 1e-15));
 
         return float3(C_0, C_mid, C_max);
     }
@@ -418,7 +418,7 @@ namespace OKColors
         L = L_new;
 
         float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
-        float scale_L = POW(RCP(max(0.0, Max3(rgb_scale))), A_THIRD);
+        float scale_L = POW(rcp(max(1e-15, Max3(rgb_scale))), A_THIRD);
 
         L = L * scale_L;
         C = C * scale_L;
@@ -453,7 +453,7 @@ namespace OKColors
 
         // we can then use these to invert the step that compensates for the toe and the curved top part of the triangle:
         float3 rgb_scale = OKLABToRGB(float3(L_vt, a_pre * C_vt, b_pre * C_vt));
-        float scale_L = POW(RCP(max(0.0, Max3(rgb_scale))), A_THIRD);
+        float scale_L = POW(rcp(max(1e-15, Max3(rgb_scale))), A_THIRD);
 
         L = L / scale_L;
         C = C / scale_L;

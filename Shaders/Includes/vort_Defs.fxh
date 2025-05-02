@@ -74,10 +74,8 @@ static const int2 BOX_OFFS2[S_BOX_OFFS2] = {
 
 // safer versions of built-in functions
 // https://www.hillelwayne.com/post/divide-by-zero/
-#define RCP(_x) ((_x) == 0.0 ? 0.0 : rcp(_x))
-#define RSQRT(_x) ((_x) == 0.0 ? 0.0 : rsqrt(_x))
 #define POW(_b, _e) (pow(max(0.0, (_b)), (_e))) // doesn't handle both inputs being 0
-#define NORM(_x) ((_x) * RSQRT(dot((_x), (_x))))
+#define NORM(_x) ((_x) * rsqrt(max(1e-15, dot((_x), (_x)))))
 #define LOG(_x) (log(max(1e-15, (_x))))
 #define LOG2(_x) (log2(max(1e-15, (_x))))
 #define LOG10(_x) (log10(max(1e-15, (_x))))
@@ -303,6 +301,8 @@ struct VSOUT { float4 vpos : SV_POSITION; float2 uv : TEXCOORD0; };
 struct PSOUT2 { float4 t0 : SV_Target0, t1 : SV_Target1; };
 struct PSOUT3 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
 struct PSOUT4 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
+struct PSOUT5 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3, t4 : SV_Target4; };
+struct PSOUT6 { float4 t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3, t4 : SV_Target4, t5 : SV_Target5; };
 struct PSOUT2I { int t0 : SV_Target0, t1 : SV_Target1; };
 struct PSOUT3I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2; };
 struct PSOUT4I { int t0 : SV_Target0, t1 : SV_Target1, t2 : SV_Target2, t3 : SV_Target3; };
@@ -372,7 +372,7 @@ float3 PQToLin(float3 c)
     static const float c3 = 18.6875;
 
     c = POW(c, 32.0 / 2523.0);
-    c = max(0.0, c - c1) * RCP(c2 - c3 * c);
+    c = max(0.0, c - c1) * rcp(c2 - c3 * c);
 
     return POW(c, 8192.0 / 1305.0);
 }
@@ -384,7 +384,7 @@ float3 LinToPQ(float3 c)
     static const float c3 = 18.6875;
 
     c = POW(c, 1305.0 / 8192.0);
-    c = (c1 + c2 * c) * RCP(1.0 + c3 * c);
+    c = (c1 + c2 * c) * rcp(1.0 + c3 * c);
 
     return POW(c, 2523.0 / 32.0);
 }
@@ -496,7 +496,7 @@ float3 RGBToHSV(float3 c)
     float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
     float d = q.x - min(q.w, q.y);
 
-    return float3(abs(q.z + (q.w - q.y) * RCP(6.0 * d)), d * RCP(q.x), q.x);
+    return float3(abs(q.z + (q.w - q.y) * rcp(6.0 * d + 1e-8)), d * rcp(q.x + 1e-8), q.x);
 }
 
 float3 HSVToRGB(float3 c)
@@ -613,21 +613,13 @@ float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
 float GetIGN(float2 pos, uint mod)
 {
-    uint seed = mod == 0 ? 0 : uint(timer) % min(mod, 63);
+    uint seed = 0;
+
+    if(mod > 0) seed = frame_count % min(mod, 63);
+
     float idx = 5.588238 * float(seed);
 
     return frac(52.9829189 * frac(dot(pos + idx, float2(0.06711056, 0.00583715))));
-}
-
-float3 GetWhiteNoise(float2 vpos)
-{
-    float seed = timer * 0.001;
-    float n = frac(tan(length(vpos) * seed) * vpos.x);
-
-    // tan can produce NaNs at certain inputs
-    n = isnan(n) ? 0.0 : n;
-
-    return float3(n, frac(n + 0.1), frac(n + 0.3));
 }
 
 float Halton1(uint i, uint b)
@@ -647,16 +639,18 @@ float Halton1(uint i, uint b)
 
 float2 Halton2(uint mod)
 {
-    uint seed = mod == 0 ? 0 : uint(timer) % mod;
+    uint seed = 0;
+
+    if(mod > 0) seed = frame_count % mod;
 
     return float2(Halton1(seed, 2), Halton1(seed, 3));
 }
 
 // quasirandom showcased in https://www.shadertoy.com/view/mts3zN
 // 0.38196601125 = 1 - (1 / PHI) = 2.0 - PHI
-float  GetR1(float seed,  float idx) { return frac(seed + float(idx) * 0.38196601125); }
-float2 GetR2(float2 seed, float idx) { return frac(seed + float(idx) * float2(0.245122333753, 0.430159709002)); }
-float3 GetR3(float3 seed, float idx) { return frac(seed + float(idx) * float3(0.180827486604, 0.328956393296, 0.450299522098)); }
+float  GetR1(float seed,  uint mod) { return frac(seed + float(frame_count % max(2, mod)) * 0.38196601125); }
+float2 GetR2(float2 seed, uint mod) { return frac(seed + float(frame_count % max(2, mod)) * float2(0.245122333753, 0.430159709002)); }
+float3 GetR3(float3 seed, uint mod) { return frac(seed + float(frame_count % max(2, mod)) * float3(0.180827486604, 0.328956393296, 0.450299522098)); }
 
 // bicubic sampling using fewer taps
 float4 SampleBicubic(sampler2D lin_samp, float2 uv)
@@ -728,14 +722,14 @@ float2 Rotate(float2 v, float4 rot)
     return float2(dot(v, rot.xy), dot(v, rot.zw));
 }
 
-// check beforehand if both vectors are not 0
+// check beforehand that both vector lengths are > 0
 float GetCosAngle(float2 v1, float2 v2)
 {
-    // var. 1: dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2))
-    // var. 2: dot(v1, v2) * RCP(length(v1) * length(v2))
+    // var. 1: dot(v1, v2) * rsqrt(dot(v1, v1) * dot(v2, v2))
+    // var. 2: dot(v1, v2) * rcp(length(v1) * length(v2))
     // var. 3: dot(NORM(v1), NORM(v2))
 
-    return dot(v1, v2) * RSQRT(dot(v1, v1) * dot(v2, v2));
+    return dot(v1, v2) * rsqrt(dot(v1, v1) * dot(v2, v2));
 }
 
 float ACOS(float cos_rads)

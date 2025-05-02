@@ -82,7 +82,7 @@ float2 GetCameraVelocity(float2 uv)
     float4x4 mat_clip_to_prev_clip = mul(matInvViewProj, matPrevViewProj);
     float4 prev_clip = mul(curr_clip, mat_clip_to_prev_clip);
 
-    float2 prev_screen = prev_clip.xy * RCP(prev_clip.w);
+    float2 prev_screen = prev_clip.xy * rcp(prev_clip.w);
     float2 v = curr_screen - prev_screen;
 
     // normalize

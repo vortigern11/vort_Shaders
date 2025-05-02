@@ -1053,9 +1053,9 @@ float3 ApplyACESFitted(float3 c)
     // Red is Hill's, Blue is color-science's curve https://www.desmos.com/calculator/to1kpt4pwc
 
     // Stephen Hill's curve
-    c = (c * (c + 0.0245786) - 0.000090537) * RCP(c * (0.983729 * c + 0.4329510) + 0.238081);
+    c = (c * (c + 0.0245786) - 0.000090537) * rcp(c * (0.983729 * c + 0.4329510) + 0.238081);
     // color-science curve
-    /* c = (c * (278.5085 * c + 10.7772)) * RCP(c * (293.6045 * c + 88.7122) + 80.6889); */
+    /* c = (c * (278.5085 * c + 10.7772)) * rcp(c * (293.6045 * c + 88.7122) + 80.6889); */
 
     static const float3x3 ODT_SAT_2_D60XYZ_2_D65XYZ_2_BT709 = float3x3(1.60475, -0.53108, -0.07367, -0.10208,  1.10813, -0.00605, -0.00327, -0.07276,  1.07602);
     c = mul(ODT_SAT_2_D60XYZ_2_D65XYZ_2_BT709, c);
@@ -1071,7 +1071,7 @@ float3 ApplyACESNarkowicz(float3 x)
     static const float d = 0.59;
     static const float e = 0.14;
 
-    return (x*(a*x+b)) * RCP(x*(c*x+d)+e);
+    return (x*(a*x+b)) * rcp(x*(c*x+d)+e);
 }
 
 float3 InverseACESNarkowicz(float3 x)
@@ -1082,7 +1082,7 @@ float3 InverseACESNarkowicz(float3 x)
     static const float d = 0.59;
     static const float e = 0.14;
 
-    return (sqrt(2.0*(2.0*a*e - b*d)*x + b*b - (4.0*c*e - d*d) * x*x) + d*x - b) * RCP(2.0*(a - c*x));
+    return (sqrt(2.0*(2.0*a*e - b*d)*x + b*b - (4.0*c*e - d*d) * x*x) + d*x - b) * rcp(2.0*(a - c*x));
 }
 
 } // namespace end

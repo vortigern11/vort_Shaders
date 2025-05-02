@@ -43,6 +43,10 @@
     #define V_ENABLE_MOT_BLUR 0
 #endif
 
+#ifndef V_MB_USE_MIN_FILTER
+    #define V_MB_USE_MIN_FILTER 0
+#endif
+
 #define USE_HQ_MB CAN_COMPUTE && V_ENABLE_MOT_BLUR != 1
 #define DEBUG_BLUR (V_ENABLE_MOT_BLUR == 9)
 #define DEBUG_TILES (V_ENABLE_MOT_BLUR == 8)
@@ -55,14 +59,8 @@
 #if V_ENABLE_MOT_BLUR
     #define CAT_MB "Motion Blur"
 
-    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 100, 13)
-    UI_TIP(CAT_MB, _vort_Blur_Help_, "WARNING: Read the tooltips if you want to change the below settings.")
-    UI_BOOL(
-        CAT_MB, UI_MB_UseMinFilter, "Use Depth Offset",
-        "Many games don't have correct depth on object outlines.\n"
-        "Enable if you notice with the background blurred, but static character,\n"
-        "that the blur is using pixels from the character.", false
-    )
+    UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 100, 9)
+    UI_TIP(CAT_MB, _vort_Blur_Help_, "Warning:\nRead the tooltips if you want to change the below settings.")
     UI_FLOAT(
         CAT_MB, UI_MB_Mult, "Blur Multiplier",
         "Set to 1.0 (default) to cover frame gaps exactly.\n"
@@ -74,11 +72,10 @@
         UI_FLOAT(
             CAT_MB, UI_MB_Thresh, "MV Threshold",
             "Modifies which motion vectors to discard.\n"
-            "Before changing this slider try setting\n"
-            "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 500, 5000 or 10000.\n"
-            "Only very distant pixels should be gray or white.\n"
+            "Before changing this slider try to set\n"
+            "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 10000 or other values.\n"
             "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
-            0, 1, 3e-4
+            0, 1e-2, 4e-4
         )
     #endif
 
@@ -91,6 +88,7 @@
         UI_FLOAT(CAT_MB, UI_MB_DebugZCen, "DB Depth Center", "", 0.0, 1.0, 0.0)
         UI_FLOAT(CAT_MB, UI_MB_DebugZRange, "DB Depth Range", "", 0.0, 1.0, 0.5)
         UI_BOOL(CAT_MB, UI_MB_DebugRev, "DB Reverse Background Blur", "", false)
+        UI_BOOL(CAT_MB, UI_MB_DebugPoint, "DB Point To Center", "", false)
     #endif
 #endif
 
@@ -111,6 +109,13 @@ _vort_MotionEffects_Help_,
 "7 - debug next motion\n"
 "8 - debug tiles\n"
 "9 - debug motion blur\n"
+"\n"
+"V_MB_USE_MIN_FILTER\n"
+"0 - disabled\n"
+"1 - enabled\n"
+"Many games don't have correct depth on object outlines.\n"
+"Enable if you notice with the background blurred, but static character,\n"
+"that the background blur is using pixels from the character.\n"
 "\n"
 "V_ENABLE_TAA\n"
 "0 - disabled\n"

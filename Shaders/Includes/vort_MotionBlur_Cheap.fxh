@@ -56,7 +56,7 @@ namespace MotBlur {
 // tonemap modifier
 #define T_MOD 1.5
 
-// max length of motion (2 * tile size)
+// max length of motion
 static const float ML = float(K * 2);
 
 /*******************************************************************************
@@ -100,8 +100,8 @@ float3 OutColor(float3 c)
 #if DEBUG_BLUR
 float2 GetDebugMotion(float2 uv)
 {
-    // % of max motion length
-    float2 motion = 2.0 * ML * (UI_MB_DebugLen * 0.01);
+    // % of max motion length (round for perfect pixel movement)
+    float2 motion = round(2.0 * ML * (UI_MB_DebugLen * 0.01));
 
     if(UI_MB_DebugZCen > 0.0)
     {
@@ -113,6 +113,10 @@ float2 GetDebugMotion(float2 uv)
 
         if(z < min_z) motion = 0;
         if(z > max_z) motion = UI_MB_DebugRev ? -motion : 0;
+    }
+    else if(UI_MB_DebugPoint)
+    {
+        motion = NORM(float2(0.5,0.5) - uv) * BUFFER_SCREEN_SIZE;
     }
 
     return motion * BUFFER_PIXEL_SIZE;
@@ -139,7 +143,7 @@ float3 LimitMotionAndLen(float2 motion)
     float old_mot_len = length(motion);
     float new_mot_len = min(old_mot_len * blur_mod, ML);
 
-    motion *= new_mot_len * RCP(old_mot_len);
+    motion *= new_mot_len * rcp(max(1e-15, old_mot_len));
 
     // ignore less than 1px movement
     float3 mot_and_len = old_mot_len < 1.0 ? 0.0 : float3(motion, new_mot_len);
@@ -159,7 +163,11 @@ float2 GetTileOffs(float2 pos)
     return tiles_uv_offs;
 }
 
-float4 CalcBlur(VSOUT i)
+/*******************************************************************************
+    Shaders
+*******************************************************************************/
+
+void PS_BlurAndDraw(PS_ARGS3)
 {
     float3 cen_color = InColor(i.uv);
     float2 max_motion = Sample(sNeighMaxTex, i.uv + GetTileOffs(i.vpos.xy)).xy;
@@ -176,11 +184,11 @@ float4 CalcBlur(VSOUT i)
     if(max_mot_len < cen_mot_len) { max_mot_len = cen_mot_len; max_motion = cen_motion; }
 
 #if DEBUG_TILES
-    if(1) { return float4(DebugMotion(max_motion * BUFFER_PIXEL_SIZE), 1); }
+    if(1) { o = DebugMotion(max_motion * BUFFER_PIXEL_SIZE); return; }
 #endif
 
     // early out when less than 2px movement
-    if(max_mot_len < 1.0) return float4(OutColor(cen_color), 1.0);
+    if(max_mot_len < 1.0) { o = OutColor(cen_color); return; }
 
     // don't change without solid reason
     uint half_samples = clamp(ceil(max_mot_len * 0.5), 3, max(3, UI_MB_MaxSamples));
@@ -188,19 +196,19 @@ float4 CalcBlur(VSOUT i)
     // odd amount of samples so max motion gets 1 more sample than center motion
     if(half_samples % 2 == 0) half_samples += 1;
 
-    float2 max_mot_norm = max_motion * RCP(max_mot_len);
-    float2 cen_mot_norm = cen_motion * RCP(cen_mot_len);
+    float2 max_norm_mot = max_motion * rcp(max(1e-15, max_mot_len));
+    float2 cen_norm_mot = cen_motion * rcp(max(1e-15, cen_mot_len));
 
     // xy = norm motion (direction), z = how parallel to center dir
-    float3 max_main = float3(max_mot_norm, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_mot_norm, max_mot_norm)));
+    float3 max_main = float3(max_norm_mot, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_norm_mot, max_norm_mot)));
 
     // don't lose half the samples when there is no center px motion
     // helps when an object is moving but the background isn't
-    float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_mot_norm, 1.0);
+    float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_norm_mot, 1.0);
 
-    // dither looks better than IGN
-    float2 tap_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1); // negated in second direction to remove visible gap
-    float2 z_scales = Z_FAR_PLANE * float2(1, -1); // touch only if you change depth_cmp
+    // negated in second direction to remove visible gap
+    float2 tap_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1);
+    float2 z_scales = 100.0 * float2(1, -1); // controls blending
     float inv_half_samples = rcp(float(half_samples));
     float steps_to_px = inv_half_samples * max_mot_len;
 
@@ -212,52 +220,52 @@ float4 CalcBlur(VSOUT i)
         // switch between max and center
         float3 m = j % 2 == 0 ? max_main : cen_main;
 
-        float2 step = float(j) + 0.5 + tap_noise;
-        float2 pn = m.xy * BUFFER_PIXEL_SIZE;
-        float2 tap_uv1 = i.uv - (step.x * steps_to_px) * pn;
-        float2 tap_uv2 = i.uv + (step.y * steps_to_px) * pn;
+        float2 st = float(j) + 0.5 + tap_noise;
+        float2 step_to_offs = steps_to_px * m.xy * BUFFER_PIXEL_SIZE;
+        float2 tap_uv0 = i.uv - st.x * step_to_offs;
+        float2 tap_uv1 = i.uv + st.y * step_to_offs;
 
         // x = motion px len, y = depth, zw = norm motion
+        float4 tap_info0 = Sample(sInfoTex, tap_uv0);
         float4 tap_info1 = Sample(sInfoTex, tap_uv1);
-        float4 tap_info2 = Sample(sInfoTex, tap_uv2);
 
+        float tap_mot_len0 = tap_info0.x;
         float tap_mot_len1 = tap_info1.x;
-        float tap_mot_len2 = tap_info2.x;
 
+        float tap_z0 = tap_info0.y;
         float tap_z1 = tap_info1.y;
-        float tap_z2 = tap_info2.y;
 
-        float2 tap_mot_norm1 = tap_info1.zw;
-        float2 tap_mot_norm2 = tap_info2.zw;
+        float2 tap_norm_mot0 = tap_info0.zw;
+        float2 tap_norm_mot1 = tap_info1.zw;
 
         // x = bg, y = fg
+        float2 depth_cmp0 = saturate(0.5 + z_scales * (tap_z0 - cen_z));
         float2 depth_cmp1 = saturate(0.5 + z_scales * (tap_z1 - cen_z));
-        float2 depth_cmp2 = saturate(0.5 + z_scales * (tap_z2 - cen_z));
 
         // the `max` is to remove potential artifacts
-        float2 spread_cmp1 = saturate(float2(cen_mot_len, tap_mot_len1) - max(0.0, step.x - 1.0) * steps_to_px);
-        float2 spread_cmp2 = saturate(float2(cen_mot_len, tap_mot_len2) - max(0.0, step.y - 1.0) * steps_to_px);
+        float2 spread_cmp0 = saturate(float2(cen_mot_len, tap_mot_len0) - max(0.0, st.x - 1.0) * steps_to_px);
+        float2 spread_cmp1 = saturate(float2(cen_mot_len, tap_mot_len1) - max(0.0, st.y - 1.0) * steps_to_px);
 
         // check for mismatch between motion directions
-        float2 dir_w1 = float2(m.z, abs(dot(tap_mot_norm1, m.xy)));
-        float2 dir_w2 = float2(m.z, abs(dot(tap_mot_norm2, m.xy)));
+        float2 dir_w0 = float2(m.z, abs(dot(tap_norm_mot0, m.xy)));
+        float2 dir_w1 = float2(m.z, abs(dot(tap_norm_mot1, m.xy)));
 
         // x = bg weight, y = fg weight
+        float2 tap_w0 = (depth_cmp0 * spread_cmp0) * dir_w0;
         float2 tap_w1 = (depth_cmp1 * spread_cmp1) * dir_w1;
-        float2 tap_w2 = (depth_cmp2 * spread_cmp2) * dir_w2;
 
+        float3 tap_color0 = InColor(tap_uv0);
         float3 tap_color1 = InColor(tap_uv1);
-        float3 tap_color2 = InColor(tap_uv2);
 
-        bool2 mir = bool2(tap_z1 > tap_z2, tap_mot_len2 > tap_mot_len1);
-        tap_w1 = all(mir) ? tap_w2 : tap_w1;
-        tap_w2 = any(mir) ? tap_w2 : tap_w1;
+        bool2 mir = bool2(tap_z0 > tap_z1, tap_mot_len1 > tap_mot_len0);
+        tap_w0 = all(mir) ? tap_w1 : tap_w0;
+        tap_w1 = any(mir) ? tap_w1 : tap_w0;
+
+        bg_acc += float4(tap_color0, 1.0) * tap_w0.x;
+        fg_acc += float4(tap_color0, 1.0) * tap_w0.y;
 
         bg_acc += float4(tap_color1, 1.0) * tap_w1.x;
         fg_acc += float4(tap_color1, 1.0) * tap_w1.y;
-
-        bg_acc += float4(tap_color2, 1.0) * tap_w2.x;
-        fg_acc += float4(tap_color2, 1.0) * tap_w2.y;
     }
 
     // don't sum total weight, use total samples to prevent artifacts
@@ -270,17 +278,17 @@ float4 CalcBlur(VSOUT i)
     bg_acc += float4(cen_color, 1.0) * cen_weight;
     total_samples += 1.0;
 
-    float3 fill_col = bg_acc.rgb * RCP(bg_acc.w);
-    float4 sum_acc = (bg_acc + fg_acc) * RCP(total_samples);
+    float3 fill_col = bg_acc.rgb * rcp(bg_acc.w);
+    float4 acc = (bg_acc + fg_acc) * rcp(total_samples);
 
     // fill the missing data with background + center color
     // instead of only center in order to prevent artifacts
-    float3 c = sum_acc.rgb + saturate(1.0 - sum_acc.w) * fill_col;
+    acc.rgb += saturate(1.0 - acc.w) * fill_col;
 
-    return float4(OutColor(c), 1.0);
+    o = OutColor(acc.rgb);
 }
 
-float2 CalcTileDownHor(VSOUT i)
+void PS_TileDownHor(PS_ARGS2)
 {
     float3 max_motion = 0;
 
@@ -293,10 +301,10 @@ float2 CalcTileDownHor(VSOUT i)
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
     }
 
-    return max_motion.xy;
+    o = max_motion.xy;
 }
 
-float2 CalcTileDownVert(VSOUT i)
+void PS_TileDownVert(PS_ARGS2)
 {
     float3 max_motion = 0;
 
@@ -309,10 +317,10 @@ float2 CalcTileDownVert(VSOUT i)
         if(sq_len > max_motion.z) max_motion = float3(motion, sq_len);
     }
 
-    return max_motion.xy;
+    o = max_motion.xy;
 }
 
-float2 CalcNeighbourMax(VSOUT i)
+void PS_NeighbourMax(PS_ARGS2)
 {
     float3 max_motion = 0;
 
@@ -340,40 +348,30 @@ float2 CalcNeighbourMax(VSOUT i)
         }
     }
 
-    return LimitMotionAndLen(max_motion.xy).xy;
+    o = LimitMotionAndLen(max_motion.xy).xy;
 }
-
-/*******************************************************************************
-    Shaders
-*******************************************************************************/
 
 void PS_Info(PS_ARGS4)
 {
-    float3 closest = float3(i.uv, GetDepth(i.uv));
+    float3 uv_and_z = float3(i.uv, GetDepth(i.uv));
 
-    if(UI_MB_UseMinFilter)
+#if V_MB_USE_MIN_FILTER
+    // apply min filter to remove some artifacts
+    [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
     {
-        // apply min filter to remove some artifacts
-        [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
-        {
-            float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-            float tap_z = GetDepth(tap_uv);
+        float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+        float tap_z = GetDepth(tap_uv);
 
-            if(tap_z < closest.z) closest = float3(tap_uv, tap_z);
-        }
+        if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);
     }
+#endif
 
-    float3 mot_and_len = LimitMotionAndLen(GetMotion(closest.xy));
-    float2 mot_norm = mot_and_len.xy * RCP(mot_and_len.z);
+    float3 mot_and_len = LimitMotionAndLen(GetMotion(uv_and_z.xy));
+    float2 norm_mot = mot_and_len.xy * rcp(max(1e-15, mot_and_len.z));
 
     // x = motion px len, y = depth, zw = norm motion
-    o = float4(mot_and_len.z, closest.z, mot_norm);
+    o = float4(mot_and_len.z, uv_and_z.z, norm_mot);
 }
-
-void PS_TileDownHor(PS_ARGS2)  { o = CalcTileDownHor(i);  }
-void PS_TileDownVert(PS_ARGS2) { o = CalcTileDownVert(i); }
-void PS_NeighbourMax(PS_ARGS2) { o = CalcNeighbourMax(i); }
-void PS_BlurAndDraw(PS_ARGS3)  { o = CalcBlur(i).rgb; }
 
 /*******************************************************************************
     Passes

@@ -122,13 +122,12 @@ float4 FilterMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
         float2 tap_uv = i.uv + Rotate(float2(x, y), rot) * scale;
         float4 tap_mot = Sample(mot_samp, tap_uv);
         float tap_mot_sq_len = dot(tap_mot.xy, tap_mot.xy);
-        float cos_angle = dot(cen_motion.xy, tap_mot.xy) * RSQRT(cen_mot_sq_len * tap_mot_sq_len);
+        float cos_angle = dot(cen_motion.xy, tap_mot.xy) * rsqrt(max(1e-15, cen_mot_sq_len * tap_mot_sq_len));
 
-        float wz = abs(cen_depth - tap_mot.w) * RCP(min(cen_depth, tap_mot.w)) * 20.0;
-        float wm = tap_mot_sq_len * (BUFFER_WIDTH * 0.25); // fixes large fast errors
-        float wd = saturate(0.5 * (0.5 + cos_angle)) * 2.0; // opposite gives better results
+        float wz = abs(cen_depth - tap_mot.w) * rcp(max(1e-15, min(cen_depth, tap_mot.w))) * 20.0;
+        float wd = saturate(cos_angle) * 2.0; // samples with diff dir than center are better
         float ws = tap_mot.z * 40.0; // sharpens small motion and more uniform big motion
-        float weight = max(1e-8, exp2(-(wz + wm + wd + ws))) * ValidateUV(tap_uv); // don't change the min value
+        float weight = max(1e-8, exp2(-(wz + wd + ws))) * ValidateUV(tap_uv); // don't change the min value
 
         motion_acc += float4(tap_mot.xyz, 1.0) * weight;
     }
@@ -277,14 +276,14 @@ void PS_CopyFeat6(PS_ARGS2) { o = Sample(sCurrFeatTex6, i.uv).xy; }
 void PS_CopyFeat7(PS_ARGS2) { o = Sample(sCurrFeatTex7, i.uv).xy; }
 
 // feature samplers are 1 mip higher for better quality
-void PS_Motion8(PS_ARGS4) { o =   CalcMotion(i, 8, sMotionTexB, sCurrFeatTex7, sPrevFeatTex7); }
-void PS_Motion7(PS_ARGS4) { o =   CalcMotion(i, 7, sMotionTexB, sCurrFeatTex6, sPrevFeatTex6); }
-void PS_Motion6(PS_ARGS4) { o =   CalcMotion(i, 6, sMotionTexB, sCurrFeatTex5, sPrevFeatTex5); }
-void PS_Motion5(PS_ARGS4) { o =   CalcMotion(i, 5, sMotionTexB, sCurrFeatTex4, sPrevFeatTex4); }
-void PS_Motion4(PS_ARGS4) { o =   CalcMotion(i, 4, sMotionTexB, sCurrFeatTex3, sPrevFeatTex3); }
-void PS_Motion3(PS_ARGS4) { o =   CalcMotion(i, 3, sMotionTexB, sCurrFeatTex2, sPrevFeatTex2); }
-void PS_Motion2(PS_ARGS4) { o =   CalcMotion(i, 2, sMotionTexB, sCurrFeatTex1, sPrevFeatTex1); }
-void PS_Motion1(PS_ARGS4) { o =   CalcMotion(i, 1, sMotionTex2, sCurrFeatTex1, sPrevFeatTex1); }
+void PS_Motion8(PS_ARGS4) { o = CalcMotion(i, 8, sMotionTexB, sCurrFeatTex7, sPrevFeatTex7); }
+void PS_Motion7(PS_ARGS4) { o = CalcMotion(i, 7, sMotionTexB, sCurrFeatTex6, sPrevFeatTex6); }
+void PS_Motion6(PS_ARGS4) { o = CalcMotion(i, 6, sMotionTexB, sCurrFeatTex5, sPrevFeatTex5); }
+void PS_Motion5(PS_ARGS4) { o = CalcMotion(i, 5, sMotionTexB, sCurrFeatTex4, sPrevFeatTex4); }
+void PS_Motion4(PS_ARGS4) { o = CalcMotion(i, 4, sMotionTexB, sCurrFeatTex3, sPrevFeatTex3); }
+void PS_Motion3(PS_ARGS4) { o = CalcMotion(i, 3, sMotionTexB, sCurrFeatTex2, sPrevFeatTex2); }
+void PS_Motion2(PS_ARGS4) { o = CalcMotion(i, 2, sMotionTexB, sCurrFeatTex1, sPrevFeatTex1); }
+void PS_Motion1(PS_ARGS4) { o = CalcMotion(i, 1, sMotionTex2, sCurrFeatTex1, sPrevFeatTex1); }
 
 // slight quality increase for nearly no perf cost
 void PS_Filter7(PS_ARGS4) { o = FilterMotion(i, 7, sMotionTexA, sCurrFeatTex6); }
