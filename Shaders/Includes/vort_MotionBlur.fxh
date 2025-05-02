@@ -69,10 +69,10 @@ static const float ML = float(K * 2);
 texture2D TileFstTex  { Width = TILE_WIDTH; Height = BUFFER_HEIGHT; TEX_RG16 };
 texture2D TileSndTex  { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
 texture2D NeighMaxTex { Width = TILE_WIDTH; Height = TILE_HEIGHT; TEX_RG16 };
-texture2D PrevMVTex   { TEX_SIZE(0) TEX_RGBA16 };
-texture2D NextMVTex   { TEX_SIZE(0) TEX_RGBA16 };
-texture2D PrevInfoTex { TEX_SIZE(0) TEX_RGBA16 };
-texture2D NextInfoTex { TEX_SIZE(0) TEX_RGBA16 };
+texture2D PrevMVTex   { TEX_SIZE(0) TEX_RG16 };
+texture2D NextMVTex   { TEX_SIZE(0) TEX_RG16 };
+texture2D PrevMaxTex  { TEX_SIZE(0) TEX_RG16 };
+texture2D NextMaxTex  { TEX_SIZE(0) TEX_RG16 };
 texture2D BlurTex     { TEX_SIZE(0) TEX_RGBA16 };
 texture2D PrevFeatTex { TEX_SIZE(0) TEX_RGBA16 };
 
@@ -81,12 +81,20 @@ sampler2D sTileSndTex  { Texture = TileSndTex; SAM_POINT };
 sampler2D sNeighMaxTex { Texture = NeighMaxTex; SAM_POINT };
 sampler2D sPrevMVTex   { Texture = PrevMVTex; SAM_POINT };
 sampler2D sNextMVTex   { Texture = NextMVTex; SAM_POINT };
-sampler2D sPrevInfoTex { Texture = PrevInfoTex; };
-sampler2D sNextInfoTex { Texture = NextInfoTex; };
+sampler2D sPrevMaxTex  { Texture = PrevMaxTex; SAM_POINT };
+sampler2D sNextMaxTex  { Texture = NextMaxTex; SAM_POINT };
 sampler2D sBlurTex     { Texture = BlurTex; SAM_POINT };
 sampler2D sPrevFeatTex { Texture = PrevFeatTex; };
 
 storage2D stNextMVTex { Texture = NextMVTex; };
+storage2D stNextMaxTex { Texture = NextMaxTex; };
+
+#if V_MB_USE_MIN_FILTER
+    texture2D PrevInfoTex { TEX_SIZE(0) TEX_RGBA16 };
+    texture2D NextInfoTex { TEX_SIZE(0) TEX_RGBA16 };
+    sampler2D sPrevInfoTex { Texture = PrevInfoTex; };
+    sampler2D sNextInfoTex { Texture = NextInfoTex; };
+#endif
 
 /*******************************************************************************
     Functions
@@ -192,6 +200,16 @@ float2 GetTileOffs(float2 pos)
     return tiles_uv_offs;
 }
 
+float4 CalcInfo(float2 uv, sampler mot_samp)
+{
+    float2 motion = Sample(mot_samp, uv).xy; // already limited
+    float mot_len = length(motion);
+    float2 norm_mot = motion * rcp(max(1e-15, mot_len));
+    float depth = Sample(sPrevFeatTex, uv).a;
+
+    return float4(mot_len, depth, norm_mot);
+}
+
 /*******************************************************************************
     Shaders
 *******************************************************************************/
@@ -204,15 +222,21 @@ void PS_Blur(PS_ARGS4)
     // motion vectors are already scaled and in correct units and direction
 
     float3 cen_color = InColor(i.uv);
-    float2 max_motion0 = Sample(sPrevMVTex, i.uv).zw;
-    float2 max_motion1 = Sample(sNextMVTex, i.uv).zw;
+    float2 max_motion0 = Sample(sPrevMaxTex, i.uv).xy;
+    float2 max_motion1 = Sample(sNextMaxTex, i.uv).xy;
     float max_mot_len0 = length(max_motion0);
     float max_mot_len1 = length(max_motion1);
 
     // must use the same uv here as the samples in the loop
     // x = motion px len, y = depth, zw = normalized motion
+#if V_MB_USE_MIN_FILTER
     float4 cen_info0 = Sample(sPrevInfoTex, i.uv);
     float4 cen_info1 = Sample(sNextInfoTex, i.uv);
+#else
+    float4 cen_info0 = CalcInfo(i.uv, sPrevMVTex);
+    float4 cen_info1 = CalcInfo(i.uv, sNextMVTex);
+#endif
+
     float cen_mot_len0 = cen_info0.x;
     float cen_mot_len1 = cen_info1.x;
     float cen_z = cen_info0.y; // doesn't matter prev or next
@@ -246,21 +270,21 @@ void PS_Blur(PS_ARGS4)
     float2 max_norm_mot1 = max_motion1 * rcp(max(1e-15, max_mot_len1));
     float2 cen_norm_mot1 = cen_motion1 * rcp(max(1e-15, cen_mot_len1));
 
-    // xy = norm motion (direction), z = how parallel to center dir
-    float3 max_main0 = float3(max_norm_mot0, cen_mot_len0 < 1.0 ? 1.0 : abs(dot(cen_norm_mot0, max_norm_mot0)));
-    float3 max_main1 = float3(max_norm_mot1, cen_mot_len1 < 1.0 ? 1.0 : abs(dot(cen_norm_mot1, max_norm_mot1)));
+    // xy = norm motion (direction), w = motion length, z = how parallel to center dir
+    float4 max_main0 = float4(max_norm_mot0, max_mot_len0, cen_mot_len0 < 1.0 ? 1.0 : abs(dot(cen_norm_mot0, max_norm_mot0)));
+    float4 max_main1 = float4(max_norm_mot1, max_mot_len1, cen_mot_len1 < 1.0 ? 1.0 : abs(dot(cen_norm_mot1, max_norm_mot1)));
 
     // don't lose half the samples when there is no center px motion
     // helps when an object is moving but the background isn't
-    float3 cen_main0 = cen_mot_len0 < 1.0 ? max_main0 : float3(cen_norm_mot0, 1.0);
-    float3 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float3(cen_norm_mot1, 1.0);
+    float4 cen_main0 = cen_mot_len0 < 1.0 ? max_main0 : float4(cen_norm_mot0, cen_mot_len0, 1.0);
+    float4 cen_main1 = cen_mot_len1 < 1.0 ? max_main1 : float4(cen_norm_mot1, cen_mot_len1, 1.0);
 
     // negated in second direction to remove visible gap
-    float2 tap_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1);
+    float2 tap_noise = (GetIGN(i.vpos.xy, 63) - 0.5) * float2(1, -1);
     float2 z_scales = 100.0 * float2(1, -1); // controls blending
     float inv_half_samples = rcp(float(half_samples));
-    float steps_to_px0 = inv_half_samples * max_mot_len0;
-    float steps_to_px1 = inv_half_samples * max_mot_len1;
+    float px_to_step0 = rcp(inv_half_samples * max_mot_len0);
+    float px_to_step1 = rcp(inv_half_samples * max_mot_len1);
 
     float4 bg_acc = 0;
     float4 fg_acc = 0;
@@ -269,18 +293,23 @@ void PS_Blur(PS_ARGS4)
     {
         // switch between max and center
         bool use_max = j % 2 == 0;
-        float3 m0 = use_max ? max_main0 : cen_main0;
-        float3 m1 = use_max ? max_main1 : cen_main1;
+        float4 m0 = use_max ? max_main0 : cen_main0;
+        float4 m1 = use_max ? max_main1 : cen_main1;
 
         float2 st = float(j) + 0.5 + tap_noise;
-        float2 motion0 = m0.xy * BUFFER_PIXEL_SIZE;
-        float2 motion1 = m1.xy * BUFFER_PIXEL_SIZE;
-        float2 tap_uv0 = i.uv - (st.x * steps_to_px0) * motion0;
-        float2 tap_uv1 = i.uv - (st.y * steps_to_px1) * motion1;
+        float2 motion0 = m0.xy * m0.zz * BUFFER_PIXEL_SIZE;
+        float2 motion1 = m1.xy * m1.zz * BUFFER_PIXEL_SIZE;
+        float2 tap_uv0 = i.uv - (st.x * inv_half_samples) * motion0;
+        float2 tap_uv1 = i.uv - (st.y * inv_half_samples) * motion1;
 
         // x = motion px len, y = depth, zw = norm motion
+    #if V_MB_USE_MIN_FILTER
         float4 tap_info0 = Sample(sPrevInfoTex, tap_uv0);
         float4 tap_info1 = Sample(sNextInfoTex, tap_uv1);
+    #else
+        float4 tap_info0 = CalcInfo(tap_uv0, sPrevMVTex);
+        float4 tap_info1 = CalcInfo(tap_uv1, sNextMVTex);
+    #endif
 
         float tap_mot_len0 = tap_info0.x;
         float tap_mot_len1 = tap_info1.x;
@@ -295,13 +324,12 @@ void PS_Blur(PS_ARGS4)
         float2 depth_cmp0 = saturate(0.5 + z_scales * (tap_z0 - cen_z));
         float2 depth_cmp1 = saturate(0.5 + z_scales * (tap_z1 - cen_z));
 
-        // the `max` is to remove potential artifacts
-        float2 spread_cmp0 = saturate(float2(cen_mot_len0, tap_mot_len0) - max(0.0, st.x - 1.0) * steps_to_px0);
-        float2 spread_cmp1 = saturate(float2(cen_mot_len1, tap_mot_len1) - max(0.0, st.y - 1.0) * steps_to_px1);
+        float2 spread_cmp0 = saturate(float2(cen_mot_len0, tap_mot_len0) * px_to_step0 - max(0.0, st.x - 1.0));
+        float2 spread_cmp1 = saturate(float2(cen_mot_len1, tap_mot_len1) * px_to_step1 - max(0.0, st.y - 1.0));
 
         // check for mismatch between motion directions
-        float2 dir_w0 = float2(m0.z, abs(dot(tap_norm_mot0, m0.xy)));
-        float2 dir_w1 = float2(m1.z, abs(dot(tap_norm_mot1, m1.xy)));
+        float2 dir_w0 = float2(m0.w, abs(dot(tap_norm_mot0, m0.xy)));
+        float2 dir_w1 = float2(m1.w, abs(dot(tap_norm_mot1, m1.xy)));
 
         // x = bg weight, y = fg weight
         float2 tap_w0 = (depth_cmp0 * spread_cmp0) * dir_w0;
@@ -386,7 +414,7 @@ void PS_NeighbourMax(PS_ARGS2)
 
         if(sq_len > max_motion.z)
         {
-            bool is_diag = (offs.x * offs.y) != 0;
+            bool is_diag = abs(offs.x * offs.y) > 0.0;
             bool should_contrib = true;
 
             if(is_diag)
@@ -416,32 +444,27 @@ void PS_PrevFeat(PS_ARGS4)
     o = float4(c, GetDepth(i.uv));
 }
 
-void PS_PrevMV(VSOUT i, out PSOUT2 o)
+void PS_PrevMV(VSOUT i, out PSOUT4 o)
 {
-    float2 prev_cen_mot = LimitMotionAndLen(GetMotion(i.uv)).xy;
-    float2 prev_max_mot = Sample(sNeighMaxTex, i.uv + GetTileOffs(i.vpos.xy)).xy;
-
     // store prev motion and max motion in px and correct direction
-    o.t0 = float4(prev_cen_mot, prev_max_mot);
+    o.t0 = LimitMotionAndLen(GetMotion(i.uv)).xy;
+    o.t1 = Sample(sNeighMaxTex, i.uv + GetTileOffs(i.vpos.xy)).xy;
 
     // reset next_mv to -prev_mv not 0
     // because it's better to have wrong motion than no motion
     // massive help with disocclusions due to vectors being estimated
     // if in-game velocity is used (both static and dynamic objects)
     // then this can safely be changed to 0
-    o.t1 = -o.t0;
+    o.t2 = -o.t0;
+    o.t3 = -o.t1;
 }
 
 void CS_NextMV(CS_ARGS)
 {
     float2 pos = i.id.xy + 0.5;
     float2 uv = pos * BUFFER_PIXEL_SIZE;
-    float4 next_mv; // xy = center, zw = max
-
-    next_mv.xy = GetMotion(uv);
-    next_mv.zw = Sample(sNeighMaxTex, uv + GetTileOffs(pos)).xy;
-
-    float2 prev_uv = uv + (next_mv.xy * BUFFER_PIXEL_SIZE);
+    float2 next_mv = GetMotion(uv);
+    float2 prev_uv = uv + (next_mv * BUFFER_PIXEL_SIZE);
 
 #if DEBUG_BLUR
     if(!UI_MB_DebugUseRepeat) prev_uv = uv;
@@ -465,14 +488,13 @@ void CS_NextMV(CS_ARGS)
 
     if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
     {
-        next_mv.xy = LimitMotionAndLen(next_mv.xy).xy;
-        next_mv = -next_mv;
-
         // that `round` is mandatory, so much debugging....
         uint2 new_id = round(prev_uv * BUFFER_SCREEN_SIZE - 0.5);
+        float2 next_max = Sample(sNeighMaxTex, uv + GetTileOffs(pos)).xy;
 
         // store next motion and max motion in px and correct direction
-        tex2Dstore(stNextMVTex, new_id, next_mv);
+        tex2Dstore(stNextMVTex, new_id, float4(-LimitMotionAndLen(next_mv).xy,1,1));
+        tex2Dstore(stNextMaxTex, new_id, float4(-next_max,1,1));
     }
 }
 
@@ -493,11 +515,11 @@ void PS_WriteNewFrame(PS_ARGS3)
 }
 #endif
 
+#if V_MB_USE_MIN_FILTER
 void PS_Info(VSOUT i, out PSOUT2 o)
 {
     float3 uv_and_z = float3(i.uv, Sample(sPrevFeatTex, i.uv).a);
 
-#if V_MB_USE_MIN_FILTER
     // apply min filter to remove some artifacts
     [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
     {
@@ -506,21 +528,11 @@ void PS_Info(VSOUT i, out PSOUT2 o)
 
         if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);
     }
-#endif
 
-    float2 prev_motion = Sample(sPrevMVTex, uv_and_z.xy).xy;
-    float2 next_motion = Sample(sNextMVTex, uv_and_z.xy).xy;
-
-    float prev_mot_len = length(prev_motion);
-    float next_mot_len = length(next_motion);
-
-    float2 prev_norm_mot = prev_motion * rcp(max(1e-15, prev_mot_len));
-    float2 next_norm_mot = next_motion * rcp(max(1e-15, next_mot_len));
-
-    // x = motion px len, y = depth, zw = norm motion
-    o.t0 = float4(prev_mot_len, uv_and_z.z, prev_norm_mot);
-    o.t1 = float4(next_mot_len, uv_and_z.z, next_norm_mot);
+    o.t0 = CalcInfo(uv_and_z.xy, sPrevMVTex);
+    o.t1 = CalcInfo(uv_and_z.xy, sNextMVTex);
 }
+#endif
 
 void PS_Draw(PS_ARGS3) { o = Sample(sBlurTex, i.uv).rgb; }
 
@@ -534,16 +546,23 @@ void PS_Draw(PS_ARGS3) { o = Sample(sBlurTex, i.uv).rgb; }
     #define PASS_MB_DEBUG
 #endif
 
+#if V_MB_USE_MIN_FILTER
+    #define PASS_MB_INFO \
+        pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Info; RenderTarget0 = MotBlur::PrevInfoTex; RenderTarget1 = MotBlur::NextInfoTex; }
+#else
+    #define PASS_MB_INFO
+#endif
+
 #define PASS_MOT_BLUR \
     PASS_MB_DEBUG \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownHor; RenderTarget = MotBlur::TileFstTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_TileDownVert; RenderTarget = MotBlur::TileSndTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_NeighbourMax; RenderTarget = MotBlur::NeighMaxTex; } \
     pass { ComputeShader = MotBlur::CS_NextMV<GS_X, GS_Y>; DispatchSizeX = CEIL_DIV(BUFFER_WIDTH, GS_X); DispatchSizeY = CEIL_DIV(BUFFER_HEIGHT, GS_Y); } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Info; RenderTarget0 = MotBlur::PrevInfoTex; RenderTarget1 = MotBlur::NextInfoTex; } \
+    PASS_MB_INFO \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; RenderTarget = MotBlur::BlurTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevFeat; RenderTarget = MotBlur::PrevFeatTex; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevMV; RenderTarget0 = MotBlur::PrevMVTex; RenderTarget1 = MotBlur::NextMVTex; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevMV; RenderTarget0 = MotBlur::PrevMVTex; RenderTarget1 = MotBlur::PrevMaxTex; RenderTarget2 = MotBlur::NextMVTex; RenderTarget3 = MotBlur::NextMaxTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Draw; }
 
 } // namespace end

@@ -199,18 +199,18 @@ void PS_BlurAndDraw(PS_ARGS3)
     float2 max_norm_mot = max_motion * rcp(max(1e-15, max_mot_len));
     float2 cen_norm_mot = cen_motion * rcp(max(1e-15, cen_mot_len));
 
-    // xy = norm motion (direction), z = how parallel to center dir
-    float3 max_main = float3(max_norm_mot, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_norm_mot, max_norm_mot)));
+    // xy = norm motion (direction), w = motion length, z = how parallel to center dir
+    float4 max_main = float4(max_norm_mot, max_mot_len, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_norm_mot, max_norm_mot)));
 
     // don't lose half the samples when there is no center px motion
     // helps when an object is moving but the background isn't
-    float3 cen_main = cen_mot_len < 1.0 ? max_main : float3(cen_norm_mot, 1.0);
+    float4 cen_main = cen_mot_len < 1.0 ? max_main : float4(cen_norm_mot, cen_mot_len, 1.0);
 
     // negated in second direction to remove visible gap
-    float2 tap_noise = Dither(i.vpos.xy, 0.25) * float2(1, -1);
+    float2 tap_noise = (GetIGN(i.vpos.xy, 63) - 0.5) * float2(1, -1);
     float2 z_scales = 100.0 * float2(1, -1); // controls blending
     float inv_half_samples = rcp(float(half_samples));
-    float steps_to_px = inv_half_samples * max_mot_len;
+    float px_to_step = rcp(inv_half_samples * max_mot_len);
 
     float4 bg_acc = 0;
     float4 fg_acc = 0;
@@ -218,10 +218,10 @@ void PS_BlurAndDraw(PS_ARGS3)
     [loop]for(uint j = 0; j < half_samples; j++)
     {
         // switch between max and center
-        float3 m = j % 2 == 0 ? max_main : cen_main;
+        float4 m = j % 2 == 0 ? max_main : cen_main;
 
         float2 st = float(j) + 0.5 + tap_noise;
-        float2 step_to_offs = steps_to_px * m.xy * BUFFER_PIXEL_SIZE;
+        float2 step_to_offs = inv_half_samples * (m.xy * m.zz) * BUFFER_PIXEL_SIZE;
         float2 tap_uv0 = i.uv - st.x * step_to_offs;
         float2 tap_uv1 = i.uv + st.y * step_to_offs;
 
@@ -242,13 +242,12 @@ void PS_BlurAndDraw(PS_ARGS3)
         float2 depth_cmp0 = saturate(0.5 + z_scales * (tap_z0 - cen_z));
         float2 depth_cmp1 = saturate(0.5 + z_scales * (tap_z1 - cen_z));
 
-        // the `max` is to remove potential artifacts
-        float2 spread_cmp0 = saturate(float2(cen_mot_len, tap_mot_len0) - max(0.0, st.x - 1.0) * steps_to_px);
-        float2 spread_cmp1 = saturate(float2(cen_mot_len, tap_mot_len1) - max(0.0, st.y - 1.0) * steps_to_px);
+        float2 spread_cmp0 = saturate(float2(cen_mot_len, tap_mot_len0) * px_to_step - max(0.0, st.x - 1.0));
+        float2 spread_cmp1 = saturate(float2(cen_mot_len, tap_mot_len1) * px_to_step - max(0.0, st.y - 1.0));
 
         // check for mismatch between motion directions
-        float2 dir_w0 = float2(m.z, abs(dot(tap_norm_mot0, m.xy)));
-        float2 dir_w1 = float2(m.z, abs(dot(tap_norm_mot1, m.xy)));
+        float2 dir_w0 = float2(m.w, abs(dot(tap_norm_mot0, m.xy)));
+        float2 dir_w1 = float2(m.w, abs(dot(tap_norm_mot1, m.xy)));
 
         // x = bg weight, y = fg weight
         float2 tap_w0 = (depth_cmp0 * spread_cmp0) * dir_w0;
@@ -333,7 +332,7 @@ void PS_NeighbourMax(PS_ARGS2)
 
         if(sq_len > max_motion.z)
         {
-            bool is_diag = (offs.x * offs.y) != 0;
+            bool is_diag = abs(offs.x * offs.y) > 0.0;
             bool should_contrib = true;
 
             if(is_diag)
@@ -351,6 +350,8 @@ void PS_NeighbourMax(PS_ARGS2)
     o = LimitMotionAndLen(max_motion.xy).xy;
 }
 
+// better performance to always store in the texture
+// the HQ implementation is the other way around
 void PS_Info(PS_ARGS4)
 {
     float3 uv_and_z = float3(i.uv, GetDepth(i.uv));
