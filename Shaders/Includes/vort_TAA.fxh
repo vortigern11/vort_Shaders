@@ -114,7 +114,7 @@ void PS_Main(PS_ARGS3)
     if(is_first || !ValidateUV(prev_uv)) discard;
 
     float4 prev_info = SampleBicubic(sPrevColorTex, prev_uv);
-    float3 prev_c = RGBToYCoCg(ApplyLinCurve(prev_info.rgb));
+    float3 prev_c = RGBToYCoCg(prev_info.rgb);
 
     avg_c *= inv_samples;
     var_c *= inv_samples;
@@ -154,7 +154,7 @@ void PS_WriteMV(PS_ARGS2)
     o.xy = motion * (sq_len >= 1.0);
 }
 
-void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleGammaColor(i.uv + GetJitter().xy).rgb, 1.0); }
+void PS_WritePrevColor(PS_ARGS4) { o = float4(SampleLinColor(i.uv + GetJitter().xy).rgb, 1.0); }
 
 /*******************************************************************************
     Passes

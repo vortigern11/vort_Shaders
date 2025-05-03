@@ -125,9 +125,10 @@ float4 FilterMotion(VSOUT i, int mip, sampler mot_samp, sampler feat_samp)
         float cos_angle = dot(cen_motion.xy, tap_mot.xy) * rsqrt(max(1e-15, cen_mot_sq_len * tap_mot_sq_len));
 
         float wz = abs(cen_depth - tap_mot.w) * rcp(max(1e-15, min(cen_depth, tap_mot.w))) * 20.0;
+        float wm = tap_mot_sq_len * (BUFFER_WIDTH * 0.25); // fixes large fast errors
         float wd = saturate(cos_angle) * 2.0; // samples with diff dir than center are better
         float ws = tap_mot.z * 40.0; // sharpens small motion and more uniform big motion
-        float weight = max(1e-8, exp2(-(wz + wd + ws))) * ValidateUV(tap_uv); // don't change the min value
+        float weight = max(1e-8, exp2(-(wz + wm + wd + ws))) * ValidateUV(tap_uv); // don't change the min value
 
         motion_acc += float4(tap_mot.xyz, 1.0) * weight;
     }
