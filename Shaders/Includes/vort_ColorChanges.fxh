@@ -362,7 +362,7 @@ void PS_Start(PS_ARGS4) {
 #endif
 
 #if V_USE_ACES
-    c = InverseACESFull(c);
+    c = ACES::InverseACESFull(c);
 #elif IS_SRGB
     c = Tonemap::InverseReinhardMax(c, UI_Tonemap_Mod);
 #endif

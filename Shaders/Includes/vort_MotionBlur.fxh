@@ -46,6 +46,9 @@ namespace MotBlur {
 // Main difference in performance between this variant and the cheap one
 // comes from the compute shader which is used to write next motion vectors
 
+// Besides the perf improvement, prev color texture must be the exact
+// same format as the color texture otherwise the discarding logic breaks
+
 // scale the tile number (40px at 1080p)
 #define K (BUFFER_HEIGHT / 27)
 #define TILE_WIDTH  (BUFFER_WIDTH / K)
@@ -73,8 +76,9 @@ texture2D PrevMVTex   { TEX_SIZE(0) TEX_RG16 };
 texture2D NextMVTex   { TEX_SIZE(0) TEX_RG16 };
 texture2D PrevMaxTex  { TEX_SIZE(0) TEX_RG16 };
 texture2D NextMaxTex  { TEX_SIZE(0) TEX_RG16 };
-texture2D BlurTex     { TEX_SIZE(0) TEX_RGBA16 };
-texture2D PrevFeatTex { TEX_SIZE(0) TEX_RGBA16 };
+texture2D BlurTex     { TEX_SIZE(0) TEX_COLOR_FMT };
+texture2D PrevCTex    { TEX_SIZE(0) TEX_COLOR_FMT }; // must match backbuffer format
+texture2D PrevZTex    { TEX_SIZE(0) TEX_R16 };
 
 sampler2D sTileFstTex  { Texture = TileFstTex; SAM_POINT };
 sampler2D sTileSndTex  { Texture = TileSndTex; SAM_POINT };
@@ -84,7 +88,8 @@ sampler2D sNextMVTex   { Texture = NextMVTex; SAM_POINT };
 sampler2D sPrevMaxTex  { Texture = PrevMaxTex; SAM_POINT };
 sampler2D sNextMaxTex  { Texture = NextMaxTex; SAM_POINT };
 sampler2D sBlurTex     { Texture = BlurTex; SAM_POINT };
-sampler2D sPrevFeatTex { Texture = PrevFeatTex; };
+sampler2D sPrevCTex    { Texture = PrevCTex; };
+sampler2D sPrevZTex    { Texture = PrevZTex; };
 
 storage2D stNextMVTex { Texture = NextMVTex; };
 storage2D stNextMaxTex { Texture = NextMaxTex; };
@@ -102,7 +107,13 @@ storage2D stNextMaxTex { Texture = NextMaxTex; };
 
 float3 InColor(float2 uv)
 {
-    return Sample(sPrevFeatTex, uv).rgb;
+    float3 c = ApplyLinCurve(Sample(sPrevCTex, uv).rgb);
+
+#if IS_SRGB
+    c = Tonemap::InverseReinhardMax(c, T_MOD);
+#endif
+
+    return c;
 }
 
 float3 OutColor(float3 c)
@@ -119,8 +130,8 @@ static const float2 CIRCLE_OFFS[8] = {
     float2(1, 0), float2(1, 1), float2(0, 1), float2(-1, 1),
     float2(-1, 0), float2(-1, -1), float2(0, -1), float2(1, -1)
 };
-static const float2 LINE_OFFS[2] = { float2(1, 0), float2(-1, 0) };
-static const float2 LONG_LINE_OFFS[4] = { float2(1, 0), float2(1, 0), float2(-1, 0), float2(-1, 0) };
+static const float2 LINE_OFFS[2] = { float2(1, 1), float2(-1, -1) };
+static const float2 LONG_LINE_OFFS[4] = { float2(1, 1), float2(1, 1), float2(-1, -1), float2(-1, -1) };
 
 float2 GetDebugMotion(float2 uv)
 {
@@ -129,16 +140,12 @@ float2 GetDebugMotion(float2 uv)
 
     if(UI_MB_DebugUseRepeat)
     {
-        float2 curr_offs = 0;
-
         switch(UI_MB_DebugUseRepeat)
         {
-            case 1: { curr_offs = CIRCLE_OFFS[frame_count % 8]; break; }
-            case 2: { curr_offs = LONG_LINE_OFFS[frame_count % 4]; break; }
-            case 3: { curr_offs = LINE_OFFS[frame_count % 2]; break; }
+            case 1: { motion = motion.xx * CIRCLE_OFFS[frame_count % 8]; break; }
+            case 2: { motion *= LONG_LINE_OFFS[frame_count % 4]; break; }
+            case 3: { motion *= LINE_OFFS[frame_count % 2]; break; }
         }
-
-        motion = motion.xx * curr_offs;
     }
     else if(UI_MB_DebugPoint)
     {
@@ -205,7 +212,7 @@ float4 CalcInfo(float2 uv, sampler mot_samp)
     float2 motion = Sample(mot_samp, uv).xy; // already limited
     float mot_len = length(motion);
     float2 norm_mot = motion * rcp(max(1e-15, mot_len));
-    float depth = Sample(sPrevFeatTex, uv).a;
+    float depth = Sample(sPrevZTex, uv).x;
 
     return float4(mot_len, depth, norm_mot);
 }
@@ -432,16 +439,10 @@ void PS_NeighbourMax(PS_ARGS2)
     o = LimitMotionAndLen(max_motion.xy).xy;
 }
 
-void PS_PrevFeat(PS_ARGS4)
+void PS_PrevFeat(VSOUT i, out PSOUT2 o)
 {
-    float3 c = SampleLinColor(i.uv);
-
-#if IS_SRGB
-    // store in HDR for perf
-    c = Tonemap::InverseReinhardMax(c, T_MOD);
-#endif
-
-    o = float4(c, GetDepth(i.uv));
+    o.t0 = float4(SampleGammaColor(i.uv), 1);
+    o.t1 = GetDepth(i.uv);
 }
 
 void PS_PrevMV(VSOUT i, out PSOUT4 o)
@@ -470,21 +471,13 @@ void CS_NextMV(CS_ARGS)
     if(!UI_MB_DebugUseRepeat) prev_uv = uv;
 #endif
 
-    float4 prev_feat = Sample(sPrevFeatTex, prev_uv);
-    float3 prev_c = prev_feat.rgb;
-    float3 next_c = SampleLinColor(uv);
+    float3 prev_c = Sample(sPrevCTex, prev_uv).rgb;
+    float3 next_c = SampleGammaColor(uv);
 
-#if IS_SRGB
-    prev_c = Tonemap::ApplyReinhardMax(prev_c, T_MOD);
-#endif
-
-    float2 prev_cz = float2(dot(A_THIRD, prev_c), prev_feat.a);
+    float2 prev_cz = float2(dot(A_THIRD, prev_c), Sample(sPrevZTex, prev_uv).x);
     float2 next_cz = float2(dot(A_THIRD, next_c), GetDepth(uv));
     float2 diff = abs(prev_cz - next_cz);
-
-    // Even in perfect testing conditions, some colors which should match
-    // have > 4e-4 difference between them. This is probably due to noise/dithering.
-    bool is_correct_mv = min(diff.x, diff.y) < max(1e-8, UI_MB_Thresh);
+    bool is_correct_mv = diff.x < 1e-6 || diff.y < 1e-3; //tested
 
     if(ValidateUV(uv) && ValidateUV(prev_uv) && is_correct_mv)
     {
@@ -506,9 +499,9 @@ void PS_WriteNewFrame(PS_ARGS3)
     if(UI_MB_DebugUseRepeat)
     {
         float2 prev_uv = i.uv + GetDebugMotion(i.uv);
-        float4 prev = Sample(sPrevFeatTex, prev_uv);
+        float4 prev = Sample(sPrevCTex, prev_uv);
 
-        if(prev.a > 0.0) result = OutColor(prev.rgb);
+        if(prev.a > 0.0) result = prev.rgb;
     }
 
     o = result;
@@ -518,13 +511,13 @@ void PS_WriteNewFrame(PS_ARGS3)
 #if V_MB_USE_MIN_FILTER
 void PS_Info(VSOUT i, out PSOUT2 o)
 {
-    float3 uv_and_z = float3(i.uv, Sample(sPrevFeatTex, i.uv).a);
+    float3 uv_and_z = float3(i.uv, Sample(sPrevZTex, i.uv).x);
 
     // apply min filter to remove some artifacts
     [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
     {
         float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
-        float tap_z = Sample(sPrevFeatTex, tap_uv).a;
+        float tap_z = Sample(sPrevZTex, tap_uv).x;
 
         if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);
     }
@@ -561,7 +554,7 @@ void PS_Draw(PS_ARGS3) { o = Sample(sBlurTex, i.uv).rgb; }
     pass { ComputeShader = MotBlur::CS_NextMV<GS_X, GS_Y>; DispatchSizeX = CEIL_DIV(BUFFER_WIDTH, GS_X); DispatchSizeY = CEIL_DIV(BUFFER_HEIGHT, GS_Y); } \
     PASS_MB_INFO \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Blur; RenderTarget = MotBlur::BlurTex; } \
-    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevFeat; RenderTarget = MotBlur::PrevFeatTex; } \
+    pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevFeat; RenderTarget0 = MotBlur::PrevCTex; RenderTarget1 = MotBlur::PrevZTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_PrevMV; RenderTarget0 = MotBlur::PrevMVTex; RenderTarget1 = MotBlur::PrevMaxTex; RenderTarget2 = MotBlur::NextMVTex; RenderTarget3 = MotBlur::NextMaxTex; } \
     pass { VertexShader = PostProcessVS; PixelShader = MotBlur::PS_Draw; }
 

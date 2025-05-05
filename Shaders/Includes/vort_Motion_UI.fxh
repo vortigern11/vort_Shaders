@@ -69,13 +69,10 @@
     )
 
     #if USE_HQ_MB
-        UI_FLOAT(
-            CAT_MB, UI_MB_Thresh, "MV Threshold",
-            "Modifies which motion vectors to discard.\n"
-            "Before changing this slider try to set\n"
-            "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 10000 or other values.\n"
-            "Debug with circular movement or with V_ENABLE_MOT_BLUR = 7",
-            0, 1e-2, 4e-4
+        UI_TIP(CAT_MB, _vort_Blur_MV_Discard_,
+            "Tip:\n"
+            "If you notice that circular camera movement doesn't produce circles,\n"
+            "you can try changing RESHADE_DEPTH_LINEARIZATION_FAR_PLANE to 10000."
         )
     #endif
 

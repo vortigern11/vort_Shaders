@@ -79,7 +79,7 @@ static const int2 BOX_OFFS2[S_BOX_OFFS2] = {
 #define LOG(_x) (log(max(1e-15, (_x))))
 #define LOG2(_x) (log2(max(1e-15, (_x))))
 #define LOG10(_x) (log10(max(1e-15, (_x))))
-#define exp10(_x) (exp2(3.3219281 * (_x))) // approximate
+#define exp10(_x) (pow(10.0, (_x)))
 
 // call TO_STR(ANOTHER_MACRO)
 #define _TO_STR(x) #x
@@ -290,6 +290,14 @@ uniform float timer < source = "timer"; >;
 #define TEX_R32U Format = R32U;
 #define TEX_RG16 Format = RG16F;
 #define TEX_RG32 Format = RG32F;
+
+#if BUFFER_COLOR_BIT_DEPTH == 8
+    #define TEX_COLOR_FMT TEX_RGBA8
+#elif BUFFER_COLOR_BIT_DEPTH == 10
+    #define TEX_COLOR_FMT TEX_RGB10A2
+#else
+    #define TEX_COLOR_FMT TEX_RGBA16
+#endif
 
 #define SAM_POINT  MagFilter = POINT; MinFilter = POINT; MipFilter = POINT;
 #define SAM_MIRROR AddressU = MIRROR; AddressV = MIRROR;
@@ -653,10 +661,10 @@ float2 GetR2(float2 seed, uint mod) { return frac(seed + float(frame_count % max
 float3 GetR3(float3 seed, uint mod) { return frac(seed + float(frame_count % max(2, mod)) * float3(0.180827486604, 0.328956393296, 0.450299522098)); }
 
 // bicubic sampling using fewer taps
-float4 SampleBicubic(sampler2D lin_samp, float2 uv)
+float4 SampleBicubic(sampler2D samp, float2 uv)
 {
-    float2 tex_size = tex2Dsize(lin_samp);
-    float2 pix_size = rcp(tex_size);
+    float2 tex_size = tex2Dsize(samp);
+    float2 px_size = rcp(tex_size);
 
     float2 tap_pos = uv * tex_size;
     float2 center_pos = floor(tap_pos - 0.5) + 0.5;
@@ -670,15 +678,15 @@ float4 SampleBicubic(sampler2D lin_samp, float2 uv)
     float2 w2 = 1 - w0 - w1 - w3;
     float2 w12 = w1 + w2;
 
-    float2 tc0 = (center_pos - 1.0) * pix_size;
-    float2 tc3 = (center_pos + 2.0) * pix_size;
-    float2 tc12 = (center_pos + w2 / w12) * pix_size;
+    float2 tc0 = (center_pos - 1.0) * px_size;
+    float2 tc3 = (center_pos + 2.0) * px_size;
+    float2 tc12 = (center_pos + w2 / w12) * px_size;
 
-    float4 A = Sample(lin_samp, float2(tc12.x, tc0.y));
-    float4 B = Sample(lin_samp, float2(tc0.x, tc12.y));
-    float4 C = Sample(lin_samp, float2(tc12.x,  tc12.y));
-    float4 D = Sample(lin_samp, float2(tc3.x, tc12.y));
-    float4 E = Sample(lin_samp, float2(tc12.x, tc3.y));
+    float4 A = Sample(samp, float2(tc12.x, tc0.y));
+    float4 B = Sample(samp, float2(tc0.x, tc12.y));
+    float4 C = Sample(samp, float2(tc12.x,  tc12.y));
+    float4 D = Sample(samp, float2(tc3.x, tc12.y));
+    float4 E = Sample(samp, float2(tc12.x, tc3.y));
 
     float4 color = (0.5 * (A + B) * w0.x + A * w12.x + 0.5 * (A + B) * w3.x) * w0.y +
                    (B * w0.x + C * w12.x + D * w3.x) * w12.y +
