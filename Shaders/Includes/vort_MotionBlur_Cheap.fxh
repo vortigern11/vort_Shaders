@@ -137,11 +137,12 @@ float2 GetMotion(float2 uv)
 
 float3 LimitMotionAndLen(float2 motion)
 {
-    float blur_mod = 0.5 * UI_MB_Mult; // halve, because we sample in 2 dirs
-
     // limit the motion like in the paper
     float old_mot_len = length(motion);
-    float new_mot_len = min(old_mot_len * blur_mod, ML);
+    float max_len = round(ML * UI_MB_MaxBlurMult);
+
+    // halve, because we sample in 2 dirs
+    float new_mot_len = min(old_mot_len * 0.5, max_len);
 
     motion *= new_mot_len * rcp(max(1e-15, old_mot_len));
 
@@ -180,9 +181,6 @@ void PS_BlurAndDraw(PS_ARGS3)
     float cen_z = cen_info.y;
     float2 cen_motion = cen_info.zw * cen_mot_len;
 
-    // due to tile randomization center motion might be greater
-    if(max_mot_len < cen_mot_len) { max_mot_len = cen_mot_len; max_motion = cen_motion; }
-
 #if DEBUG_TILES
     if(1) { o = DebugMotion(max_motion * BUFFER_PIXEL_SIZE); return; }
 #endif
@@ -199,7 +197,7 @@ void PS_BlurAndDraw(PS_ARGS3)
     float2 max_norm_mot = max_motion * rcp(max(1e-15, max_mot_len));
     float2 cen_norm_mot = cen_motion * rcp(max(1e-15, cen_mot_len));
 
-    // xy = norm motion (direction), w = motion length, z = how parallel to center dir
+    // xy = norm motion (direction), z = motion length, w = how parallel to center dir
     float4 max_main = float4(max_norm_mot, max_mot_len, cen_mot_len < 1.0 ? 1.0 : abs(dot(cen_norm_mot, max_norm_mot)));
 
     // don't lose half the samples when there is no center px motion
@@ -323,9 +321,9 @@ void PS_NeighbourMax(PS_ARGS2)
 {
     float3 max_motion = 0;
 
-    [loop]for(uint j = 0; j < S_BOX_OFFS2; j++)
+    [loop]for(uint j = 0; j < 25; j++)
     {
-        float2 offs = BOX_OFFS2[j];
+        float2 offs = BOX_OFFS[j];
         float2 tap_pos = i.vpos.xy + offs;
         float2 motion = Fetch(sTileSndTex, tap_pos).xy;
         float sq_len = dot(motion, motion);
@@ -358,9 +356,9 @@ void PS_Info(PS_ARGS4)
 
 #if V_MB_USE_MIN_FILTER
     // apply min filter to remove some artifacts
-    [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
+    [loop]for(uint j = 1; j < 9; j++)
     {
-        float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+        float2 tap_uv = i.uv + BOX_OFFS[j] * BUFFER_PIXEL_SIZE;
         float tap_z = GetDepth(tap_uv);
 
         if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);

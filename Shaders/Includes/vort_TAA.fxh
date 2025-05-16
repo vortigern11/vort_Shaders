@@ -138,9 +138,9 @@ void PS_WriteMV(PS_ARGS2)
     float3 closest = float3(i.uv, GetDepth(i.uv));
 
     // apply min filter to remove some artifacts
-    [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
+    [loop]for(uint j = 1; j < 9; j++)
     {
-        float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+        float2 tap_uv = i.uv + BOX_OFFS[j] * BUFFER_PIXEL_SIZE;
         float tap_z = GetDepth(tap_uv);
 
         if(tap_z < closest.z) closest = float3(tap_uv, tap_z);

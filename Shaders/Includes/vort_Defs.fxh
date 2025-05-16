@@ -48,21 +48,15 @@
 static const float A_THIRD = 1.0 / 3.0;
 
 // ordering matters in some situations
-static const uint S_BOX_OFFS1 = 9;
-static const int2 BOX_OFFS1[S_BOX_OFFS1] = {
-    int2(0, 0),
-    int2(1, 0), int2( 0, 1), int2(-1, 0), int2(0, -1),
-    int2(1, 1), int2(-1,-1), int2(-1, 1), int2(1, -1)
-};
-static const uint S_BOX_OFFS2 = 25;
-static const int2 BOX_OFFS2[S_BOX_OFFS2] = {
-    int2(0, 0),
-    int2(1, 0), int2( 0,  1), int2(-1,  0), int2( 0, -1),
-    int2(1, 1), int2(-1, -1), int2(-1,  1), int2( 1, -1),
-    int2(2, 0), int2( 0,  2), int2(-2,  0), int2( 0, -2),
-    int2(2, 1), int2( 2, -1), int2(-2,  1), int2(-2, -1),
-    int2(1, 2), int2(-1,  2), int2( 1, -2), int2(-1, -2),
-    int2(2, 2), int2(-2, -2), int2(-2,  2), int2( 2, -2)
+// 9 samples for 3x3 and 25 for 5x5
+static const float2 BOX_OFFS[25] = {
+    float2(0, 0),
+    float2(1, 0), float2( 0,  1), float2(-1,  0), float2( 0, -1),
+    float2(1, 1), float2(-1, -1), float2(-1,  1), float2( 1, -1),
+    float2(2, 0), float2( 0,  2), float2(-2,  0), float2( 0, -2),
+    float2(2, 1), float2( 2, -1), float2(-2,  1), float2(-2, -1),
+    float2(1, 2), float2(-1,  2), float2( 1, -2), float2(-1, -2),
+    float2(2, 2), float2(-2, -2), float2(-2,  2), float2( 2, -2)
 };
 
 // Check out a bunch of possible substitutions on:
@@ -262,7 +256,7 @@ uniform float timer < source = "timer"; >;
 #define UI_HELP(_name, _descr) \
     uniform int _name < \
         ui_category = "! HELP GUIDE !"; \
-        ui_category_closed = false; \
+        ui_category_closed = true; \
         ui_label = " "; \
         ui_text = _descr; \
         ui_type = "radio"; \
@@ -300,6 +294,7 @@ uniform float timer < source = "timer"; >;
 #endif
 
 #define SAM_POINT  MagFilter = POINT; MinFilter = POINT; MipFilter = POINT;
+#define SAM_ANISOT  MagFilter = ANISOTROPIC; MinFilter = ANISOTROPIC; MipFilter = ANISOTROPIC;
 #define SAM_MIRROR AddressU = MIRROR; AddressV = MIRROR;
 #define SAM_WRAP   AddressU = WRAP;   AddressV = WRAP;
 #define SAM_REPEAT AddressU = REPEAT; AddressV = REPEAT;
@@ -617,6 +612,13 @@ float2 Min3(float2 a, float2 b, float2 c) { return min(a, min(b, c)); }
 float3 Min3(float3 a, float3 b, float3 c) { return min(a, min(b, c)); }
 float4 Min3(float4 a, float4 b, float4 c) { return min(a, min(b, c)); }
 
+float Dither(float2 vpos, float scale)
+{
+    float2 s = float2(floor(vpos) % 2) * 2.0 - 1.0;
+
+    return scale * s.x * s.y;
+}
+
 // interleaved gradiant noise from:
 // http://www.iryoku.com/downloads/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v18.pptx
 float GetIGN(float2 pos, uint mod)
@@ -693,13 +695,6 @@ float4 SampleBicubic(sampler2D samp, float2 uv)
                    (0.5 * (B + E) * w0.x + E * w12.x + 0.5 * (D + E) * w3.x) * w3.y;
 
     return color;
-}
-
-float Dither(float2 vpos, float scale)
-{
-    float2 s = float2(floor(vpos) % 2) * 2.0 - 1.0;
-
-    return scale * s.x * s.y;
 }
 
 float2 GetHDRRange()

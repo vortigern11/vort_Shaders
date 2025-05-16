@@ -181,11 +181,12 @@ float2 GetMotion(float2 uv)
 
 float3 LimitMotionAndLen(float2 motion)
 {
-    float blur_mod = 0.5 * UI_MB_Mult; // halve, because we sample in 2 dirs
-
     // limit the motion like in the paper
     float old_mot_len = length(motion);
-    float new_mot_len = min(old_mot_len * blur_mod, ML);
+    float max_len = round(ML * UI_MB_MaxBlurMult);
+
+    // halve, because we sample in 2 dirs
+    float new_mot_len = min(old_mot_len * 0.5, max_len);
 
     motion *= new_mot_len * rcp(max(1e-15, old_mot_len));
 
@@ -207,12 +208,17 @@ float2 GetTileOffs(float2 pos)
     return tiles_uv_offs;
 }
 
-float4 CalcInfo(float2 uv, sampler mot_samp)
+float4 CalcInfo(float3 uv_and_z, sampler mot_samp)
 {
-    float2 motion = Sample(mot_samp, uv).xy; // already limited
+    float2 motion = Sample(mot_samp, uv_and_z.xy).xy; // already limited
     float mot_len = length(motion);
     float2 norm_mot = motion * rcp(max(1e-15, mot_len));
-    float depth = Sample(sPrevZTex, uv).x;
+
+#if V_MB_USE_MIN_FILTER
+    float depth = uv_and_z.z;
+#else
+    float depth = Sample(sPrevZTex, uv_and_z.xy).x;
+#endif
 
     return float4(mot_len, depth, norm_mot);
 }
@@ -240,8 +246,8 @@ void PS_Blur(PS_ARGS4)
     float4 cen_info0 = Sample(sPrevInfoTex, i.uv);
     float4 cen_info1 = Sample(sNextInfoTex, i.uv);
 #else
-    float4 cen_info0 = CalcInfo(i.uv, sPrevMVTex);
-    float4 cen_info1 = CalcInfo(i.uv, sNextMVTex);
+    float4 cen_info0 = CalcInfo(float3(i.uv, 0), sPrevMVTex);
+    float4 cen_info1 = CalcInfo(float3(i.uv, 0), sNextMVTex);
 #endif
 
     float cen_mot_len0 = cen_info0.x;
@@ -249,10 +255,6 @@ void PS_Blur(PS_ARGS4)
     float cen_z = cen_info0.y; // doesn't matter prev or next
     float2 cen_motion0 = cen_info0.zw * cen_mot_len0;
     float2 cen_motion1 = cen_info1.zw * cen_mot_len1;
-
-    // due to tile randomization center motion might be greater
-    if(max_mot_len0 < cen_mot_len0) { max_mot_len0 = cen_mot_len0; max_motion0 = cen_motion0; }
-    if(max_mot_len1 < cen_mot_len1) { max_mot_len1 = cen_mot_len1; max_motion1 = cen_motion1; }
 
 #if DEBUG_TILES
     if(1) { o = float4(DebugMotion(-max_motion1 * BUFFER_PIXEL_SIZE), 1); return; }
@@ -277,7 +279,7 @@ void PS_Blur(PS_ARGS4)
     float2 max_norm_mot1 = max_motion1 * rcp(max(1e-15, max_mot_len1));
     float2 cen_norm_mot1 = cen_motion1 * rcp(max(1e-15, cen_mot_len1));
 
-    // xy = norm motion (direction), w = motion length, z = how parallel to center dir
+    // xy = norm motion (direction), z = motion length, w = how parallel to center dir
     float4 max_main0 = float4(max_norm_mot0, max_mot_len0, cen_mot_len0 < 1.0 ? 1.0 : abs(dot(cen_norm_mot0, max_norm_mot0)));
     float4 max_main1 = float4(max_norm_mot1, max_mot_len1, cen_mot_len1 < 1.0 ? 1.0 : abs(dot(cen_norm_mot1, max_norm_mot1)));
 
@@ -314,8 +316,8 @@ void PS_Blur(PS_ARGS4)
         float4 tap_info0 = Sample(sPrevInfoTex, tap_uv0);
         float4 tap_info1 = Sample(sNextInfoTex, tap_uv1);
     #else
-        float4 tap_info0 = CalcInfo(tap_uv0, sPrevMVTex);
-        float4 tap_info1 = CalcInfo(tap_uv1, sNextMVTex);
+        float4 tap_info0 = CalcInfo(float3(tap_uv0, 0), sPrevMVTex);
+        float4 tap_info1 = CalcInfo(float3(tap_uv1, 0), sNextMVTex);
     #endif
 
         float tap_mot_len0 = tap_info0.x;
@@ -412,9 +414,9 @@ void PS_NeighbourMax(PS_ARGS2)
 {
     float3 max_motion = 0;
 
-    [loop]for(uint j = 0; j < S_BOX_OFFS2; j++)
+    [loop]for(uint j = 0; j < 25; j++)
     {
-        float2 offs = BOX_OFFS2[j];
+        float2 offs = BOX_OFFS[j];
         float2 tap_pos = i.vpos.xy + offs;
         float2 motion = Fetch(sTileSndTex, tap_pos).xy;
         float sq_len = dot(motion, motion);
@@ -514,16 +516,16 @@ void PS_Info(VSOUT i, out PSOUT2 o)
     float3 uv_and_z = float3(i.uv, Sample(sPrevZTex, i.uv).x);
 
     // apply min filter to remove some artifacts
-    [loop]for(uint j = 1; j < S_BOX_OFFS1; j++)
+    [loop]for(uint j = 1; j < 9; j++)
     {
-        float2 tap_uv = i.uv + BOX_OFFS1[j] * BUFFER_PIXEL_SIZE;
+        float2 tap_uv = i.uv + BOX_OFFS[j] * BUFFER_PIXEL_SIZE;
         float tap_z = Sample(sPrevZTex, tap_uv).x;
 
         if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);
     }
 
-    o.t0 = CalcInfo(uv_and_z.xy, sPrevMVTex);
-    o.t1 = CalcInfo(uv_and_z.xy, sNextMVTex);
+    o.t0 = CalcInfo(uv_and_z, sPrevMVTex);
+    o.t1 = CalcInfo(uv_and_z, sNextMVTex);
 }
 #endif
 

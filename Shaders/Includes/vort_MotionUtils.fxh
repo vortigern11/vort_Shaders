@@ -27,6 +27,7 @@
 #pragma once
 #include "Includes/vort_Defs.fxh"
 #include "Includes/vort_Depth.fxh"
+#include "Includes/vort_ColorTex.fxh"
 #include "Includes/vort_Motion_UI.fxh"
 
 /*******************************************************************************
@@ -171,7 +172,14 @@ float3 DebugMotion(float2 motion)
     Shaders
 *******************************************************************************/
 
-void PS_DebugMV(PS_ARGS3) { o = DebugMotion(SampleMotion(i.uv)); }
+void PS_DebugMV(PS_ARGS3)
+{
+#if V_MV_DEBUG == 1
+    o = DebugMotion(SampleMotion(i.uv));
+#else
+    o = lerp(SampleGammaColor(i.uv), DebugMotion(SampleMotion(i.uv)), 0.8);
+#endif
+}
 
 /*******************************************************************************
     Passes

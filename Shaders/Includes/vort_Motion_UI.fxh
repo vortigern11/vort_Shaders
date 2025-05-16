@@ -62,7 +62,7 @@
     UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 100, 9)
     UI_TIP(CAT_MB, _vort_Blur_Help_, "Warning:\nRead the tooltips if you want to change the below settings.")
     UI_FLOAT(
-        CAT_MB, UI_MB_Mult, "Blur Multiplier",
+        CAT_MB, UI_MB_MaxBlurMult, "Max Blur Length",
         "Set to 1.0 (default) to cover frame gaps exactly.\n"
         "Otherwise, the blur will be shorter than the correct length.",
         0, 1, 1
@@ -121,6 +121,7 @@ _vort_MotionEffects_Help_,
 "V_MV_DEBUG\n"
 "0 - disabled\n"
 "1 - enable the debug view of the motion vectors\n"
+"2 - blend the debug view with original color\n"
 "\n"
 "V_MV_MODE\n"
 "0 - don't calculate motion vectors\n"
