@@ -183,10 +183,9 @@ float3 LimitMotionAndLen(float2 motion)
 {
     // limit the motion like in the paper
     float old_mot_len = length(motion);
-    float max_len = round(ML * UI_MB_MaxBlurMult);
 
     // halve, because we sample in 2 dirs
-    float new_mot_len = min(old_mot_len * 0.5, max_len);
+    float new_mot_len = min(old_mot_len * 0.5 * UI_MB_BlurMult, ML);
 
     motion *= new_mot_len * rcp(max(1e-15, old_mot_len));
 
@@ -208,17 +207,12 @@ float2 GetTileOffs(float2 pos)
     return tiles_uv_offs;
 }
 
-float4 CalcInfo(float3 uv_and_z, sampler mot_samp)
+float4 CalcInfo(float2 uv, sampler mot_samp)
 {
-    float2 motion = Sample(mot_samp, uv_and_z.xy).xy; // already limited
+    float2 motion = Sample(mot_samp, uv).xy; // already limited
     float mot_len = length(motion);
     float2 norm_mot = motion * rcp(max(1e-15, mot_len));
-
-#if V_MB_USE_MIN_FILTER
-    float depth = uv_and_z.z;
-#else
-    float depth = Sample(sPrevZTex, uv_and_z.xy).x;
-#endif
+    float depth = Sample(sPrevZTex, uv).x;
 
     return float4(mot_len, depth, norm_mot);
 }
@@ -246,8 +240,8 @@ void PS_Blur(PS_ARGS4)
     float4 cen_info0 = Sample(sPrevInfoTex, i.uv);
     float4 cen_info1 = Sample(sNextInfoTex, i.uv);
 #else
-    float4 cen_info0 = CalcInfo(float3(i.uv, 0), sPrevMVTex);
-    float4 cen_info1 = CalcInfo(float3(i.uv, 0), sNextMVTex);
+    float4 cen_info0 = CalcInfo(i.uv, sPrevMVTex);
+    float4 cen_info1 = CalcInfo(i.uv, sNextMVTex);
 #endif
 
     float cen_mot_len0 = cen_info0.x;
@@ -264,7 +258,7 @@ void PS_Blur(PS_ARGS4)
     if(1) { o = float4(DebugMotion(-cen_motion1 * BUFFER_PIXEL_SIZE), 1); return; }
 #endif
 
-    // early out when less than 2px movement
+    // early out
     if(max_mot_len0 < 1.0 && max_mot_len1 < 1.0) { o = float4(OutColor(cen_color), 1.0); return; }
 
     // don't change without solid reason
@@ -316,8 +310,8 @@ void PS_Blur(PS_ARGS4)
         float4 tap_info0 = Sample(sPrevInfoTex, tap_uv0);
         float4 tap_info1 = Sample(sNextInfoTex, tap_uv1);
     #else
-        float4 tap_info0 = CalcInfo(float3(tap_uv0, 0), sPrevMVTex);
-        float4 tap_info1 = CalcInfo(float3(tap_uv1, 0), sNextMVTex);
+        float4 tap_info0 = CalcInfo(tap_uv0, sPrevMVTex);
+        float4 tap_info1 = CalcInfo(tap_uv1, sNextMVTex);
     #endif
 
         float tap_mot_len0 = tap_info0.x;
@@ -524,8 +518,8 @@ void PS_Info(VSOUT i, out PSOUT2 o)
         if(tap_z < uv_and_z.z) uv_and_z = float3(tap_uv, tap_z);
     }
 
-    o.t0 = CalcInfo(uv_and_z, sPrevMVTex);
-    o.t1 = CalcInfo(uv_and_z, sNextMVTex);
+    o.t0 = CalcInfo(uv_and_z.xy, sPrevMVTex);
+    o.t1 = CalcInfo(uv_and_z.xy, sNextMVTex);
 }
 #endif
 

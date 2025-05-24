@@ -62,9 +62,10 @@
     UI_INT(CAT_MB, UI_MB_MaxSamples, "Max Samples", "Tradeoff between performance and quality.", 3, 100, 9)
     UI_TIP(CAT_MB, _vort_Blur_Help_, "Warning:\nRead the tooltips if you want to change the below settings.")
     UI_FLOAT(
-        CAT_MB, UI_MB_MaxBlurMult, "Max Blur Length",
-        "Set to 1.0 (default) to cover frame gaps exactly.\n"
-        "Otherwise, the blur will be shorter than the correct length.",
+        CAT_MB, UI_MB_BlurMult, "Blur Multiplier",
+        "By default the blur covers frame gaps exactly.\n"
+        "Lower this setting to reduce blur amount\n"
+        "(simulate faster shutter speed of a camera).",
         0, 1, 1
     )
 

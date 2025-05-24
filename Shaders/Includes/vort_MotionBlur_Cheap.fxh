@@ -139,10 +139,9 @@ float3 LimitMotionAndLen(float2 motion)
 {
     // limit the motion like in the paper
     float old_mot_len = length(motion);
-    float max_len = round(ML * UI_MB_MaxBlurMult);
 
     // halve, because we sample in 2 dirs
-    float new_mot_len = min(old_mot_len * 0.5, max_len);
+    float new_mot_len = min(old_mot_len * 0.5 * UI_MB_BlurMult, ML);
 
     motion *= new_mot_len * rcp(max(1e-15, old_mot_len));
 
@@ -185,7 +184,7 @@ void PS_BlurAndDraw(PS_ARGS3)
     if(1) { o = DebugMotion(max_motion * BUFFER_PIXEL_SIZE); return; }
 #endif
 
-    // early out when less than 2px movement
+    // early out
     if(max_mot_len < 1.0) { o = OutColor(cen_color); return; }
 
     // don't change without solid reason
