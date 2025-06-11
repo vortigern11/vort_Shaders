@@ -513,18 +513,18 @@ float3 HSVToRGB(float3 c)
 float3 RGBToXYZ(float3 col)
 {
     return float3(
-        dot(float3(0.4124, 0.3576, 0.1805), col),
-        dot(float3(0.4124, 0.3576, 0.1805), col),
-        dot(float3(0.0193, 0.1192, 0.9505), col)
+        dot(float3(0.4124564, 0.3575761, 0.1804375), col),
+        dot(float3(0.2126729, 0.7151522, 0.0721750), col),
+        dot(float3(0.0193339, 0.1191920, 0.9503041), col)
     );
 }
 
 float3 XYZToRGB(float3 col)
 {
     return float3(
-        dot(float3(3.2406, -1.5372, -0.4986), col),
-        dot(float3(-0.9689, 1.8758, 0.0415), col),
-        dot(float3(0.0557, -0.2040, 1.0570), col)
+        dot(float3(3.2409699419, -1.5373831776, -0.4986107603), col),
+        dot(float3(-0.9692436363, 1.8759675015, 0.0415550574), col),
+        dot(float3(0.0556300797, -0.2039769589, 1.0569715142), col)
     );
 }
 
