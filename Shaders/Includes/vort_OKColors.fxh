@@ -215,7 +215,7 @@ namespace OKColors
             float2 LC = float2(L0 * (1.0 - t) + t * L1, t * C1);
             float3 lms_pre = LC.x + LC.y * k_lms;
             float3 lms = lms_pre * lms_pre * lms_pre;
-            float3 lmsdt = 3 * lms_dt * lms_pre;
+            float3 lmsdt = 3 * lms_dt * lms_pre * lms_pre;
             float3 lmsdt2 = 6 * lms_dt * lms_dt * lms_pre;
 
             float3 rgb = mul(rgb_mat, lms) - 1.0;
